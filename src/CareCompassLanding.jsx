@@ -178,11 +178,14 @@ function WaitlistForm() {
         <p style={styles.errorMsg}>Something went wrong. Please try again or email us at hello@joincarecompass.com</p>
       )}
       <button type="submit" disabled={status === "loading"} style={styles.ctaButton}>
-        {status === "loading" ? "Submitting…" : "Notify Me at Launch →"}
-      </button>
-      <p style={styles.privacyNote}>
-        🔒 Your information is private and will never be shared or sold.
-      </p>
+  {status === "loading" ? "Submitting…" : "Notify Me at Launch →"}
+  </button>
+  <p style={styles.privacyNote}>
+    🔒 Your information is private and will never be shared or sold.
+  </p>
+  <p style={styles.earlyStageNote}>
+    Care Compass is in early development. By joining the waitlist, you're helping shape what it becomes.
+  </p>
     </form>
   );
 }
@@ -310,9 +313,6 @@ export default function CareCompassLanding() {
             <p style={styles.waitlistSub}>
     	      We're building Care Compass in close conversation with the chronic illness community.
   	      Join the waitlist and you'll be among the first to access it — and to shape it.
-	    </p>
-	    <p style={styles.earlyStageNote}>
- 	      Care Compass is in early development. By joining the waitlist, you're helping shape what it becomes.
 	    </p>
           </FadeIn>
           <FadeIn delay={0.15}>
