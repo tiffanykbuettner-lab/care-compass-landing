@@ -488,7 +488,7 @@ Please provide a Care Compass Insight Report with these sections:
                 <div style={s.consentBox}>
                   <p style={s.consentText}>
                     🔒 <strong>Privacy notice:</strong> Your symptom information is processed securely via the Anthropic API to generate your insights. It is never stored permanently, never sold or shared, and is automatically deleted within 7 days. It will never be used to train AI models.{" "}
-                    <a href="/privacy" style={s.consentLink}>Read our Privacy Policy →</a>
+                    <a href="/privacy" target="_blank" rel="noreferrer" style={s.consentLink}>Read our Privacy Policy →</a>
                   </p>
                 </div>
                 {error && <p style={s.errorMsg}>{error}</p>}
