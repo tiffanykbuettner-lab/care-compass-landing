@@ -53,13 +53,17 @@ export default function PrivacyPolicy() {
           </Section>
 
           <Section title="4. Where your data is stored">
-            Waitlist information is stored securely in Google Sheets, accessible only to the
-            Care Compass team. Google's infrastructure is protected by industry-standard security
-            practices. You can read more about Google's data security at{" "}
-            <a href="https://safety.google" style={styles.link} target="_blank" rel="noreferrer">
-              safety.google
-            </a>.
-          </Section>
+  	   Waitlist information is stored securely in Google Sheets, accessible only to the
+  	   Care Compass team. When you use the Care Compass symptom assessment tool, your
+  	   health information is processed securely via the Anthropic API to generate your
+  	   personalized insights. This data is never stored permanently by Care Compass or
+  	   Anthropic, is never used to train AI models, and is automatically deleted within
+  	   7 days per Anthropic's API data policy. We never sell or share your health
+  	   information with third parties. You can read more about Anthropic's data practices at{" "}
+  	   <a href="https://privacy.anthropic.com" style={styles.link} target="_blank" rel="noreferrer">
+    	   privacy.anthropic.com
+  	  </a>.
+	</Section>
 
           <Section title="5. How long we keep your data">
             We retain your information for as long as you remain on our waitlist or as a Care
