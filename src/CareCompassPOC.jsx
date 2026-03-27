@@ -465,6 +465,12 @@ Please provide a Care Compass Insight Report with these sections:
                     Always discuss findings with a qualified healthcare provider.
                   </p>
                 </div>
+                <div style={s.consentBox}>
+                  <p style={s.consentText}>
+                    🔒 <strong>Privacy notice:</strong> Your symptom information is processed securely via the Anthropic API to generate your insights. It is never stored permanently, never sold or shared, and is automatically deleted within 7 days. It will never be used to train AI models.{" "}
+                    <a href="/privacy" style={s.consentLink}>Read our Privacy Policy →</a>
+                  </p>
+                </div>
                 {error && <p style={s.errorMsg}>{error}</p>}
               </div>
             )}
@@ -556,6 +562,9 @@ const s = {
 
   disclaimerBox: { background: CREAM, borderRadius: "0.75rem", padding: "1rem 1.25rem", border: `1px solid rgba(0,0,0,0.06)` },
   disclaimerText: { fontSize: "0.82rem", color: WARM_GRAY, lineHeight: 1.7, margin: 0, textAlign: "center" },
+  consentBox: { background: "#e8f0eb", borderRadius: "0.75rem", padding: "1rem 1.25rem", border: `1px solid rgba(74,112,88,0.2)` },
+  consentText: { fontSize: "0.82rem", color: SAGE_DARK, lineHeight: 1.7, margin: 0 },
+  consentLink: { color: SAGE_DARK, fontWeight: 600, textDecoration: "underline" },
 
   navBtns: { display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "2rem", paddingTop: "1.5rem", borderTop: `1px solid rgba(0,0,0,0.07)` },
   backBtn: { background: "transparent", border: `1.5px solid rgba(0,0,0,0.15)`, color: WARM_GRAY, padding: "0.75rem 1.5rem", borderRadius: "100px", fontSize: "0.9rem", cursor: "pointer", fontFamily: "inherit" },
