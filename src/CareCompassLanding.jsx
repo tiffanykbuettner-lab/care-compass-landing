@@ -125,16 +125,6 @@ function WaitlistForm() {
       setStatus("error");
     }
   };
-```
-
-If it says `method: "POST"` instead of `method: "GET"`, that's the problem — just swap it to GET and remove the `headers` and `body` lines.
-
-Save and push:
-```
-git add .
-git commit -m "fix form submission method"
-git push
-
   if (status === "success") {
     return (
       <div style={styles.successBox}>
