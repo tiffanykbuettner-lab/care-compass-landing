@@ -55,23 +55,35 @@ const BotanicalMark = ({ size = 32 }) => (
 );
 
 /* ─── Progress bar ───────────────────────────────────────────────────────── */
-function ProgressBar({ current }) {
+function ProgressBar({ current, maxVisited, onStepClick }) {
   return (
     <div style={s.progressWrap}>
-      {STEPS.map((step, i) => (
-        <div key={step.id} style={s.progressItem}>
-          <div style={{
-            ...s.progressDot,
-            background: i <= current ? SAGE_DARK : "#d4d0cb",
-            transform: i === current ? "scale(1.25)" : "scale(1)",
-          }}/>
-          <span style={{
-            ...s.progressLabel,
-            color: i === current ? SAGE_DARK : i < current ? SAGE : "#aaa",
-            fontWeight: i === current ? 600 : 400,
-          }}>{step.label}</span>
-        </div>
-      ))}
+      {STEPS.map((step, i) => {
+        const isClickable = i < current || i <= maxVisited;
+        return (
+          <div
+            key={step.id}
+            style={{ ...s.progressItem, cursor: isClickable ? "pointer" : "default" }}
+            onClick={() => isClickable && onStepClick(i)}
+            title={isClickable ? `Go to ${step.label}` : ""}
+          >
+            <div style={{
+              ...s.progressDot,
+              background: i <= current ? SAGE_DARK : i <= maxVisited ? SAGE : "#d4d0cb",
+              transform: i === current ? "scale(1.25)" : "scale(1)",
+              boxShadow: isClickable && i !== current ? `0 0 0 2px ${SAGE_LIGHT}` : "none",
+              transition: "all 0.2s ease",
+            }}/>
+            <span style={{
+              ...s.progressLabel,
+              color: i === current ? SAGE_DARK : i <= maxVisited ? SAGE : "#aaa",
+              fontWeight: i === current ? 600 : 400,
+              textDecoration: isClickable && i !== current ? "underline" : "none",
+              textDecorationColor: SAGE,
+            }}>{step.label}</span>
+          </div>
+        );
+      })}
       <div style={s.progressLine}>
         <div style={{ ...s.progressFill, width: `${(current / (STEPS.length - 1)) * 100}%` }}/>
       </div>
@@ -110,7 +122,7 @@ const PRINT_STYLES = `
 `;
 
 /* ─── Guidance output ────────────────────────────────────────────────────── */
-function GuidanceOutput({ guidance, onReset, userName }) {
+function GuidanceOutput({ guidance, onReset, onEdit, userName }) {
   if (!guidance) return null;
 
   const handleExport = () => {
@@ -183,6 +195,7 @@ function GuidanceOutput({ guidance, onReset, userName }) {
         </p>
         <div style={s.guidanceFooterActions} className="no-print">
           <button onClick={handleExport} style={s.exportBtn}>↓ Save as PDF</button>
+          <button onClick={onEdit} style={s.editBtn}>Edit & Re-run →</button>
           <button onClick={onReset} style={s.resetBtn}>Start New Assessment</button>
         </div>
       </div>
@@ -199,10 +212,16 @@ function GuidanceOutput({ guidance, onReset, userName }) {
 
 /* ─── Main POC component ─────────────────────────────────────────────────── */
 export default function CareCompassPOC() {
-  const [step, setStep]         = useState(0);
-  const [loading, setLoading]   = useState(false);
-  const [guidance, setGuidance] = useState(null);
-  const [error, setError]       = useState(null);
+  const [step, setStep]           = useState(0);
+  const [maxVisited, setMaxVisited] = useState(0);
+  const [loading, setLoading]     = useState(false);
+  const [guidance, setGuidance]   = useState(null);
+  const [error, setError]         = useState(null);
+
+  const goToStep = (i) => {
+    setStep(i);
+    setMaxVisited(prev => Math.max(prev, i));
+  };
 
   const [symptoms, setSymptoms] = useState(
     Object.fromEntries(BODY_SYSTEMS.map(b => [b.system, ""]))
@@ -296,6 +315,7 @@ Please provide a Care Compass Insight Report with these sections:
 
   const handleReset = () => {
     setStep(0);
+    setMaxVisited(0);
     setGuidance(null);
     setError(null);
     setSymptoms(Object.fromEntries(BODY_SYSTEMS.map(b => [b.system, ""])));
@@ -320,7 +340,7 @@ Please provide a Care Compass Insight Report with these sections:
         {/* Guidance output */}
         {step === 4 ? (
           <div style={s.container}>
-            <GuidanceOutput guidance={guidance} onReset={handleReset} userName={name}/>
+            <GuidanceOutput guidance={guidance} onReset={handleReset} onEdit={() => goToStep(3)} userName={name}/>
           </div>
         ) : (
           <div style={s.container}>
@@ -336,7 +356,7 @@ Please provide a Care Compass Insight Report with these sections:
             </div>
 
             {/* Progress */}
-            <ProgressBar current={step}/>
+            <ProgressBar current={step} maxVisited={maxVisited} onStepClick={goToStep}/>
 
             {/* Step 0 — Symptoms */}
             {step === 0 && (
@@ -478,16 +498,18 @@ Please provide a Care Compass Insight Report with these sections:
             {/* Navigation buttons */}
             <div style={s.navBtns}>
               {step > 0 && (
-                <button onClick={() => setStep(s => s - 1)} style={s.backBtn}>← Back</button>
+                <button onClick={() => goToStep(step - 1)} style={s.backBtn}>← Back</button>
               )}
               {step < 3 ? (
-                <button onClick={() => setStep(s => s + 1)} style={s.nextBtn}>
+                <button onClick={() => goToStep(step + 1)} style={s.nextBtn}>
                   Continue →
                 </button>
               ) : (
                 <button onClick={handleAnalyze} disabled={loading} style={s.analyzeBtn}>
                   {loading ? (
                     <span>Analyzing your symptoms… <span style={s.spinner}>🌿</span></span>
+                  ) : guidance ? (
+                    "Re-run Analysis →"
                   ) : (
                     "Find My Patterns →"
                   )}
@@ -586,6 +608,7 @@ const s = {
   guidanceSub: { fontSize: "0.95rem", color: WARM_GRAY, margin: 0, lineHeight: 1.6 },
   guidanceFooterActions: { display: "flex", gap: "0.75rem", justifyContent: "center", flexWrap: "wrap" },
   exportBtn: { background: TEAL, color: "#fff", border: "none", padding: "0.75rem 1.75rem", borderRadius: "100px", fontSize: "0.9rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" },
+  editBtn: { background: "transparent", border: `1.5px solid ${SAGE_DARK}`, color: SAGE_DARK, padding: "0.75rem 1.75rem", borderRadius: "100px", fontSize: "0.9rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" },
   printFooter: { borderTop: `1px solid ${SAGE_LIGHT}`, paddingTop: "1rem", textAlign: "center" },
   printFooterText: { fontSize: "0.8rem", color: WARM_GRAY, margin: "0 0 0.25rem" },
   printFooterDisclaimer: { fontSize: "0.75rem", color: "#aaa", margin: 0 },
