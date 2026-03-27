@@ -689,7 +689,7 @@ const styles = {
     letterSpacing: "0.01em",
     textDecoration: "none",
     transition: "background 0.2s, transform 0.15s",
-    alignSelf: "flex-start",
+    alignSelf: "center",
     fontFamily: "inherit",
   },
   successBox: {
@@ -793,5 +793,16 @@ const styles = {
   footerCopy: {
     fontSize: "0.8rem",
     color: "#aaa",
+  },
+  errorMsg: {
+    color: "#c0392b",
+    fontSize: "0.875rem",
+    margin: 0,
+  },
+  privacyNote: {
+    fontSize: "0.78rem",
+    color: "#aaa",
+    margin: "0.25rem 0 0",
+    textAlign: "center",
   },
 };
