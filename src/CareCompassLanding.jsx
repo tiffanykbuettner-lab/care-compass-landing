@@ -110,11 +110,14 @@ function WaitlistForm() {
     if (!form.name.trim() || !form.email.trim()) return;
     setStatus("loading");
     try {
-      await fetch(APPS_SCRIPT_URL, {
-        method: "POST",
+      const params = new URLSearchParams({
+        name: form.name,
+        email: form.email,
+        condition: form.condition,
+      });
+      await fetch(`${APPS_SCRIPT_URL}?${params.toString()}`, {
+        method: "GET",
         mode: "no-cors",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, timestamp: new Date().toISOString() }),
       });
       setStatus("success");
       setForm({ name: "", email: "", condition: "" });
@@ -122,6 +125,15 @@ function WaitlistForm() {
       setStatus("error");
     }
   };
+```
+
+If it says `method: "POST"` instead of `method: "GET"`, that's the problem — just swap it to GET and remove the `headers` and `body` lines.
+
+Save and push:
+```
+git add .
+git commit -m "fix form submission method"
+git push
 
   if (status === "success") {
     return (
