@@ -676,7 +676,7 @@ const styles = {
     letterSpacing: "0.01em",
     textDecoration: "none",
     transition: "background 0.2s, transform 0.15s",
-    alignSelf: "flex-start",
+    alignSelf: "center",
     fontFamily: "inherit",
   },
   successBox: {
