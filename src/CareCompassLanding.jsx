@@ -41,15 +41,33 @@ function FadeIn({ children, delay = 0, className = "" }) {
 
 /* ─── Icons ──────────────────────────────────────────────────────────────── */
 const IconCompass = () => (
-  <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="14" cy="14" r="12" stroke="currentColor" strokeWidth="1.8"/>
-    <circle cx="14" cy="14" r="2.5" fill="currentColor"/>
-    <polygon points="14,4 16.2,13 14,11.5 11.8,13" fill="currentColor" opacity="0.9"/>
-    <polygon points="14,24 11.8,15 14,16.5 16.2,15" fill="currentColor" opacity="0.35"/>
-    <line x1="14" y1="1" x2="14" y2="4.5" stroke="currentColor" strokeWidth="1.4"/>
-    <line x1="14" y1="23.5" x2="14" y2="27" stroke="currentColor" strokeWidth="1.4"/>
-    <line x1="1" y1="14" x2="4.5" y2="14" stroke="currentColor" strokeWidth="1.4"/>
-    <line x1="23.5" y1="14" x2="27" y2="14" stroke="currentColor" strokeWidth="1.4"/>
+  <svg width="36" height="36" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+    {/* Outer ring */}
+    <circle cx="36" cy="36" r="34" fill="#e8f0eb" stroke="#7a9e87" strokeWidth="1"/>
+    {/* North leaf — tallest, darkest */}
+    <ellipse cx="36" cy="17" rx="7" ry="17" fill="#4a7058"/>
+    {/* South leaf */}
+    <ellipse cx="36" cy="55" rx="5.5" ry="13" fill="#7a9e87" opacity="0.55"/>
+    {/* East leaf */}
+    <ellipse cx="55" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.8"/>
+    {/* West leaf */}
+    <ellipse cx="17" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.45"/>
+    {/* NE diagonal */}
+    <ellipse cx="36" cy="36" rx="4.5" ry="11" fill="#4a7058" opacity="0.4" transform="rotate(42 36 36) translate(0 -14)"/>
+    {/* NW diagonal */}
+    <ellipse cx="36" cy="36" rx="4.5" ry="11" fill="#4a7058" opacity="0.4" transform="rotate(-42 36 36) translate(0 -14)"/>
+    {/* SE diagonal */}
+    <ellipse cx="36" cy="36" rx="3.5" ry="9" fill="#7a9e87" opacity="0.3" transform="rotate(135 36 36) translate(0 -14)"/>
+    {/* SW diagonal */}
+    <ellipse cx="36" cy="36" rx="3.5" ry="9" fill="#7a9e87" opacity="0.3" transform="rotate(-135 36 36) translate(0 -14)"/>
+    {/* Center dot */}
+    <circle cx="36" cy="36" r="7" fill="#4a7058"/>
+    <circle cx="36" cy="36" r="3" fill="#e8f0eb"/>
+    {/* Stem lines */}
+    <line x1="36" y1="29" x2="36" y2="17" stroke="#e8f0eb" strokeWidth="0.8" opacity="0.6"/>
+    <line x1="36" y1="43" x2="36" y2="53" stroke="#e8f0eb" strokeWidth="0.8" opacity="0.4"/>
+    <line x1="43" y1="36" x2="55" y2="36" stroke="#e8f0eb" strokeWidth="0.8" opacity="0.5"/>
+    <line x1="29" y1="36" x2="17" y2="36" stroke="#e8f0eb" strokeWidth="0.8" opacity="0.35"/>
   </svg>
 );
 
@@ -92,14 +110,11 @@ function WaitlistForm() {
     if (!form.name.trim() || !form.email.trim()) return;
     setStatus("loading");
     try {
-      const params = new URLSearchParams({
-        name: form.name,
-        email: form.email,
-        condition: form.condition,
-      });
-      await fetch(`${APPS_SCRIPT_URL}?${params.toString()}`, {
-        method: "GET",
+      await fetch(APPS_SCRIPT_URL, {
+        method: "POST",
         mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...form, timestamp: new Date().toISOString() }),
       });
       setStatus("success");
       setForm({ name: "", email: "", condition: "" });
@@ -162,11 +177,9 @@ function WaitlistForm() {
       )}
       <button type="submit" disabled={status === "loading"} style={styles.ctaButton}>
         {status === "loading" ? "Submitting…" : "Notify Me at Launch →"}
-      </button> 
-      <p style={styles.privacyNote}>
-        🔒 Your information is private and will never be shared or sold.
-      </p>
-    </form>  );
+      </button>
+    </form>
+  );
 }
 
 /* ─── Main Landing Page ───────────────────────────────────────────────────── */
@@ -676,7 +689,7 @@ const styles = {
     letterSpacing: "0.01em",
     textDecoration: "none",
     transition: "background 0.2s, transform 0.15s",
-    alignSelf: "center",
+    alignSelf: "flex-start",
     fontFamily: "inherit",
   },
   successBox: {
@@ -780,16 +793,5 @@ const styles = {
   footerCopy: {
     fontSize: "0.8rem",
     color: "#aaa",
-  },
-  errorMsg: {
-    color: "#c0392b",
-    fontSize: "0.875rem",
-    margin: 0,
-  },
-  privacyNote: {
-    fontSize: "0.78rem",
-    color: "#aaa",
-    margin: "0.25rem 0 0",
-    textAlign: "center",
   },
 };
