@@ -205,12 +205,15 @@ const styles = {
     lineHeight: 1.8,
     color: "#6b6560",
     margin: 0,
+    textAlign: "left",
   },
   list: {
     marginTop: "0.75rem",
     marginBottom: "0.75rem",
-    paddingLeft: "1.5rem",
+    paddingLeft: "1.25rem",
     lineHeight: 2,
+    listStylePosition: "inside",
+    textAlign: "left",
   },
   link: {
     color: "#4a7058",
