@@ -4,7 +4,21 @@ import { useState, useEffect, useRef } from "react";
    Replace APPS_SCRIPT_URL with your deployed Google Apps Script Web App URL.
    Instructions in README below.
 ──────────────────────────────────────────────────────────────────────────── */
-const APPS_SCRIPT_URL = "YOUR_APPS_SCRIPT_URL_HERE";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwi4Y-6is2iSAMA8FCy7BxKtSSto1tZIiAGzG4d-oOGYME9tf9BM2uHdhmIy8S4-SNfeQ/exec";
+```
+
+Save the file, then go to your terminal and run:
+```
+cd C:\Users\tiffs\care-compass-landing
+```
+```
+git add .
+```
+```
+git commit -m "connect waitlist form to Google Sheets"
+```
+```
+git push
 
 /* ─── Animations hook ────────────────────────────────────────────────────── */
 function useInView(threshold = 0.15) {
@@ -92,11 +106,14 @@ function WaitlistForm() {
     if (!form.name.trim() || !form.email.trim()) return;
     setStatus("loading");
     try {
-      await fetch(APPS_SCRIPT_URL, {
-        method: "POST",
+      const params = new URLSearchParams({
+        name: form.name,
+        email: form.email,
+        condition: form.condition,
+      });
+      await fetch(`${APPS_SCRIPT_URL}?${params.toString()}`, {
+        method: "GET",
         mode: "no-cors",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, timestamp: new Date().toISOString() }),
       });
       setStatus("success");
       setForm({ name: "", email: "", condition: "" });
