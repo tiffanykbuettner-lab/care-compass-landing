@@ -308,9 +308,12 @@ export default function CareCompassLanding() {
             <p style={styles.sectionEyebrow}>Early access</p>
             <h2 style={styles.sectionTitle}>Be the first to know when we launch</h2>
             <p style={styles.waitlistSub}>
-              We're building Care Compass in close conversation with the chronic illness community.
-              Join the waitlist and you'll be among the first to access it — and to shape it.
-            </p>
+    	      We're building Care Compass in close conversation with the chronic illness community.
+  	      Join the waitlist and you'll be among the first to access it — and to shape it.
+	    </p>
+	    <p style={styles.earlyStageNote}>
+ 	      Care Compass is in early development. By joining the waitlist, you're helping shape what it becomes.
+	    </p>
           </FadeIn>
           <FadeIn delay={0.15}>
             <WaitlistForm />
@@ -809,5 +812,13 @@ const styles = {
     color: "#aaa",
     margin: "0.25rem 0 0",
     textAlign: "center",
+  },
+  earlyStageNote: {
+    fontSize: "0.9rem",
+    color: SAGE_DARK,
+    lineHeight: 1.7,
+    marginBottom: "2rem",
+    marginTop: "-0.75rem",
+    fontStyle: "italic",
   },
 };
