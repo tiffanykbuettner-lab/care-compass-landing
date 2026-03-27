@@ -178,6 +178,9 @@ function WaitlistForm() {
       <button type="submit" disabled={status === "loading"} style={styles.ctaButton}>
         {status === "loading" ? "Submitting…" : "Notify Me at Launch →"}
       </button>
+      <p style={styles.privacyNote}>
+        🔒 Your information is private and will never be shared or sold.
+      </p>
     </form>
   );
 }
