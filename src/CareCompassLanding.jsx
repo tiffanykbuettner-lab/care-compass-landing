@@ -162,9 +162,11 @@ function WaitlistForm() {
       )}
       <button type="submit" disabled={status === "loading"} style={styles.ctaButton}>
         {status === "loading" ? "Submitting…" : "Notify Me at Launch →"}
-      </button>
-    </form>
-  );
+      </button> 
+      <p style={styles.privacyNote}>
+        🔒 Your information is private and will never be shared or sold.
+      </p>
+    </form>  );
 }
 
 /* ─── Main Landing Page ───────────────────────────────────────────────────── */
@@ -778,5 +780,16 @@ const styles = {
   footerCopy: {
     fontSize: "0.8rem",
     color: "#aaa",
+  },
+  errorMsg: {
+    color: "#c0392b",
+    fontSize: "0.875rem",
+    margin: 0,
+  },
+  privacyNote: {
+    fontSize: "0.78rem",
+    color: "#aaa",
+    margin: "0.25rem 0 0",
+    textAlign: "center",
   },
 };
