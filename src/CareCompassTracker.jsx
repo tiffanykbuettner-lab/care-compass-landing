@@ -352,7 +352,7 @@ export default function CareCompassTracker() {
               <div style={s.formGroup}><label style={s.label}>What symptoms are you experiencing?</label><textarea value={form.symptoms} onChange={e => setForm(f => ({ ...f, symptoms: e.target.value }))} placeholder="Describe what you're feeling right now…" style={s.textarea} rows={3}/></div>
               <div style={s.formGroup}><label style={s.label}>Symptom severity right now</label><SeveritySlider value={form.severity} onChange={v => setForm(f => ({ ...f, severity: v }))}/></div>
               <div style={s.formRow}>
-                <div style={s.formGroup}><label style={s.label}>Have you eaten or had anything to drink?</label><textarea value={form.food} onChange={e => setForm(f => ({ ...f, food: e.target.value }))} placeholder="What have you eaten or drunk?" style={s.textarea} rows={2}/></div>
+                <div style={s.formGroup}><label style={s.label}>Food & Drink</label><textarea value={form.food} onChange={e => setForm(f => ({ ...f, food: e.target.value }))} placeholder="Have you eaten or had anything to drink?" style={s.textarea} rows={2}/>
                 <div style={s.formGroup}><label style={s.label}>Medications taken</label><textarea value={form.medications} onChange={e => setForm(f => ({ ...f, medications: e.target.value }))} placeholder="Any medications or supplements?" style={s.textarea} rows={2}/></div>
               </div>
               <div style={s.formRow}>
