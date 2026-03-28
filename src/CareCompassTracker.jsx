@@ -347,17 +347,38 @@ export default function CareCompassTracker() {
       {showForm && (
         <div style={s.modalOverlay} onClick={() => setShowForm(false)}>
           <div style={s.modal} onClick={e => e.stopPropagation()}>
-            <div style={s.modalHeader}><h2 style={s.modalTitle}>{editingEntry ? "Edit entry" : "Log an entry"}</h2><button onClick={() => setShowForm(false)} style={s.modalClose}>✕</button></div>
+            <div style={s.modalHeader}>
+              <h2 style={s.modalTitle}>{editingEntry ? "Edit entry" : "Log an entry"}</h2>
+              <button onClick={() => setShowForm(false)} style={s.modalClose}>✕</button>
+            </div>
             <div style={s.modalBody}>
-              <div style={s.formGroup}><label style={s.label}>What symptoms are you experiencing?</label><textarea value={form.symptoms} onChange={e => setForm(f => ({ ...f, symptoms: e.target.value }))} placeholder="Describe what you're feeling right now…" style={s.textarea} rows={3}/></div>
-              <div style={s.formGroup}><label style={s.label}>Symptom severity right now</label><SeveritySlider value={form.severity} onChange={v => setForm(f => ({ ...f, severity: v }))}/></div>
-              <div style={s.formRow}>
-                <div style={s.formGroup}><label style={s.label}>Food & Drink</label><textarea value={form.food} onChange={e => setForm(f => ({ ...f, food: e.target.value }))} placeholder="Have you eaten or had anything to drink?" style={s.textarea} rows={2}/>
-                <div style={s.formGroup}><label style={s.label}>Medications taken</label><textarea value={form.medications} onChange={e => setForm(f => ({ ...f, medications: e.target.value }))} placeholder="Any medications or supplements?" style={s.textarea} rows={2}/></div>
+              <div style={s.formGroup}>
+                <label style={s.label}>What symptoms are you experiencing?</label>
+                <textarea value={form.symptoms} onChange={e => setForm(f => ({ ...f, symptoms: e.target.value }))} placeholder="Describe what you're feeling right now…" style={s.textarea} rows={3}/>
+              </div>
+              <div style={s.formGroup}>
+                <label style={s.label}>Symptom severity right now</label>
+                <SeveritySlider value={form.severity} onChange={v => setForm(f => ({ ...f, severity: v }))}/>
               </div>
               <div style={s.formRow}>
-                <div style={s.formGroup}><label style={s.label}>Activity</label><input value={form.activity} onChange={e => setForm(f => ({ ...f, activity: e.target.value }))} placeholder="e.g. 30 min walk, rest day…" style={s.input}/></div>
-                <div style={s.formGroup}><label style={s.label}>Weather / environment</label><input value={form.weather} onChange={e => setForm(f => ({ ...f, weather: e.target.value }))} placeholder="e.g. hot, humid, cold, indoors…" style={s.input}/></div>
+                <div style={s.formGroup}>
+                  <label style={s.label}>Food & Drink</label>
+                  <textarea value={form.food} onChange={e => setForm(f => ({ ...f, food: e.target.value }))} placeholder="Have you eaten or had anything to drink?" style={s.textarea} rows={2}/>
+                </div>
+                <div style={s.formGroup}>
+                  <label style={s.label}>Medications taken</label>
+                  <textarea value={form.medications} onChange={e => setForm(f => ({ ...f, medications: e.target.value }))} placeholder="Any medications or supplements?" style={s.textarea} rows={2}/>
+                </div>
+              </div>
+              <div style={s.formRow}>
+                <div style={s.formGroup}>
+                  <label style={s.label}>Activity</label>
+                  <input value={form.activity} onChange={e => setForm(f => ({ ...f, activity: e.target.value }))} placeholder="e.g. 30 min walk, rest day…" style={s.input}/>
+                </div>
+                <div style={s.formGroup}>
+                  <label style={s.label}>Weather / environment</label>
+                  <input value={form.weather} onChange={e => setForm(f => ({ ...f, weather: e.target.value }))} placeholder="e.g. hot, humid, cold, indoors…" style={s.input}/>
+                </div>
               </div>
               <div style={s.formGroup}>
                 <label style={s.label}>Stress level <span style={s.sevValue}>{form.stress}/10</span></label>
@@ -365,27 +386,24 @@ export default function CareCompassTracker() {
                 <div style={s.sevLabels}><span style={s.sevLabel}>Low</span><span style={s.sevLabel}>High</span></div>
               </div>
               {form.sleep != null && (
-          	<div style={s.formGroup}>
-            	 <label style={s.label}>Sleep quality last night <span style={s.sevValue}>{form.sleep}/10</span></label>
-            	 <input type="range" min="1" max="10" step="1" value={form.sleep} onChange={e => setForm(f => ({ ...f, sleep: Number(e.target.value) }))} style={{ width: "100%", accentColor: TEAL }}/>
-            	 <div style={s.sevLabels}><span style={s.sevLabel}>Poor</span><span style={s.sevLabel}>Excellent</span></div>
+                <div style={s.formGroup}>
+                  <label style={s.label}>Sleep quality last night <span style={s.sevValue}>{form.sleep}/10</span></label>
+                  <input type="range" min="1" max="10" step="1" value={form.sleep} onChange={e => setForm(f => ({ ...f, sleep: Number(e.target.value) }))} style={{ width: "100%", accentColor: TEAL }}/>
+                  <div style={s.sevLabels}><span style={s.sevLabel}>Poor</span><span style={s.sevLabel}>Excellent</span></div>
                 </div>
-               )}
-              <div style={s.formGroup}><label style={s.label}>Additional notes <span style={s.optional}>(optional)</span></label><textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Anything else worth noting…" style={s.textarea} rows={2}/></div>
+              )}
+              <div style={s.formGroup}>
+                <label style={s.label}>Additional notes <span style={s.optional}>(optional)</span></label>
+                <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Anything else worth noting…" style={s.textarea} rows={2}/>
+              </div>
             </div>
-            <div style={s.modalFooter}><button onClick={() => setShowForm(false)} style={s.cancelBtn}>Cancel</button><button onClick={handleSubmit} style={s.saveBtn}>{editingEntry ? "Update Entry →" : "Save Entry →"}</button></div>
+            <div style={s.modalFooter}>
+              <button onClick={() => setShowForm(false)} style={s.cancelBtn}>Cancel</button>
+              <button onClick={handleSubmit} style={s.saveBtn}>{editingEntry ? "Update Entry →" : "Save Entry →"}</button>
+            </div>
           </div>
         </div>
-       )}
-
-      <footer style={s.footer} className="no-print">
-        <p style={s.footerText}>© {new Date().getFullYear()} Care Compass · <a href="mailto:hello@joincarecompass.com" style={s.footerLink}>hello@joincarecompass.com</a></p>
-        <p style={s.footerDisclaimer}>Care Compass is not a medical service and does not provide medical advice, diagnosis, or treatment.</p>
-      </footer>
-    </div>
-  );
-}
-
+      )}
 const s = {
   root: { fontFamily: "'DM Sans', Helvetica, sans-serif", color: INK, background: OFF_WHITE, minHeight: "100vh", display: "flex", flexDirection: "column" },
   nav: { padding: "1rem 2rem", borderBottom: `1px solid rgba(0,0,0,0.07)`, background: "#fff", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 100 },
