@@ -22,15 +22,122 @@ const STEPS = [
 const SEVERITY = ["1","2","3","4","5","6","7","8","9","10"];
 
 const BODY_SYSTEMS = [
-  { system: "Joints & Muscles",     examples: "joint pain, muscle pain, instability, subluxations, stiffness" },
-  { system: "Heart & Circulation",  examples: "palpitations, dizziness on standing, fainting, Raynaud's" },
-  { system: "Digestive",            examples: "nausea, reflux, difficulty swallowing, bloating, food intolerances" },
-  { system: "Neurological",         examples: "migraines, brain fog, headaches, numbness, tingling" },
-  { system: "Skin & Immune",        examples: "rashes, allergic reactions, sensitivity to adhesives or bug bites" },
-  { system: "Reproductive & Pelvic",examples: "painful periods, pelvic pain, endometriosis, urinary urgency" },
-  { system: "Breathing & Energy",   examples: "shortness of breath, fatigue, exercise intolerance, sleep issues" },
-  { system: "Mental Health",        examples: "anxiety, depression, mood changes, sleep disturbances" },
-  { system: "Other",                examples: "anything that doesn't fit above" },
+  {
+    system: "Joints & Muscles",
+    examples: "joint pain, muscle pain, instability, subluxations, stiffness",
+    hints: [
+      "Do your joints crack, pop, or slip out of place?",
+      "Do you feel stiff in the morning or after sitting?",
+      "Does your pain move around or stay in one place?",
+      "Do you bruise easily or feel like your skin tears?",
+      "Do you feel like you have to 'crack' joints for relief?",
+      "Do you experience muscle spasms or charlie horses?",
+      "Do you have hypermobile or double-jointed areas?",
+    ]
+  },
+  {
+    system: "Heart & Circulation",
+    examples: "palpitations, dizziness on standing, fainting, Raynaud's",
+    hints: [
+      "Do you feel dizzy, lightheaded, or faint when standing up?",
+      "Do you notice your heart racing or skipping beats?",
+      "Do your hands or feet turn white, blue, or red in the cold?",
+      "Do you feel worse after standing for long periods?",
+      "Do you have low blood pressure or feel faint in heat?",
+      "Do you feel your heartbeat strongly in your chest or neck?",
+      "Do you get shortness of breath just from standing or light activity?",
+    ]
+  },
+  {
+    system: "Digestive",
+    examples: "nausea, reflux, difficulty swallowing, bloating, food intolerances",
+    hints: [
+      "Do you experience nausea regularly, even without eating?",
+      "Does food or liquid come back up your throat?",
+      "Do you have trouble swallowing or feel like things get stuck?",
+      "Do certain foods consistently make you feel worse?",
+      "Do you experience extreme bloating after eating?",
+      "Do you have constipation, diarrhea, or alternating both?",
+      "Do you feel full very quickly, even after small amounts?",
+      "Do you experience stomach pain that is hard to explain?",
+    ]
+  },
+  {
+    system: "Neurological",
+    examples: "migraines, brain fog, headaches, numbness, tingling",
+    hints: [
+      "Do you experience 'brain fog' — difficulty thinking or concentrating?",
+      "Do you get frequent headaches or migraines?",
+      "Do you have numbness, tingling, or burning in hands or feet?",
+      "Do you have memory problems or difficulty finding words?",
+      "Do you feel sensitive to light, sound, or smell?",
+      "Do you experience visual disturbances or aura?",
+      "Do you feel clumsy, uncoordinated, or drop things often?",
+    ]
+  },
+  {
+    system: "Skin & Immune",
+    examples: "rashes, allergic reactions, sensitivity to adhesives or bug bites",
+    hints: [
+      "Do you have unexplained rashes or hives?",
+      "Do bug bites cause unusually large welts?",
+      "Do adhesives (bandages, tape) cause skin reactions?",
+      "Do you react to medications, foods, or environmental triggers?",
+      "Do you have skin that is very stretchy or velvety?",
+      "Do you flush easily or get red patches on your skin?",
+      "Do you have frequent infections or slow wound healing?",
+      "Do you experience itching without a visible rash?",
+    ]
+  },
+  {
+    system: "Reproductive & Pelvic",
+    examples: "painful periods, pelvic pain, endometriosis, urinary urgency",
+    hints: [
+      "Do you experience extremely painful periods?",
+      "Do you have pelvic pain that is not related to your cycle?",
+      "Do you experience urgency or frequency with urination?",
+      "Do you have pain during intercourse?",
+      "Have you been told you have endometriosis or PCOS?",
+      "Do you experience pelvic floor issues or prolapse symptoms?",
+      "Do you have unusual bleeding or hormonal irregularities?",
+    ]
+  },
+  {
+    system: "Breathing & Energy",
+    examples: "shortness of breath, fatigue, exercise intolerance, sleep issues",
+    hints: [
+      "Do you feel exhausted even after a full night's sleep?",
+      "Do you get short of breath with minimal exertion?",
+      "Do you crash after exercise or activity (post-exertional malaise)?",
+      "Do you have difficulty staying asleep or feel unrefreshed?",
+      "Do you experience air hunger — feeling like you can't get enough air?",
+      "Do you have a persistent cough or feel chest tightness?",
+      "Do you feel worse in heat or humidity?",
+      "Do you have caffeine intolerance — does it make you feel worse?",
+    ]
+  },
+  {
+    system: "Mental Health",
+    examples: "anxiety, depression, mood changes, sleep disturbances",
+    hints: [
+      "Do you experience anxiety that feels physical — racing heart, trembling?",
+      "Do you have periods of depression that seem to come out of nowhere?",
+      "Do you feel emotionally overwhelmed more easily than others?",
+      "Do you have difficulty regulating your mood?",
+      "Do you experience panic attacks?",
+      "Do you feel disconnected from yourself or your surroundings?",
+      "Do you have heightened sensitivity to stress?",
+    ]
+  },
+  {
+    system: "Other",
+    examples: "anything that doesn't fit above",
+    hints: [
+      "Is there anything else you experience that doesn't fit the categories above?",
+      "Do you have symptoms that come and go without an obvious cause?",
+      "Are there patterns you've noticed that your doctors haven't been able to explain?",
+    ]
+  },
 ];
 
 /* ─── Botanical logo mark ────────────────────────────────────────────────── */
@@ -92,13 +199,36 @@ function ProgressBar({ current, maxVisited, onStepClick }) {
 }
 
 /* ─── Symptom row ────────────────────────────────────────────────────────── */
-function SymptomRow({ system, examples, value, onChange }) {
+function SymptomRow({ system, examples, hints, value, onChange }) {
+  const [showHints, setShowHints] = useState(false);
   return (
     <div style={s.symptomRow}>
       <div style={s.symptomSystem}>
-        <span style={s.symptomSystemName}>{system}</span>
+        <div style={s.symptomSystemHeader}>
+          <span style={s.symptomSystemName}>{system}</span>
+          <button
+            onClick={() => setShowHints(h => !h)}
+            style={s.infoBtn}
+            title="See example symptoms"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="8" r="7" stroke={showHints ? SAGE_DARK : SAGE} strokeWidth="1.2"/>
+              <text x="8" y="12" textAnchor="middle" fontSize="10" fill={showHints ? SAGE_DARK : SAGE} fontWeight="600" fontFamily="serif">i</text>
+            </svg>
+          </button>
+        </div>
         <span style={s.symptomExamples}>{examples}</span>
       </div>
+      {showHints && (
+        <div style={s.hintsPanel}>
+          <p style={s.hintsPanelTitle}>Prompts to consider — you may have learned to live with some of these:</p>
+          <ul style={s.hintsList}>
+            {hints.map((h, i) => (
+              <li key={i} style={s.hintsItem}>{h}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       <textarea
         placeholder="Describe any symptoms here, or leave blank if none…"
         value={value}
@@ -378,19 +508,38 @@ Please provide a Care Compass Insight Report with these sections:
                 </div>
                 <div style={s.formGroup}>
                   <label style={s.label}>Overall severity — how much do these symptoms affect your daily life?</label>
-                  <div style={s.severityWrap}>
-                    {SEVERITY.map(n => (
-                      <button key={n} onClick={() => setSeverity(n)} style={{
-                        ...s.severityBtn,
-                        background: severity === n ? SAGE_DARK : SAGE_LIGHT,
-                        color: severity === n ? "#fff" : SAGE_DARK,
-                        borderColor: severity === n ? SAGE_DARK : "transparent",
-                      }}>{n}</button>
-                    ))}
-                  </div>
-                  <div style={s.severityLabels}>
-                    <span style={s.severityLabel}>Manageable</span>
-                    <span style={s.severityLabel}>Severe</span>
+                  <div style={s.severitySliderWrap}>
+                    <div style={s.severitySliderRow}>
+                      <input
+                        type="range"
+                        min="1"
+                        max="10"
+                        step="1"
+                        value={severity || 5}
+                        onChange={e => setSeverity(e.target.value)}
+                        style={{ flex: 1, accentColor: severity <= 3 ? SAGE_DARK : severity <= 6 ? "#e8a838" : "#c0392b" }}
+                      />
+                      <div style={{
+                        ...s.severityDisplay,
+                        background: !severity ? SAGE_LIGHT : severity <= 3 ? SAGE_LIGHT : severity <= 6 ? "#fef3da" : "#fdeaea",
+                        color: !severity ? SAGE_DARK : severity <= 3 ? SAGE_DARK : severity <= 6 ? "#8a5a00" : "#c0392b",
+                        borderColor: !severity ? SAGE : severity <= 3 ? SAGE : severity <= 6 ? "#e8a838" : "#c0392b",
+                      }}>
+                        {severity || "5"}<span style={{ fontSize: "0.7rem" }}>/10</span>
+                      </div>
+                    </div>
+                    <div style={s.severityLabels}>
+                      <span style={s.severityLabel}>1 — Manageable</span>
+                      <span style={s.severityLabel}>5 — Moderate</span>
+                      <span style={s.severityLabel}>10 — Severe</span>
+                    </div>
+                    {severity && (
+                      <p style={s.severityDesc}>
+                        {severity <= 3 ? "Noticeable but manageable — symptoms are present but don't significantly limit your day." :
+                         severity <= 6 ? "Moderate — symptoms regularly affect your activities, energy, or comfort." :
+                         "Significant — symptoms are severe and substantially impact your daily functioning."}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div style={s.systemsWrap}>
@@ -399,6 +548,7 @@ Please provide a Care Compass Insight Report with these sections:
                       key={b.system}
                       system={b.system}
                       examples={b.examples}
+                      hints={b.hints}
                       value={symptoms[b.system]}
                       onChange={v => setSymptoms(prev => ({ ...prev, [b.system]: v }))}
                     />
@@ -441,15 +591,15 @@ Please provide a Care Compass Insight Report with these sections:
                   </p>
                 </div>
                 {[
-                  { label: "Diet & eating patterns", val: diet, set: setDiet, placeholder: "e.g. gluten-free, dairy-free, low histamine, irregular eating, specific triggers…" },
-                  { label: "Activity level", val: activity, set: setActivity, placeholder: "e.g. active but limited by symptoms, mostly sedentary, exercise intolerant…" },
-                  { label: "Sleep quality", val: sleep, set: setSleep, placeholder: "e.g. difficulty falling asleep, waking frequently, unrefreshing sleep, 4-5 hours per night…" },
-                  { label: "Stress & mental load", val: stress, set: setStress, placeholder: "e.g. high stress, caregiving responsibilities, work pressure…" },
-                  { label: "Recent changes", val: recentChanges, set: setRecentChanges, placeholder: "New medications, diet changes, moved homes, new stressors, started a new activity…" },
-                ].map(({ label, val, set, placeholder }) => (
+                  { label: "Diet & eating patterns", val: diet, set: setDiet, placeholder: "e.g. Do you wake up hungry or with no appetite? Do you eat breakfast? Do you eat 3 meals or many small ones? Do you skip meals? Do you feel worse after certain foods — gluten, dairy, sugar, histamine? Do you have food sensitivities or cravings? Do you eat at regular times or irregularly? Do you feel shaky or irritable if you don't eat?", rows: 5 },
+                  { label: "Activity level", val: activity, set: setActivity, placeholder: "e.g. active but limited by symptoms, mostly sedentary, exercise intolerant…", rows: 3 },
+                  { label: "Sleep quality", val: sleep, set: setSleep, placeholder: "e.g. difficulty falling asleep, waking frequently, unrefreshing sleep, 4-5 hours per night…", rows: 3 },
+                  { label: "Stress & mental load", val: stress, set: setStress, placeholder: "e.g. high stress, caregiving responsibilities, work pressure…", rows: 3 },
+                  { label: "Recent changes", val: recentChanges, set: setRecentChanges, placeholder: "New medications, diet changes, moved homes, new stressors, started a new activity…", rows: 3 },
+                ].map(({ label, val, set, placeholder, rows }) => (
                   <div key={label} style={s.formGroup}>
                     <label style={s.label}>{label}</label>
-                    <textarea value={val} onChange={e => set(e.target.value)} placeholder={placeholder} style={s.textarea} rows={3}/>
+                    <textarea value={val} onChange={e => set(e.target.value)} placeholder={placeholder} style={s.textarea} rows={rows}/>
                   </div>
                 ))}
               </div>
@@ -483,12 +633,6 @@ Please provide a Care Compass Insight Report with these sections:
                   <p style={s.disclaimerText}>
                     Care Compass provides pattern insights and conversation starters — not medical advice or diagnosis.
                     Always discuss findings with a qualified healthcare provider.
-                  </p>
-                </div>
-                <div style={s.consentBox}>
-                  <p style={s.consentText}>
-                    🔒 <strong>Privacy notice:</strong> Your symptom information is processed securely via the Anthropic API to generate your insights. It is never stored permanently, never sold or shared, and is automatically deleted within 7 days. It will never be used to train AI models.{" "}
-                    <a href="/privacy" target="_blank" rel="noreferrer" style={s.consentLink}>Read our Privacy Policy →</a>
                   </p>
                 </div>
                 {error && <p style={s.errorMsg}>{error}</p>}
@@ -570,9 +714,19 @@ const s = {
   systemsWrap: { display: "flex", flexDirection: "column", gap: "1rem" },
   symptomRow: { background: "#fff", borderRadius: "1rem", border: `1px solid rgba(0,0,0,0.07)`, padding: "1.25rem", display: "flex", flexDirection: "column", gap: "0.75rem" },
   symptomSystem: { display: "flex", flexDirection: "column", gap: "0.2rem" },
+  symptomSystemHeader: { display: "flex", alignItems: "center", gap: "0.5rem" },
   symptomSystemName: { fontSize: "0.9rem", fontWeight: 600, color: SAGE_DARK },
+  infoBtn: { background: "transparent", border: "none", cursor: "pointer", padding: "0.1rem", display: "flex", alignItems: "center", flexShrink: 0 },
+  hintsPanel: { background: SAGE_LIGHT, borderRadius: "0.65rem", padding: "0.875rem 1rem", border: `1px solid rgba(74,112,88,0.15)` },
+  hintsPanelTitle: { fontSize: "0.78rem", fontWeight: 600, color: SAGE_DARK, margin: "0 0 0.5rem", fontStyle: "italic" },
+  hintsList: { margin: 0, paddingLeft: "1.1rem", display: "flex", flexDirection: "column", gap: "0.3rem" },
+  hintsItem: { fontSize: "0.82rem", color: INK_LIGHT, lineHeight: 1.6 },
   symptomExamples: { fontSize: "0.78rem", color: "#aaa", fontStyle: "italic" },
   symptomTextarea: { padding: "0.7rem 0.9rem", borderRadius: "0.6rem", border: `1.5px solid rgba(0,0,0,0.1)`, fontSize: "0.9rem", color: INK, background: SAGE_LIGHT, outline: "none", fontFamily: "inherit", resize: "vertical", lineHeight: 1.6 },
+  severitySliderWrap: { display: "flex", flexDirection: "column", gap: "0.5rem" },
+  severitySliderRow: { display: "flex", alignItems: "center", gap: "1rem" },
+  severityDisplay: { width: 52, height: 52, borderRadius: "50%", border: "2px solid", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontSize: "1.1rem", fontWeight: 700, flexShrink: 0, transition: "all 0.2s", fontFamily: "inherit" },
+  severityDesc: { fontSize: "0.82rem", color: WARM_GRAY, fontStyle: "italic", margin: 0, lineHeight: 1.6 },
 
   reviewCard: { background: "#fff", borderRadius: "1.25rem", border: `1px solid rgba(0,0,0,0.07)`, padding: "2rem", display: "flex", flexDirection: "column", gap: "1rem" },
   reviewSection: { display: "flex", flexWrap: "wrap", gap: "0.5rem", alignItems: "center" },
@@ -584,9 +738,6 @@ const s = {
 
   disclaimerBox: { background: CREAM, borderRadius: "0.75rem", padding: "1rem 1.25rem", border: `1px solid rgba(0,0,0,0.06)` },
   disclaimerText: { fontSize: "0.82rem", color: WARM_GRAY, lineHeight: 1.7, margin: 0, textAlign: "center" },
-  consentBox: { background: "#e8f0eb", borderRadius: "0.75rem", padding: "1rem 1.25rem", border: `1px solid rgba(74,112,88,0.2)` },
-  consentText: { fontSize: "0.82rem", color: SAGE_DARK, lineHeight: 1.7, margin: 0 },
-  consentLink: { color: SAGE_DARK, fontWeight: 600, textDecoration: "underline" },
 
   navBtns: { display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "2rem", paddingTop: "1.5rem", borderTop: `1px solid rgba(0,0,0,0.07)` },
   backBtn: { background: "transparent", border: `1.5px solid rgba(0,0,0,0.15)`, color: WARM_GRAY, padding: "0.75rem 1.5rem", borderRadius: "100px", fontSize: "0.9rem", cursor: "pointer", fontFamily: "inherit" },
