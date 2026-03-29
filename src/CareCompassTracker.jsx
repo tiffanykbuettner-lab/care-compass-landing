@@ -254,6 +254,14 @@ export default function CareCompassTracker() {
             <div style={s.tabContent}>
               {saved && <div style={s.savedBanner}>🌿 {editingEntry ? "Entry updated!" : "Entry saved!"}</div>}
               {entries.length === 0 ? (
+                <div style={s.tabContent}>
+                <div style={s.assessmentPrompt}>
+                  <div style={s.assessmentPromptLeft}>
+                    <p style={s.assessmentPromptTitle}>Start with a full assessment</p>
+                    <p style={s.assessmentPromptDesc}>Not sure where to begin? Take the Care Compass assessment first — it maps your symptoms across all body systems and surfaces patterns to discuss with your doctor.</p>
+                  </div>
+                  <a href="/compass" style={s.assessmentPromptBtn}>Take the Assessment →</a>
+                </div>
                 <div style={s.emptyState}><BotanicalMark size={48}/><h2 style={s.emptyTitle}>Start tracking today</h2><p style={s.emptyDesc}>Log your first entry to begin building your health picture.</p></div>
               ) : (
                 <>
@@ -288,7 +296,7 @@ export default function CareCompassTracker() {
 
           {view === "insights" && (
             <div style={s.tabContent}>
-              {entries.length < 3 ? <div style={s.emptyState}><p style={s.emptyDesc}>Log at least 3 entries before running AI pattern analysis.</p></div>
+              {entries.length < 3 ? <div style={s.emptyState}><p style={s.emptyDesc}>Log at least 3 entries before running AI pattern analysis.</p><a href="/compass" style={{ ...s.assessmentPromptBtn, marginTop: "0.5rem" }}>Or take the full assessment →</a></div>
               : !insights ? (
                 <div style={s.emptyState}><BotanicalMark size={48}/><h2 style={s.emptyTitle}>Ready to find your patterns?</h2><p style={s.emptyDesc}>Care Compass will analyze your {entries.length} entries and surface connections between your symptoms, food, activity, sleep, and stress.</p><button onClick={handleInsights} disabled={loadingInsights} style={s.addBtn}>{loadingInsights ? "Analyzing… 🌿" : "Analyze My Patterns →"}</button></div>
               ) : (
@@ -504,4 +512,9 @@ const s = {
   footerText: { fontSize: "0.85rem", color: WARM_GRAY, margin: "0 0 0.25rem" },
   footerLink: { color: SAGE_DARK, textDecoration: "none" },
   footerDisclaimer: { fontSize: "0.75rem", color: "#aaa", margin: 0 },
+  assessmentPrompt: { background: "#fff", borderRadius: "1rem", border: "1px solid rgba(0,0,0,0.07)", padding: "1.5rem 2rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1.5rem", flexWrap: "wrap", marginBottom: "1.5rem" },
+  assessmentPromptLeft: { display: "flex", flexDirection: "column", gap: "0.35rem", flex: 1 },
+  assessmentPromptTitle: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.05rem", fontWeight: 700, color: INK, margin: 0 },
+  assessmentPromptDesc: { fontSize: "0.875rem", color: WARM_GRAY, lineHeight: 1.6, margin: 0 },
+  assessmentPromptBtn: { background: SAGE_DARK, color: "#fff", padding: "0.75rem 1.5rem", borderRadius: "100px", fontSize: "0.875rem", fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" },
 };

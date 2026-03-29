@@ -252,33 +252,6 @@ const PRINT_STYLES = `
 `;
 
 /* ─── Guidance output ────────────────────────────────────────────────────── */
-function LifestyleField({ label, val, set, placeholder, rows, hints }) {
-  const [showHints, setShowHints] = useState(false);
-  return (
-    <div style={s.formGroup}>
-      <div style={s.symptomSystemHeader}>
-        <label style={s.label}>{label}</label>
-        {hints && (
-          <button onClick={() => setShowHints(h => !h)} style={s.infoBtn} title="See prompts">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <circle cx="8" cy="8" r="7" stroke={showHints ? SAGE_DARK : SAGE} strokeWidth="1.2"/>
-              <text x="8" y="12" textAnchor="middle" fontSize="10" fill={showHints ? SAGE_DARK : SAGE} fontWeight="600" fontFamily="serif">i</text>
-            </svg>
-          </button>
-        )}
-      </div>
-      {showHints && hints && (
-        <div style={s.hintsPanel}>
-          <p style={s.hintsPanelTitle}>Prompts to help you reflect:</p>
-          <ul style={s.hintsList}>
-            {hints.map((h, i) => <li key={i} style={s.hintsItem}>{h}</li>)}
-          </ul>
-        </div>
-      )}
-      <textarea value={val} onChange={e => set(e.target.value)} placeholder={placeholder} style={s.textarea} rows={rows}/>
-    </div>
-  );
-}
 function GuidanceOutput({ guidance, onReset, onEdit, userName }) {
   if (!guidance) return null;
 
@@ -355,6 +328,15 @@ function GuidanceOutput({ guidance, onReset, onEdit, userName }) {
           <button onClick={onEdit} style={s.editBtn}>Edit & Re-run →</button>
           <button onClick={onReset} style={s.resetBtn}>Start New Assessment</button>
         </div>
+      </div>
+
+      {/* Tracker prompt */}
+      <div style={s.trackerPrompt} className="no-print">
+        <div style={s.trackerPromptLeft}>
+          <p style={s.trackerPromptTitle}>Build on these insights with daily tracking</p>
+          <p style={s.trackerPromptDesc}>Log your symptoms, food, sleep, and stress every day to uncover patterns over time — and generate reports to bring to your doctor.</p>
+        </div>
+        <a href="/tracker" style={s.trackerPromptBtn}>Start Tracking 2192</a>
       </div>
 
       {/* Print-only footer */}
@@ -618,23 +600,17 @@ Please provide a Care Compass Insight Report with these sections:
                   </p>
                 </div>
                 {[
-  	    	  { label: "Diet & eating patterns", val: diet, set: setDiet, placeholder: "e.g. gluten-free, dairy-free, irregular eating, specific food triggers…", rows: 3, hints: [
-   	            "Do you wake up hungry or with no appetite?",
-    	            "Do you eat breakfast? Do you eat 3 meals or many small ones?",
-   	            "Do you skip meals or go long periods without eating?",
-  	            "Do you feel shaky, irritable, or foggy if you don't eat?",
- 	            "Do certain foods consistently make you feel worse — gluten, dairy, sugar, histamine?",
-	            "Do you have food cravings, especially for salt or sugar?",
-	            "Do you eat at regular times or irregularly?",
- 	            "Do you feel worse after large meals vs small ones?",
-	          ]},
- 	    	  { label: "Activity level", val: activity, set: setActivity, placeholder: "e.g. active but limited by symptoms, mostly sedentary, exercise intolerant…", rows: 3 },
- 	   	  { label: "Sleep quality", val: sleep, set: setSleep, placeholder: "e.g. difficulty falling asleep, waking frequently, unrefreshing sleep…", rows: 3 },
- 	   	  { label: "Stress & mental load", val: stress, set: setStress, placeholder: "e.g. high stress, caregiving responsibilities, work pressure…", rows: 3 },
- 	  	  { label: "Recent changes", val: recentChanges, set: setRecentChanges, placeholder: "New medications, diet changes, moved homes, new stressors…", rows: 3 },
-	 	].map(({ label, val, set, placeholder, rows, hints }) => (
-  	   	  <LifestyleField key={label} label={label} val={val} set={set} placeholder={placeholder} rows={rows} hints={hints}/>
-	        ))}
+                  { label: "Diet & eating patterns", val: diet, set: setDiet, placeholder: "e.g. Do you wake up hungry or with no appetite? Do you eat breakfast? Do you eat 3 meals or many small ones? Do you skip meals? Do you feel worse after certain foods — gluten, dairy, sugar, histamine? Do you have food sensitivities or cravings? Do you eat at regular times or irregularly? Do you feel shaky or irritable if you don't eat?", rows: 5 },
+                  { label: "Activity level", val: activity, set: setActivity, placeholder: "e.g. active but limited by symptoms, mostly sedentary, exercise intolerant…", rows: 3 },
+                  { label: "Sleep quality", val: sleep, set: setSleep, placeholder: "e.g. difficulty falling asleep, waking frequently, unrefreshing sleep, 4-5 hours per night…", rows: 3 },
+                  { label: "Stress & mental load", val: stress, set: setStress, placeholder: "e.g. high stress, caregiving responsibilities, work pressure…", rows: 3 },
+                  { label: "Recent changes", val: recentChanges, set: setRecentChanges, placeholder: "New medications, diet changes, moved homes, new stressors, started a new activity…", rows: 3 },
+                ].map(({ label, val, set, placeholder, rows }) => (
+                  <div key={label} style={s.formGroup}>
+                    <label style={s.label}>{label}</label>
+                    <textarea value={val} onChange={e => set(e.target.value)} placeholder={placeholder} style={s.textarea} rows={rows}/>
+                  </div>
+                ))}
               </div>
             )}
 
@@ -666,12 +642,6 @@ Please provide a Care Compass Insight Report with these sections:
                   <p style={s.disclaimerText}>
                     Care Compass provides pattern insights and conversation starters — not medical advice or diagnosis.
                     Always discuss findings with a qualified healthcare provider.
-                  </p>
-                </div>
-                <div style={s.consentBox}>
-                  <p style={s.consentText}>
-                    🔒 <strong>Privacy notice:</strong> Your symptom information is processed securely via the Anthropic API to generate your insights. It is never stored permanently, never sold or shared, and is automatically deleted within 7 days. It will never be used to train AI models.{" "}
-                    <a href="/privacy" style={s.consentLink}>Read our Privacy Policy →</a>
                   </p>
                 </div>
                 {error && <p style={s.errorMsg}>{error}</p>}
@@ -757,8 +727,8 @@ const s = {
   symptomSystemName: { fontSize: "0.9rem", fontWeight: 600, color: SAGE_DARK },
   infoBtn: { background: "transparent", border: "none", cursor: "pointer", padding: "0.1rem", display: "flex", alignItems: "center", flexShrink: 0 },
   hintsPanel: { background: SAGE_LIGHT, borderRadius: "0.65rem", padding: "0.875rem 1rem", border: `1px solid rgba(74,112,88,0.15)` },
-  hintsPanelTitle: { fontSize: "0.78rem", fontWeight: 600, color: SAGE_DARK, margin: "0 0 0.5rem", fontStyle: "italic", textAlign: "left" },
-  hintsList: { margin: 0, paddingLeft: "1.1rem", display: "flex", flexDirection: "column", gap: "0.3rem", textAlign: "left" },
+  hintsPanelTitle: { fontSize: "0.78rem", fontWeight: 600, color: SAGE_DARK, margin: "0 0 0.5rem", fontStyle: "italic" },
+  hintsList: { margin: 0, paddingLeft: "1.1rem", display: "flex", flexDirection: "column", gap: "0.3rem" },
   hintsItem: { fontSize: "0.82rem", color: INK_LIGHT, lineHeight: 1.6 },
   symptomExamples: { fontSize: "0.78rem", color: "#aaa", fontStyle: "italic" },
   symptomTextarea: { padding: "0.7rem 0.9rem", borderRadius: "0.6rem", border: `1.5px solid rgba(0,0,0,0.1)`, fontSize: "0.9rem", color: INK, background: SAGE_LIGHT, outline: "none", fontFamily: "inherit", resize: "vertical", lineHeight: 1.6 },
@@ -777,9 +747,6 @@ const s = {
 
   disclaimerBox: { background: CREAM, borderRadius: "0.75rem", padding: "1rem 1.25rem", border: `1px solid rgba(0,0,0,0.06)` },
   disclaimerText: { fontSize: "0.82rem", color: WARM_GRAY, lineHeight: 1.7, margin: 0, textAlign: "center" },
-  consentBox: { background: "#e8f0eb", borderRadius: "0.75rem", padding: "1rem 1.25rem", border: `1px solid rgba(74,112,88,0.2)` },
-  consentText: { fontSize: "0.82rem", color: SAGE_DARK, lineHeight: 1.7, margin: 0 },
-  consentLink: { color: SAGE_DARK, fontWeight: 600, textDecoration: "underline" },
 
   navBtns: { display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "2rem", paddingTop: "1.5rem", borderTop: `1px solid rgba(0,0,0,0.07)` },
   backBtn: { background: "transparent", border: `1.5px solid rgba(0,0,0,0.15)`, color: WARM_GRAY, padding: "0.75rem 1.5rem", borderRadius: "100px", fontSize: "0.9rem", cursor: "pointer", fontFamily: "inherit" },
@@ -820,4 +787,9 @@ const s = {
   footerText: { fontSize: "0.85rem", color: WARM_GRAY, margin: "0 0 0.25rem" },
   footerLink: { color: SAGE_DARK, textDecoration: "none" },
   footerDisclaimer: { fontSize: "0.75rem", color: "#aaa", margin: 0 },
+  trackerPrompt: { background: "#fff", borderRadius: "1rem", border: "1px solid rgba(0,0,0,0.07)", padding: "1.5rem 2rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1.5rem", flexWrap: "wrap" },
+  trackerPromptLeft: { display: "flex", flexDirection: "column", gap: "0.35rem", flex: 1 },
+  trackerPromptTitle: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.05rem", fontWeight: 700, color: INK, margin: 0 },
+  trackerPromptDesc: { fontSize: "0.875rem", color: WARM_GRAY, lineHeight: 1.6, margin: 0 },
+  trackerPromptBtn: { background: TEAL, color: "#fff", padding: "0.75rem 1.5rem", borderRadius: "100px", fontSize: "0.875rem", fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" },
 };
