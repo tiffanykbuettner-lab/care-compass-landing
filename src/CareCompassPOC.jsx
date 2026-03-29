@@ -1,5 +1,17 @@
 import { useState } from "react";
 
+const LOADING_STYLES = `
+@keyframes loadProgress {
+  0% { width: 0%; }
+  10% { width: 15%; }
+  30% { width: 40%; }
+  60% { width: 65%; }
+  80% { width: 80%; }
+  95% { width: 92%; }
+  100% { width: 95%; }
+}
+`;
+
 /* ─── Brand tokens ───────────────────────────────────────────────────────── */
 const SAGE       = "#7a9e87";
 const SAGE_LIGHT = "#e8f0eb";
@@ -411,6 +423,10 @@ export default function CareCompassPOC() {
   const handleAnalyze = async () => {
     setLoading(true);
     setError(null);
+    const styleEl = document.createElement("style");
+    styleEl.id = "loading-styles";
+    styleEl.innerHTML = LOADING_STYLES;
+    document.head.appendChild(styleEl);
     try {
       const prompt = `You are a compassionate, knowledgeable health navigation assistant for Care Compass — a platform that helps people with chronic illness understand their symptoms and advocate for themselves.
 
@@ -477,6 +493,8 @@ Please provide a Care Compass Insight Report with these sections:
       setError("Something went wrong generating your insights. Please try again.");
     } finally {
       setLoading(false);
+      const styleEl = document.getElementById("loading-styles");
+      if (styleEl) styleEl.remove();
     }
   };
 
@@ -712,6 +730,29 @@ Please provide a Care Compass Insight Report with these sections:
 
           </div>
         )}
+      {/* Loading overlay */}
+      {loading && (
+        <div style={s.loadingOverlay}>
+          <div style={s.loadingCard}>
+            <svg width="56" height="56" viewBox="0 0 72 72" fill="none" style={{ marginBottom: "1.25rem" }}>
+              <circle cx="36" cy="36" r="34" fill="#e8f0eb" stroke="#7a9e87" strokeWidth="1"/>
+              <ellipse cx="36" cy="17" rx="7" ry="17" fill="#4a7058"/>
+              <ellipse cx="36" cy="55" rx="5.5" ry="13" fill="#7a9e87" opacity="0.55"/>
+              <ellipse cx="55" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.8"/>
+              <ellipse cx="17" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.45"/>
+              <circle cx="36" cy="36" r="7" fill="#4a7058"/>
+              <circle cx="36" cy="36" r="3" fill="#e8f0eb"/>
+            </svg>
+            <h2 style={s.loadingTitle}>Analyzing your symptoms</h2>
+            <p style={s.loadingDesc}>Care Compass is looking at the full picture — connecting your symptoms, history, and daily variables to surface patterns worth exploring.</p>
+            <div style={s.loadingBarWrap}>
+              <div style={s.loadingBar}/>
+            </div>
+            <p style={s.loadingNote}>This usually takes 10–20 seconds. Please don't close this page.</p>
+          </div>
+        </div>
+      )}
+
       </main>
 
       {/* Footer */}
@@ -836,4 +877,11 @@ const s = {
   consentBox: { background: "#e8f0eb", borderRadius: "0.75rem", padding: "1rem 1.25rem", border: `1px solid rgba(74,112,88,0.2)` },
   consentText: { fontSize: "0.82rem", color: SAGE_DARK, lineHeight: 1.7, margin: 0 },
   consentLink: { color: SAGE_DARK, fontWeight: 600, textDecoration: "underline" },
+  loadingOverlay: { position: "fixed", inset: 0, background: "rgba(250,250,248,0.96)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem", backdropFilter: "blur(4px)" },
+  loadingCard: { background: "#fff", borderRadius: "1.5rem", border: "1px solid rgba(0,0,0,0.07)", padding: "2.5rem 2rem", maxWidth: 480, width: "100%", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: "1rem", boxShadow: "0 8px 40px rgba(0,0,0,0.08)" },
+  loadingTitle: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.4rem", fontWeight: 700, color: INK, margin: 0 },
+  loadingDesc: { fontSize: "0.92rem", color: WARM_GRAY, lineHeight: 1.75, margin: 0, maxWidth: 380 },
+  loadingBarWrap: { width: "100%", height: 6, background: SAGE_LIGHT, borderRadius: 100, overflow: "hidden" },
+  loadingBar: { height: "100%", borderRadius: 100, background: SAGE_DARK, animation: "loadProgress 18s ease-in-out forwards" },
+  loadingNote: { fontSize: "0.78rem", color: "#aaa", margin: 0, fontStyle: "italic" },
 };
