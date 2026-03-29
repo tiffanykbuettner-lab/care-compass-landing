@@ -2,13 +2,35 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-   <link rel="icon" type="image/svg+xml" href="/care-compass-logo.svg" />
-   <link rel="icon" type="image/png" href="/care-compass-logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Care Compass</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Playfair+Display:ital,wght@0,700;1,700&display=swap" rel="stylesheet">
-  </head>
+<script>
+  const canvas = document.createElement('canvas');
+  canvas.width = 64; canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#4a7058';
+  ctx.beginPath();
+  ctx.arc(32, 32, 32, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#e8f0eb';
+  ctx.fillRect(28, 8, 8, 48);
+  ctx.fillRect(8, 28, 48, 8);
+  ctx.beginPath();
+  ctx.arc(32, 32, 8, 0, Math.PI * 2);
+  ctx.fillStyle = '#e8f0eb';
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(32, 32, 4, 0, Math.PI * 2);
+  ctx.fillStyle = '#4a7058';
+  ctx.fill();
+  const link = document.querySelector("link[rel='icon']") || document.createElement('link');
+  link.rel = 'icon';
+  link.href = canvas.toDataURL();
+  document.head.appendChild(link);
+</script>  
+</head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
