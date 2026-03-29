@@ -254,15 +254,16 @@ export default function CareCompassTracker() {
             <div style={s.tabContent}>
               {saved && <div style={s.savedBanner}>🌿 {editingEntry ? "Entry updated!" : "Entry saved!"}</div>}
               {entries.length === 0 ? (
-                <div style={s.tabContent}>
-                <div style={s.assessmentPrompt}>
-                  <div style={s.assessmentPromptLeft}>
-                    <p style={s.assessmentPromptTitle}>Start with a full assessment</p>
-                    <p style={s.assessmentPromptDesc}>Not sure where to begin? Take the Care Compass assessment first — it maps your symptoms across all body systems and surfaces patterns to discuss with your doctor.</p>
+                <>
+                  <div style={s.assessmentPrompt}>
+                    <div style={s.assessmentPromptLeft}>
+                      <p style={s.assessmentPromptTitle}>Start with a full assessment</p>
+                      <p style={s.assessmentPromptDesc}>Not sure where to begin? Take the Care Compass assessment first — it maps your symptoms across all body systems and surfaces patterns to discuss with your doctor.</p>
+                    </div>
+                    <a href="/compass" style={s.assessmentPromptBtn}>Take the Assessment →</a>
                   </div>
-                  <a href="/compass" style={s.assessmentPromptBtn}>Take the Assessment →</a>
-                </div>
-                <div style={s.emptyState}><BotanicalMark size={48}/><h2 style={s.emptyTitle}>Start tracking today</h2><p style={s.emptyDesc}>Log your first entry to begin building your health picture.</p></div>
+                  <div style={s.emptyState}><BotanicalMark size={48}/><h2 style={s.emptyTitle}>Start tracking today</h2><p style={s.emptyDesc}>Log your first entry to begin building your health picture.</p></div>
+                </>
               ) : (
                 <>
                   <div style={s.chartCard}>
