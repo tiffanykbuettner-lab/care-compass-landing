@@ -614,12 +614,9 @@ Please provide a Care Compass Insight Report with these sections:
                   { label: "Sleep quality", val: sleep, set: setSleep, placeholder: "e.g. difficulty falling asleep, waking frequently, unrefreshing sleep, 4-5 hours per night…", rows: 3 },
                   { label: "Stress & mental load", val: stress, set: setStress, placeholder: "e.g. high stress, caregiving responsibilities, work pressure…", rows: 3 },
                   { label: "Recent changes", val: recentChanges, set: setRecentChanges, placeholder: "New medications, diet changes, moved homes, new stressors, started a new activity…", rows: 3 },
-                ].map(({ label, val, set, placeholder, rows }) => (
-                  <div key={label} style={s.formGroup}>
-                    <label style={s.label}>{label}</label>
-                    <textarea value={val} onChange={e => set(e.target.value)} placeholder={placeholder} style={s.textarea} rows={rows}/>
-                  </div>
-                ))}
+                ].map(({ label, val, set, placeholder, rows, hints }) => (
+              		       <LifestyleField key={label} label={label} val={val} set={set} placeholder={placeholder} rows={rows} hints={hints}/>
+            		     ))}
               </div>
             )}
 
@@ -742,8 +739,8 @@ const s = {
   symptomSystemName: { fontSize: "0.9rem", fontWeight: 600, color: SAGE_DARK },
   infoBtn: { background: "transparent", border: "none", cursor: "pointer", padding: "0.1rem", display: "flex", alignItems: "center", flexShrink: 0 },
   hintsPanel: { background: SAGE_LIGHT, borderRadius: "0.65rem", padding: "0.875rem 1rem", border: `1px solid rgba(74,112,88,0.15)` },
-  hintsPanelTitle: { fontSize: "0.78rem", fontWeight: 600, color: SAGE_DARK, margin: "0 0 0.5rem", fontStyle: "italic" },
-  hintsList: { margin: 0, paddingLeft: "1.1rem", display: "flex", flexDirection: "column", gap: "0.3rem" },
+  hintsPanelTitle: { fontSize: "0.78rem", fontWeight: 600, color: SAGE_DARK, margin: "0 0 0.5rem", fontStyle: "italic", textAlign: "left" },
+  hintsList: { margin: 0, paddingLeft: "1.1rem", display: "flex", flexDirection: "column", gap: "0.3rem", textAlign: "left" },
   hintsItem: { fontSize: "0.82rem", color: INK_LIGHT, lineHeight: 1.6 },
   symptomExamples: { fontSize: "0.78rem", color: "#aaa", fontStyle: "italic" },
   symptomTextarea: { padding: "0.7rem 0.9rem", borderRadius: "0.6rem", border: `1.5px solid rgba(0,0,0,0.1)`, fontSize: "0.9rem", color: INK, background: SAGE_LIGHT, outline: "none", fontFamily: "inherit", resize: "vertical", lineHeight: 1.6 },
