@@ -600,7 +600,16 @@ Please provide a Care Compass Insight Report with these sections:
                   </p>
                 </div>
                 {[
-                  { label: "Diet & eating patterns", val: diet, set: setDiet, placeholder: "e.g. Do you wake up hungry or with no appetite? Do you eat breakfast? Do you eat 3 meals or many small ones? Do you skip meals? Do you feel worse after certain foods — gluten, dairy, sugar, histamine? Do you have food sensitivities or cravings? Do you eat at regular times or irregularly? Do you feel shaky or irritable if you don't eat?", rows: 5 },
+                  { label: "Diet & eating patterns", val: diet, set: setDiet, placeholder: "e.g. gluten-free, dairy-free, irregular eating, specific food triggers…", rows: 3, hints: [
+    		   "Do you wake up hungry or with no appetite?",
+   	   	   "Do you eat breakfast? Do you eat 3 meals or many small ones?",
+ 		   "Do you skip meals or go long periods without eating?",
+	           "Do you feel shaky, irritable, or foggy if you don't eat?",
+	           "Do certain foods consistently make you feel worse — gluten, dairy, sugar, histamine?",
+	           "Do you have food cravings, especially for salt or sugar?",
+	           "Do you eat at regular times or irregularly?",
+	           "Do you feel worse after large meals vs small ones?",
+ 		   ]},
                   { label: "Activity level", val: activity, set: setActivity, placeholder: "e.g. active but limited by symptoms, mostly sedentary, exercise intolerant…", rows: 3 },
                   { label: "Sleep quality", val: sleep, set: setSleep, placeholder: "e.g. difficulty falling asleep, waking frequently, unrefreshing sleep, 4-5 hours per night…", rows: 3 },
                   { label: "Stress & mental load", val: stress, set: setStress, placeholder: "e.g. high stress, caregiving responsibilities, work pressure…", rows: 3 },
@@ -638,10 +647,16 @@ Please provide a Care Compass Insight Report with these sections:
                   {diagnoses && <div style={s.reviewItem}><span style={s.reviewKey}>Diagnoses</span><span style={s.reviewVal}>{diagnoses}</span></div>}
                   {medications && <div style={s.reviewItem}><span style={s.reviewKey}>Medications</span><span style={s.reviewVal}>{medications}</span></div>}
                 </div>
-                <div style={s.disclaimerBox}>
+ 		<div style={s.disclaimerBox}>
                   <p style={s.disclaimerText}>
                     Care Compass provides pattern insights and conversation starters — not medical advice or diagnosis.
                     Always discuss findings with a qualified healthcare provider.
+                  </p>
+                </div>
+                <div style={s.consentBox}>
+                  <p style={s.consentText}>
+                    🔒 <strong>Privacy notice:</strong> Your symptom information is processed securely via the Anthropic API to generate your insights. It is never stored permanently, never sold or shared, and is automatically deleted within 7 days. It will never be used to train AI models.{" "}
+                    <a href="/privacy" target="_blank" rel="noreferrer" style={s.consentLink}>Read our Privacy Policy →</a>
                   </p>
                 </div>
                 {error && <p style={s.errorMsg}>{error}</p>}
@@ -792,4 +807,8 @@ const s = {
   trackerPromptTitle: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.05rem", fontWeight: 700, color: INK, margin: 0 },
   trackerPromptDesc: { fontSize: "0.875rem", color: WARM_GRAY, lineHeight: 1.6, margin: 0 },
   trackerPromptBtn: { background: TEAL, color: "#fff", padding: "0.75rem 1.5rem", borderRadius: "100px", fontSize: "0.875rem", fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" },
+
+  consentBox: { background: "#e8f0eb", borderRadius: "0.75rem", padding: "1rem 1.25rem", border: `1px solid rgba(74,112,88,0.2)` },
+  consentText: { fontSize: "0.82rem", color: SAGE_DARK, lineHeight: 1.7, margin: 0 },
+  consentLink: { color: SAGE_DARK, fontWeight: 600, textDecoration: "underline" },
 };
