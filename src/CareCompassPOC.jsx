@@ -364,7 +364,7 @@ function GuidanceOutput({ guidance, onReset, onEdit, userName }) {
           <p style={s.trackerPromptTitle}>Build on these insights with daily tracking</p>
           <p style={s.trackerPromptDesc}>Log your symptoms, food, sleep, and stress every day to uncover patterns over time — and generate reports to bring to your doctor.</p>
         </div>
-        <a href="/tracker" style={s.trackerPromptBtn}>Start Tracking 2192</a>
+        <a href="/tracker" style={s.trackerPromptBtn}>Start Tracking →</a>
       </div>
 
       {/* Print-only footer */}
