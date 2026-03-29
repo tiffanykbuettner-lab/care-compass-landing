@@ -173,6 +173,7 @@ function TrendsTab({ entries }) {
 }
 
 export default function CareCompassTracker() {
+  const [hasSeenOnboarding, setHasSeenOnboarding] = useState(() => { try { return localStorage.getItem('cc-tracker-onboarded') === 'true'; } catch { return false; } });
   const [entries, setEntries]           = useState([]);
   const [view, setView]                 = useState("log");
   const [showForm, setShowForm]         = useState(false);
@@ -188,6 +189,11 @@ export default function CareCompassTracker() {
   useEffect(() => { try { const stored = localStorage.getItem(STORAGE_KEY); if (stored) setEntries(JSON.parse(stored)); } catch {} }, []);
 
   const saveEntries = (updated) => { setEntries(updated); try { localStorage.setItem(STORAGE_KEY, JSON.stringify(updated)); } catch {} };
+
+  const dismissOnboarding = () => {
+    try { localStorage.setItem("cc-tracker-onboarded", "true"); } catch {}
+    setHasSeenOnboarding(true);
+  };
 
   const isFirstEntryToday = !entries.some(e => new Date(e.timestamp).toDateString() === new Date().toDateString());
 
@@ -224,6 +230,71 @@ export default function CareCompassTracker() {
   const todayCount = entries.filter(e => new Date(e.timestamp).toDateString() === new Date().toDateString()).length;
   const CHART_OPTIONS = [{ field: "severity", label: "Overall severity", color: SAGE }, { field: "stress", label: "Stress level", color: "#e8a838" }, { field: "sleep", label: "Sleep quality", color: TEAL }];
   const tabs = [{ id: "log", label: "Log" }, { id: "history", label: "History" }, { id: "trends", label: "Trends" }, { id: "insights", label: "AI Insights" }, { id: "report", label: "Doctor Report" }];
+
+  if (!hasSeenOnboarding) {
+    return (
+      <div style={s.root}>
+        <nav style={s.nav}>
+          <a href="/" style={s.navLogo}><BotanicalMark size={30}/><span style={s.navLogoText}>Care Compass</span></a>
+          <div style={s.navLinks}><a href="/compass" style={s.navLink}>Assessment</a><span style={s.navActive}>Tracker</span></div>
+        </nav>
+        <main style={{ ...s.main, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={s.onboardingWrap}>
+            <BotanicalMark size={56}/>
+            <h1 style={s.onboardingTitle}>Welcome to your symptom tracker</h1>
+            <p style={s.onboardingDesc}>
+              Your tracker is a private health journal — just for you. Log your symptoms, food, sleep,
+              stress, and activity as often as you like throughout the day.
+            </p>
+            <div style={s.onboardingSteps}>
+              <div style={s.onboardingStep}>
+                <span style={s.onboardingStepNum}>1</span>
+                <div>
+                  <p style={s.onboardingStepTitle}>Log entries throughout the day</p>
+                  <p style={s.onboardingStepDesc}>You can log once or many times — whenever you notice something worth recording.</p>
+                </div>
+              </div>
+              <div style={s.onboardingStep}>
+                <span style={s.onboardingStepNum}>2</span>
+                <div>
+                  <p style={s.onboardingStepTitle}>Track variables alongside symptoms</p>
+                  <p style={s.onboardingStepDesc}>Food, medications, activity, sleep, and stress help Care Compass find connections.</p>
+                </div>
+              </div>
+              <div style={s.onboardingStep}>
+                <span style={s.onboardingStepNum}>3</span>
+                <div>
+                  <p style={s.onboardingStepTitle}>Uncover patterns over time</p>
+                  <p style={s.onboardingStepDesc}>After a few entries, use AI Insights and Trends to surface what your data is telling you.</p>
+                </div>
+              </div>
+              <div style={s.onboardingStep}>
+                <span style={s.onboardingStepNum}>4</span>
+                <div>
+                  <p style={s.onboardingStepTitle}>Bring reports to your doctor</p>
+                  <p style={s.onboardingStepDesc}>Generate a formatted Doctor Report to share hard data at your next appointment.</p>
+                </div>
+              </div>
+            </div>
+            <div style={s.onboardingPrivacy}>
+              <span>🔒</span>
+              <p style={s.onboardingPrivacyText}>
+                Your data is stored privately on this device only. It is never uploaded, sold, or shared.
+              </p>
+            </div>
+            <div style={s.onboardingActions}>
+              <button onClick={dismissOnboarding} style={s.onboardingBtn}>Start Tracking →</button>
+              <a href="/compass" style={s.onboardingSecondary}>Take the assessment first instead</a>
+            </div>
+          </div>
+        </main>
+        <footer style={s.footer}>
+          <p style={s.footerText}>© {new Date().getFullYear()} Care Compass · <a href="mailto:hello@joincarecompass.com" style={s.footerLink}>hello@joincarecompass.com</a></p>
+          <p style={s.footerDisclaimer}>Care Compass is not a medical service and does not provide medical advice, diagnosis, or treatment.</p>
+        </footer>
+      </div>
+    );
+  }
 
   return (
     <div style={s.root}>
@@ -513,6 +584,19 @@ const s = {
   footerText: { fontSize: "0.85rem", color: WARM_GRAY, margin: "0 0 0.25rem" },
   footerLink: { color: SAGE_DARK, textDecoration: "none" },
   footerDisclaimer: { fontSize: "0.75rem", color: "#aaa", margin: 0 },
+  onboardingWrap: { maxWidth: 600, margin: "0 auto", display: "flex", flexDirection: "column", alignItems: "center", gap: "1.5rem", textAlign: "center", padding: "2rem 1rem" },
+  onboardingTitle: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "clamp(1.6rem, 3vw, 2.2rem)", fontWeight: 700, color: INK, margin: 0, letterSpacing: "-0.02em", lineHeight: 1.2 },
+  onboardingDesc: { fontSize: "1rem", color: WARM_GRAY, lineHeight: 1.75, margin: 0, maxWidth: 480 },
+  onboardingSteps: { display: "flex", flexDirection: "column", gap: "1rem", width: "100%", textAlign: "left" },
+  onboardingStep: { display: "flex", gap: "1rem", alignItems: "flex-start", background: "#fff", borderRadius: "0.875rem", padding: "1rem 1.25rem", border: "1px solid rgba(0,0,0,0.07)" },
+  onboardingStepNum: { width: 28, height: 28, borderRadius: "50%", background: SAGE_DARK, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.8rem", fontWeight: 700, flexShrink: 0, marginTop: "0.1rem" },
+  onboardingStepTitle: { fontSize: "0.9rem", fontWeight: 600, color: INK, margin: "0 0 0.2rem" },
+  onboardingStepDesc: { fontSize: "0.82rem", color: WARM_GRAY, lineHeight: 1.6, margin: 0 },
+  onboardingPrivacy: { display: "flex", alignItems: "center", gap: "0.5rem", background: SAGE_LIGHT, borderRadius: "0.75rem", padding: "0.875rem 1.25rem", width: "100%" },
+  onboardingPrivacyText: { fontSize: "0.82rem", color: SAGE_DARK, lineHeight: 1.6, margin: 0, textAlign: "left" },
+  onboardingActions: { display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem", width: "100%" },
+  onboardingBtn: { background: SAGE_DARK, color: "#fff", border: "none", padding: "0.95rem 2.5rem", borderRadius: "100px", fontSize: "1rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", width: "100%" },
+  onboardingSecondary: { fontSize: "0.875rem", color: WARM_GRAY, textDecoration: "underline", textDecorationColor: "rgba(0,0,0,0.2)" },
   assessmentPrompt: { background: "#fff", borderRadius: "1rem", border: "1px solid rgba(0,0,0,0.07)", padding: "1.5rem 2rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1.5rem", flexWrap: "wrap", marginBottom: "1.5rem" },
   assessmentPromptLeft: { display: "flex", flexDirection: "column", gap: "0.35rem", flex: 1 },
   assessmentPromptTitle: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.05rem", fontWeight: 700, color: INK, margin: 0 },
