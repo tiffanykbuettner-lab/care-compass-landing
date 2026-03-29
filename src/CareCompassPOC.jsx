@@ -407,6 +407,7 @@ export default function CareCompassPOC() {
   );
   const [duration, setDuration]       = useState("");
   const [severity, setSeverity]       = useState("");
+  const [ageRange, setAgeRange]       = useState("");
   const [diagnoses, setDiagnoses]     = useState("");
   const [medications, setMedications] = useState("");
   const [allergies, setAllergies]     = useState("");
@@ -445,6 +446,7 @@ IMPORTANT GUIDELINES:
 
 USER'S HEALTH INFORMATION:
 Name: ${name || "the user"}
+Age range: ${ageRange || "Not provided"}
 How long they've been experiencing symptoms: ${duration}
 Overall severity (1-10): ${severity}
 
@@ -504,7 +506,7 @@ Please provide a Care Compass Insight Report with these sections:
     setGuidance(null);
     setError(null);
     setSymptoms(Object.fromEntries(BODY_SYSTEMS.map(b => [b.system, ""])));
-    setDuration(""); setSeverity(""); setDiagnoses("");
+    setDuration(""); setSeverity(""); setAgeRange(""); setDiagnoses("");
     setMedications(""); setAllergies(""); setDiet("");
     setActivity(""); setSleep(""); setStress("");
     setRecentChanges(""); setName("");
@@ -556,6 +558,19 @@ Please provide a Care Compass Insight Report with these sections:
                 <div style={s.formGroup}>
                   <label style={s.label}>Your first name <span style={s.optional}>(optional)</span></label>
                   <input value={name} onChange={e => setName(e.target.value)} placeholder="First name" style={s.input}/>
+                </div>
+                <div style={s.formGroup}>
+                  <label style={s.label}>Your age range</label>
+                  <div style={s.ageRangeWrap}>
+                    {["Under 18","18–25","26–35","36–45","46–55","56–65","65+"].map(range => (
+                      <button key={range} onClick={() => setAgeRange(range)} style={{
+                        ...s.ageRangeBtn,
+                        background: ageRange === range ? SAGE_DARK : SAGE_LIGHT,
+                        color: ageRange === range ? "#fff" : SAGE_DARK,
+                        borderColor: ageRange === range ? SAGE_DARK : "transparent",
+                      }}>{range}</button>
+                    ))}
+                  </div>
                 </div>
                 <div style={s.formGroup}>
                   <label style={s.label}>How long have you been experiencing these symptoms?</label>
@@ -685,6 +700,7 @@ Please provide a Care Compass Insight Report with these sections:
                       ))}
                     </div>
                   )}
+                  {ageRange && <div style={s.reviewItem}><span style={s.reviewKey}>Age range</span><span style={s.reviewVal}>{ageRange}</span></div>}
                   {duration && <div style={s.reviewItem}><span style={s.reviewKey}>Duration</span><span style={s.reviewVal}>{duration}</span></div>}
                   {severity && <div style={s.reviewItem}><span style={s.reviewKey}>Severity</span><span style={s.reviewVal}>{severity}/10</span></div>}
                   {diagnoses && <div style={s.reviewItem}><span style={s.reviewKey}>Diagnoses</span><span style={s.reviewVal}>{diagnoses}</span></div>}
@@ -874,6 +890,8 @@ const s = {
   trackerPromptDesc: { fontSize: "0.875rem", color: WARM_GRAY, lineHeight: 1.6, margin: 0 },
   trackerPromptBtn: { background: TEAL, color: "#fff", padding: "0.75rem 1.5rem", borderRadius: "100px", fontSize: "0.875rem", fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" },
 
+  ageRangeWrap: { display: "flex", gap: "0.5rem", flexWrap: "wrap" },
+  ageRangeBtn: { padding: "0.5rem 1rem", borderRadius: "100px", border: "2px solid transparent", cursor: "pointer", fontSize: "0.875rem", fontWeight: 600, fontFamily: "inherit", transition: "all 0.2s" },
   consentBox: { background: "#e8f0eb", borderRadius: "0.75rem", padding: "1rem 1.25rem", border: `1px solid rgba(74,112,88,0.2)` },
   consentText: { fontSize: "0.82rem", color: SAGE_DARK, lineHeight: 1.7, margin: 0 },
   consentLink: { color: SAGE_DARK, fontWeight: 600, textDecoration: "underline" },
