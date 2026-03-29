@@ -251,6 +251,34 @@ const PRINT_STYLES = `
 }
 `;
 
+function LifestyleField({ label, val, set, placeholder, rows, hints }) {
+  const [showHints, setShowHints] = useState(false);
+  return (
+    <div style={s.formGroup}>
+      <div style={s.symptomSystemHeader}>
+        <label style={s.label}>{label}</label>
+        {hints && (
+          <button onClick={() => setShowHints(h => !h)} style={s.infoBtn} title="See prompts">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="8" r="7" stroke={showHints ? SAGE_DARK : SAGE} strokeWidth="1.2"/>
+              <text x="8" y="12" textAnchor="middle" fontSize="10" fill={showHints ? SAGE_DARK : SAGE} fontWeight="600" fontFamily="serif">i</text>
+            </svg>
+          </button>
+        )}
+      </div>
+      {showHints && hints && (
+        <div style={s.hintsPanel}>
+          <p style={s.hintsPanelTitle}>Prompts to help you reflect:</p>
+          <ul style={s.hintsList}>
+            {hints.map((h, i) => <li key={i} style={s.hintsItem}>{h}</li>)}
+          </ul>
+        </div>
+      )}
+      <textarea value={val} onChange={e => set(e.target.value)} placeholder={placeholder} style={s.textarea} rows={rows}/>
+    </div>
+  );
+}
+
 /* ─── Guidance output ────────────────────────────────────────────────────── */
 function GuidanceOutput({ guidance, onReset, onEdit, userName }) {
   if (!guidance) return null;
