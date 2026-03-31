@@ -562,7 +562,7 @@ Please provide a Care Compass Insight Report with these sections:
                 <div style={s.formGroup}>
                   <label style={s.label}>Your age range</label>
                   <div style={s.ageRangeWrap}>
-                    {["Under 18","18–25","26–35","36–45","46–55","56–65","65+"].map(range => (
+                    {["18–25","26–35","36–45","46–55","56–65","65+"].map(range => (
                       <button key={range} onClick={() => setAgeRange(range)} style={{
                         ...s.ageRangeBtn,
                         background: ageRange === range ? SAGE_DARK : SAGE_LIGHT,
@@ -571,6 +571,7 @@ Please provide a Care Compass Insight Report with these sections:
                       }}>{range}</button>
                     ))}
                   </div>
+                  <p style={{ fontSize: "0.75rem", color: "#aaa", margin: "0.25rem 0 0", textAlign: "center" }}>Care Compass is intended for users 18 and over.</p>
                 </div>
                 <div style={s.formGroup}>
                   <label style={s.label}>How long have you been experiencing these symptoms?</label>
@@ -902,7 +903,7 @@ const s = {
   trackerPromptDesc: { fontSize: "0.875rem", color: WARM_GRAY, lineHeight: 1.6, margin: 0 },
   trackerPromptBtn: { background: TEAL, color: "#fff", padding: "0.75rem 1.5rem", borderRadius: "100px", fontSize: "0.875rem", fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" },
 
-  ageRangeWrap: { display: "flex", gap: "0.5rem", flexWrap: "wrap" },
+  ageRangeWrap: { display: "flex", gap: "0.5rem", flexWrap: "wrap", justifyContent: "center" },
   ageRangeBtn: { padding: "0.5rem 1rem", borderRadius: "100px", border: "2px solid transparent", cursor: "pointer", fontSize: "0.875rem", fontWeight: 600, fontFamily: "inherit", transition: "all 0.2s" },
   uploadLabel: { cursor: "pointer", display: "inline-block", marginTop: "0.25rem" },
   uploadBtn: { fontSize: "0.78rem", color: SAGE_DARK, fontWeight: 600, textDecoration: "underline", textDecorationColor: "rgba(74,112,88,0.3)" },
