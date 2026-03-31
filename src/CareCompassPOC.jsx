@@ -562,7 +562,7 @@ Please provide a Care Compass Insight Report with these sections:
                 <div style={s.formGroup}>
                   <label style={s.label}>Your age range</label>
                   <div style={s.ageRangeWrap}>
-                    {["18–25","26–35","36–45","46–55","56–65","65+"].map(range => (
+                    {["Under 18","18–25","26–35","36–45","46–55","56–65","65+"].map(range => (
                       <button key={range} onClick={() => setAgeRange(range)} style={{
                         ...s.ageRangeBtn,
                         background: ageRange === range ? SAGE_DARK : SAGE_LIGHT,
@@ -572,9 +572,6 @@ Please provide a Care Compass Insight Report with these sections:
                     ))}
                   </div>
                 </div>
-		<p style={{ fontSize: "0.75rem", color: "#aaa", margin: "0.25rem 0 0" }}>
-  		  Care Compass is intended for users 18 and over.
-		</p>
                 <div style={s.formGroup}>
                   <label style={s.label}>How long have you been experiencing these symptoms?</label>
                   <input value={duration} onChange={e => setDuration(e.target.value)} placeholder="e.g. 6 months, several years, since childhood…" style={s.input}/>
@@ -642,12 +639,24 @@ Please provide a Care Compass Insight Report with these sections:
                 </div>
                 {[
                   { label: "Any existing diagnoses", val: diagnoses, set: setDiagnoses, placeholder: "e.g. fibromyalgia, POTS, endometriosis, anxiety… or 'none yet'" },
-                  { label: "Current medications or supplements", val: medications, set: setMedications, placeholder: "List any medications, supplements, or vitamins you take regularly" },
+                  { label: "Current medications or supplements", val: medications, set: setMedications, placeholder: "List any medications, supplements, or vitamins you take regularly", upload: true },
                   { label: "Known allergies or sensitivities", val: allergies, set: setAllergies, placeholder: "Food, environmental, medication, or contact allergies" },
-                ].map(({ label, val, set, placeholder }) => (
+                ].map(({ label, val, set, placeholder, upload }) => (
                   <div key={label} style={s.formGroup}>
                     <label style={s.label}>{label}</label>
                     <textarea value={val} onChange={e => set(e.target.value)} placeholder={placeholder} style={s.textarea} rows={3}/>
+                    {upload && (
+                      <label style={s.uploadLabel}>
+                        <span style={s.uploadBtn}>📎 Upload medication list (.txt, .csv, .pdf)</span>
+                        <input type="file" accept=".txt,.pdf,.csv" style={{ display: "none" }} onChange={e => {
+                          const file = e.target.files[0];
+                          if (!file) return;
+                          const reader = new FileReader();
+                          reader.onload = evt => set(prev => prev ? prev + "\n" + evt.target.result.slice(0, 1000) : evt.target.result.slice(0, 1000));
+                          reader.readAsText(file);
+                        }}/>
+                      </label>
+                    )}
                   </div>
                 ))}
               </div>
@@ -893,8 +902,10 @@ const s = {
   trackerPromptDesc: { fontSize: "0.875rem", color: WARM_GRAY, lineHeight: 1.6, margin: 0 },
   trackerPromptBtn: { background: TEAL, color: "#fff", padding: "0.75rem 1.5rem", borderRadius: "100px", fontSize: "0.875rem", fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" },
 
-  ageRangeWrap: { display: "flex", gap: "0.5rem", flexWrap: "wrap", justifyContent: "center" },
+  ageRangeWrap: { display: "flex", gap: "0.5rem", flexWrap: "wrap" },
   ageRangeBtn: { padding: "0.5rem 1rem", borderRadius: "100px", border: "2px solid transparent", cursor: "pointer", fontSize: "0.875rem", fontWeight: 600, fontFamily: "inherit", transition: "all 0.2s" },
+  uploadLabel: { cursor: "pointer", display: "inline-block", marginTop: "0.25rem" },
+  uploadBtn: { fontSize: "0.78rem", color: SAGE_DARK, fontWeight: 600, textDecoration: "underline", textDecorationColor: "rgba(74,112,88,0.3)" },
   consentBox: { background: "#e8f0eb", borderRadius: "0.75rem", padding: "1rem 1.25rem", border: `1px solid rgba(74,112,88,0.2)` },
   consentText: { fontSize: "0.82rem", color: SAGE_DARK, lineHeight: 1.7, margin: 0 },
   consentLink: { color: SAGE_DARK, fontWeight: 600, textDecoration: "underline" },

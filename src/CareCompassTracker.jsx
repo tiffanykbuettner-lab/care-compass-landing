@@ -54,7 +54,17 @@ function SeveritySlider({ value, onChange }) {
 function LineChart({ entries, field, color = SAGE }) {
   const filtered = [...entries].reverse().filter(e => e[field] != null);
   if (filtered.length < 2) return <div style={s.chartEmpty}>Add at least 2 entries to see this trend</div>;
-  const last14 = filtered.slice(-14);
+  
+  // For severity field: group by day and take max value per day
+  const grouped = field === "severity"
+    ? Object.values(filtered.reduce((acc, e) => {
+        const day = new Date(e.timestamp).toDateString();
+        if (!acc[day] || e[field] > acc[day][field]) acc[day] = e;
+        return acc;
+      }, {})).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+    : filtered;
+
+  const last14 = grouped.slice(-14);
   const W = 580, H = 120, PAD = 20;
   const xStep = (W - PAD * 2) / Math.max(last14.length - 1, 1);
   const points = last14.map((e, i) => ({ x: PAD + i * xStep, y: H - PAD - ((e[field] / 10) * (H - PAD * 2)) }));
@@ -433,7 +443,20 @@ export default function CareCompassTracker() {
               <div style={s.formGroup}><label style={s.label}>Symptom severity right now</label><SeveritySlider value={form.severity} onChange={v => setForm(f => ({ ...f, severity: v }))}/></div>
               <div style={s.formRow}>
                 <div style={s.formGroup}><label style={s.label}>Food & Drink</label><textarea value={form.food} onChange={e => setForm(f => ({ ...f, food: e.target.value }))} placeholder="Have you eaten or had anything to drink?" style={s.textarea} rows={2}/></div>
-                <div style={s.formGroup}><label style={s.label}>Medications taken</label><textarea value={form.medications} onChange={e => setForm(f => ({ ...f, medications: e.target.value }))} placeholder="Any medications or supplements?" style={s.textarea} rows={2}/></div>
+                <div style={s.formGroup}>
+                  <label style={s.label}>Medications taken</label>
+                  <textarea value={form.medications} onChange={e => setForm(f => ({ ...f, medications: e.target.value }))} placeholder="Any medications or supplements?" style={s.textarea} rows={2}/>
+                  <label style={s.uploadLabel}>
+                    <span style={s.uploadBtn}>📎 Upload medication list</span>
+                    <input type="file" accept=".txt,.pdf,.csv" style={{ display: "none" }} onChange={e => {
+                      const file = e.target.files[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = evt => setForm(f => ({ ...f, medications: f.medications ? f.medications + "\n" + evt.target.result.slice(0, 500) : evt.target.result.slice(0, 500) }));
+                      reader.readAsText(file);
+                    }}/>
+                  </label>
+                </div>
               </div>
               <div style={s.formRow}>
                 <div style={s.formGroup}><label style={s.label}>Activity</label><input value={form.activity} onChange={e => setForm(f => ({ ...f, activity: e.target.value }))} placeholder="e.g. 30 min walk, rest day…" style={s.input}/></div>
@@ -578,6 +601,8 @@ const s = {
   sevLabels: { display: "flex", justifyContent: "space-between" },
   sevLabel: { fontSize: "0.72rem", color: "#aaa" },
   sevValue: { fontWeight: 400, color: SAGE_DARK, marginLeft: "0.5rem" },
+  uploadLabel: { cursor: "pointer", display: "inline-block", marginTop: "0.25rem" },
+  uploadBtn: { fontSize: "0.78rem", color: SAGE_DARK, fontWeight: 600, textDecoration: "underline", textDecorationColor: "rgba(74,112,88,0.3)" },
   cancelBtn: { background: "transparent", border: `1.5px solid rgba(0,0,0,0.15)`, color: WARM_GRAY, padding: "0.7rem 1.5rem", borderRadius: "100px", fontSize: "0.9rem", cursor: "pointer", fontFamily: "inherit" },
   saveBtn: { background: SAGE_DARK, color: "#fff", border: "none", padding: "0.7rem 1.75rem", borderRadius: "100px", fontSize: "0.9rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" },
   footer: { padding: "1.5rem 2rem", borderTop: `1px solid rgba(0,0,0,0.07)`, textAlign: "center" },

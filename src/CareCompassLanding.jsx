@@ -110,14 +110,11 @@ function WaitlistForm() {
     if (!form.name.trim() || !form.email.trim()) return;
     setStatus("loading");
     try {
-      const params = new URLSearchParams({
-        name: form.name,
-        email: form.email,
-        condition: form.condition,
-      });
-      await fetch(`${APPS_SCRIPT_URL}?${params.toString()}`, {
-        method: "GET",
+      await fetch(APPS_SCRIPT_URL, {
+        method: "POST",
         mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...form, timestamp: new Date().toISOString() }),
       });
       setStatus("success");
       setForm({ name: "", email: "", condition: "" });
@@ -125,6 +122,7 @@ function WaitlistForm() {
       setStatus("error");
     }
   };
+
   if (status === "success") {
     return (
       <div style={styles.successBox}>
@@ -178,14 +176,8 @@ function WaitlistForm() {
         <p style={styles.errorMsg}>Something went wrong. Please try again or email us at hello@joincarecompass.com</p>
       )}
       <button type="submit" disabled={status === "loading"} style={styles.ctaButton}>
-  {status === "loading" ? "Submitting…" : "Notify Me at Launch →"}
-  </button>
-  <p style={styles.privacyNote}>
-    🔒 Your information is private and will never be shared or sold.
-  </p>
-  <p style={styles.earlyStageNote}>
-    Care Compass is in early development. By joining the waitlist, you're helping shape what it becomes.
-  </p>
+        {status === "loading" ? "Submitting…" : "Notify Me at Launch →"}
+      </button>
     </form>
   );
 }
@@ -286,7 +278,125 @@ export default function CareCompassLanding() {
         </div>
       </section>
 
-      {/* ── Emotional Message ── */}
+
+      {/* ── How it works ── */}
+      <section style={styles.howSection}>
+        <div style={styles.container}>
+          <FadeIn>
+            <p style={styles.sectionEyebrow}>How it works</p>
+            <h2 style={styles.sectionTitle}>From scattered symptoms to clear next steps</h2>
+          </FadeIn>
+          <div style={styles.howSteps}>
+            {[
+              { num: "1", title: "Share your full picture", desc: "Tell Care Compass about your symptoms across every body system — joints, digestion, heart, hormones, energy, and more. Include your history, medications, and daily patterns like sleep, food, and stress." },
+              { num: "2", title: "AI finds the connections", desc: "Care Compass analyzes everything together — the way the best doctors do. It looks for patterns across symptoms that seem unrelated, surfacing connections you may never have considered." },
+              { num: "3", title: "Get a personalized insight report", desc: "Receive a clear, warm report with patterns worth exploring, the types of specialists who may help, and specific questions to bring to your next appointment." },
+              { num: "4", title: "Track over time", desc: "Log symptoms daily alongside variables like food, medications, and activity. Over time, Care Compass surfaces what triggers your symptoms and generates doctor-ready reports with real data." },
+            ].map(({ num, title, desc }, i) => (
+              <FadeIn key={num} delay={i * 0.1}>
+                <div style={styles.howStep}>
+                  <div style={styles.howStepNum}>{num}</div>
+                  <div>
+                    <h3 style={styles.howStepTitle}>{title}</h3>
+                    <p style={styles.howStepDesc}>{desc}</p>
+                  </div>
+                </div>
+              </FadeIn>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Example insight ── */}
+      <section style={styles.exampleSection}>
+        <div style={styles.container}>
+          <FadeIn>
+            <p style={styles.sectionEyebrow}>See it in action</p>
+            <h2 style={styles.sectionTitle}>What a Care Compass insight looks like</h2>
+            <p style={styles.exampleIntro}>Here's an example of the kind of pattern Care Compass might surface — based on real symptom clusters seen in chronic illness communities.</p>
+          </FadeIn>
+          <FadeIn delay={0.15}>
+            <div style={styles.exampleCard}>
+              <div style={styles.exampleInput}>
+                <p style={styles.exampleInputLabel}>Symptoms shared</p>
+                <div style={styles.exampleTags}>
+                  {["Joint instability","Dizziness on standing","Heart palpitations","Extreme fatigue","Food sensitivities","Brain fog","Chronic nausea","Heat intolerance"].map(tag => (
+                    <span key={tag} style={styles.exampleTag}>{tag}</span>
+                  ))}
+                </div>
+              </div>
+              <div style={styles.exampleDivider}/>
+              <div style={styles.exampleOutput}>
+                <p style={styles.exampleOutputLabel}>Care Compass noticed</p>
+                <p style={styles.exampleOutputText}>
+                  "The combination of joint instability, dizziness on standing, heart palpitations, food sensitivities, and heat intolerance is a pattern worth exploring. These symptoms together may point to conditions like hypermobile Ehlers-Danlos Syndrome (hEDS), Postural Orthostatic Tachycardia Syndrome (POTS), or Mast Cell Activation Syndrome (MCAS) — which frequently occur together and are often missed when treated in isolation."
+                </p>
+                <p style={styles.exampleDisclaimer}>This is an illustrative example. Care Compass provides patterns to discuss with your doctor — not a diagnosis.</p>
+              </div>
+            </div>
+          </FadeIn>
+        </div>
+      </section>
+
+      {/* ── Conditions ── */}
+      <section style={styles.conditionsSection}>
+        <div style={styles.container}>
+          <FadeIn>
+            <p style={styles.sectionEyebrow}>Who Care Compass helps</p>
+            <h2 style={styles.sectionTitle}>Built for people navigating complex, chronic conditions</h2>
+            <p style={styles.conditionsIntro}>Care Compass is especially valuable when symptoms are complex, overlapping, or have gone unexplained — including but not limited to:</p>
+          </FadeIn>
+          <FadeIn delay={0.1}>
+            <div style={styles.conditionsGrid}>
+              {[
+                "Ehlers-Danlos Syndrome (EDS)","POTS & Dysautonomia","Mast Cell Activation Syndrome (MCAS)",
+                "Fibromyalgia","Lupus & Autoimmune conditions","Endometriosis","Multiple Sclerosis",
+                "Chronic Fatigue Syndrome (ME/CFS)","Crohn's & IBD","Lyme Disease","PCOS",
+                "Rheumatoid Arthritis","Hashimoto's & Thyroid conditions","Undiagnosed & mystery symptoms",
+              ].map(condition => (
+                <div key={condition} style={styles.conditionPill}>{condition}</div>
+              ))}
+            </div>
+          </FadeIn>
+          <FadeIn delay={0.2}>
+            <div style={styles.differentBox}>
+              <p style={styles.differentTitle}>What makes Care Compass different from googling your symptoms?</p>
+              <div style={styles.differentGrid}>
+                <div style={styles.differentItem}>
+                  <span style={styles.differentIcon}>🔍</span>
+                  <div>
+                    <p style={styles.differentItemTitle}>Whole-picture analysis</p>
+                    <p style={styles.differentItemDesc}>Google treats each symptom in isolation. Care Compass looks at all of them together — the way a great diagnostician would.</p>
+                  </div>
+                </div>
+                <div style={styles.differentItem}>
+                  <span style={styles.differentIcon}>🩺</span>
+                  <div>
+                    <p style={styles.differentItemTitle}>Doctor-ready output</p>
+                    <p style={styles.differentItemDesc}>Instead of a list of scary possibilities, you get a structured report with specific questions and specialists — designed to make your appointments more productive.</p>
+                  </div>
+                </div>
+                <div style={styles.differentItem}>
+                  <span style={styles.differentIcon}>📊</span>
+                  <div>
+                    <p style={styles.differentItemTitle}>Pattern recognition over time</p>
+                    <p style={styles.differentItemDesc}>The symptom tracker connects dots across days, weeks, and months — surfacing triggers and trends that are impossible to see in a single appointment.</p>
+                  </div>
+                </div>
+                <div style={styles.differentItem}>
+                  <span style={styles.differentIcon}>💚</span>
+                  <div>
+                    <p style={styles.differentItemTitle}>Built for chronic illness</p>
+                    <p style={styles.differentItemDesc}>Care Compass is designed specifically for people with complex, overlapping, or long-undiagnosed conditions — not for acute illness or quick answers.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </FadeIn>
+        </div>
+      </section>
+
+      {/* ── Emotional Message ── */
       <section style={styles.emotionSection}>
         <div style={styles.emotionBg} aria-hidden="true">
           <div style={styles.emotionBlob} />
@@ -311,9 +421,9 @@ export default function CareCompassLanding() {
             <p style={styles.sectionEyebrow}>Early access</p>
             <h2 style={styles.sectionTitle}>Be the first to know when we launch</h2>
             <p style={styles.waitlistSub}>
-    	      We're building Care Compass in close conversation with the chronic illness community.
-  	      Join the waitlist and you'll be among the first to access it — and to shape it.
-	    </p>
+              We're building Care Compass in close conversation with the chronic illness community.
+              Join the waitlist and you'll be among the first to access it — and to shape it.
+            </p>
           </FadeIn>
           <FadeIn delay={0.15}>
             <WaitlistForm />
@@ -654,7 +764,7 @@ const styles = {
   },
   formRow: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+    gridTemplateColumns: "1fr 1fr",
     gap: "1rem",
   },
   formGroup: {
@@ -697,7 +807,7 @@ const styles = {
     letterSpacing: "0.01em",
     textDecoration: "none",
     transition: "background 0.2s, transform 0.15s",
-    alignSelf: "center",
+    alignSelf: "flex-start",
     fontFamily: "inherit",
   },
   successBox: {
@@ -727,6 +837,38 @@ const styles = {
   },
 
   /* Founder */
+
+  howSection: { padding: "7rem 0", background: OFF_WHITE },
+  howSteps: { display: "flex", flexDirection: "column", gap: "1.5rem", maxWidth: 720, margin: "0 auto" },
+  howStep: { display: "flex", gap: "1.5rem", alignItems: "flex-start", background: "#fff", borderRadius: "1.25rem", padding: "1.75rem", border: "1px solid rgba(0,0,0,0.06)" },
+  howStepNum: { width: 40, height: 40, borderRadius: "50%", background: SAGE_DARK, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem", fontWeight: 700, flexShrink: 0 },
+  howStepTitle: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.1rem", fontWeight: 700, color: INK, margin: "0 0 0.5rem" },
+  howStepDesc: { fontSize: "0.95rem", color: WARM_GRAY, lineHeight: 1.75, margin: 0 },
+
+  exampleSection: { padding: "7rem 0", background: "#fff" },
+  exampleIntro: { fontSize: "1rem", color: WARM_GRAY, lineHeight: 1.75, marginBottom: "2rem", marginTop: "-1.5rem" },
+  exampleCard: { background: OFF_WHITE, borderRadius: "1.5rem", border: "1px solid rgba(0,0,0,0.07)", overflow: "hidden" },
+  exampleInput: { padding: "2rem" },
+  exampleInputLabel: { fontSize: "0.75rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: TEAL, margin: "0 0 1rem" },
+  exampleTags: { display: "flex", flexWrap: "wrap", gap: "0.5rem" },
+  exampleTag: { background: SAGE_LIGHT, color: SAGE_DARK, fontSize: "0.82rem", fontWeight: 600, padding: "0.35rem 0.9rem", borderRadius: "100px" },
+  exampleDivider: { height: 1, background: "rgba(0,0,0,0.07)", margin: "0 2rem" },
+  exampleOutput: { padding: "2rem" },
+  exampleOutputLabel: { fontSize: "0.75rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: SAGE_DARK, margin: "0 0 1rem" },
+  exampleOutputText: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.05rem", color: INK, lineHeight: 1.8, fontStyle: "italic", margin: "0 0 1rem", borderLeft: `3px solid ${SAGE}`, paddingLeft: "1.25rem" },
+  exampleDisclaimer: { fontSize: "0.78rem", color: "#aaa", margin: 0, fontStyle: "italic" },
+
+  conditionsSection: { padding: "7rem 0", background: CREAM },
+  conditionsIntro: { fontSize: "1rem", color: WARM_GRAY, lineHeight: 1.75, marginBottom: "2rem", marginTop: "-1.5rem" },
+  conditionsGrid: { display: "flex", flexWrap: "wrap", gap: "0.6rem", marginBottom: "3rem" },
+  conditionPill: { background: "#fff", border: `1px solid rgba(0,0,0,0.08)`, borderRadius: "100px", padding: "0.45rem 1rem", fontSize: "0.85rem", color: INK_LIGHT, fontWeight: 500 },
+  differentBox: { background: "#fff", borderRadius: "1.5rem", padding: "2.5rem", border: "1px solid rgba(0,0,0,0.07)" },
+  differentTitle: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.2rem", fontWeight: 700, color: INK, marginBottom: "1.75rem", marginTop: 0 },
+  differentGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1.5rem" },
+  differentItem: { display: "flex", gap: "1rem", alignItems: "flex-start" },
+  differentIcon: { fontSize: "1.4rem", flexShrink: 0, marginTop: "0.1rem" },
+  differentItemTitle: { fontSize: "0.95rem", fontWeight: 600, color: INK, margin: "0 0 0.35rem" },
+  differentItemDesc: { fontSize: "0.875rem", color: WARM_GRAY, lineHeight: 1.7, margin: 0 },
   founderSection: {
     padding: "5rem 2rem",
     background: CREAM,
@@ -801,24 +943,5 @@ const styles = {
   footerCopy: {
     fontSize: "0.8rem",
     color: "#aaa",
-  },
-  errorMsg: {
-    color: "#c0392b",
-    fontSize: "0.875rem",
-    margin: 0,
-  },
-  privacyNote: {
-    fontSize: "0.78rem",
-    color: "#aaa",
-    margin: "0.25rem 0 0",
-    textAlign: "center",
-  },
-  earlyStageNote: {
-    fontSize: "0.9rem",
-    color: SAGE_DARK,
-    lineHeight: 1.7,
-    marginBottom: "2rem",
-    marginTop: "-0.75rem",
-    fontStyle: "italic",
   },
 };
