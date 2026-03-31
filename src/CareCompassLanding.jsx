@@ -396,7 +396,7 @@ export default function CareCompassLanding() {
         </div>
       </section>
 
-      {/* ── Emotional Message ── */
+      {/* ── Emotional Message ── */}
       <section style={styles.emotionSection}>
         <div style={styles.emotionBg} aria-hidden="true">
           <div style={styles.emotionBlob} />
