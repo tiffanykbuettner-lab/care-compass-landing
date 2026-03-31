@@ -361,7 +361,7 @@ export default function CareCompassTracker() {
                         {CHART_OPTIONS.map(opt => <button key={opt.field} onClick={() => setChartField(opt.field)} style={{ ...s.chartOptBtn, background: chartField === opt.field ? opt.color : "transparent", color: chartField === opt.field ? "#fff" : WARM_GRAY, borderColor: chartField === opt.field ? opt.color : "rgba(0,0,0,0.1)" }}>{opt.label}</button>)}
                       </div>
                     </div>
-                    <LineChart entries={entries} field={chartField} color={CHART_OPTIONS.find(o => o.field === chartField)?.color}/>
+                    <LineChart entries={filteredEntries} field={chartField} color={CHART_OPTIONS.find(o => o.field === chartField)?.color}/>
                   </div>
                   <div style={s.recentEntries}>
                     <div style={s.recentHeader}>
