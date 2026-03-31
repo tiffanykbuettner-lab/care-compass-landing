@@ -192,6 +192,7 @@ export default function CareCompassTracker() {
   const [loadingInsights, setLoadingInsights] = useState(false);
   const [saved, setSaved]               = useState(false);
   const [chartField, setChartField]     = useState("severity");
+  const [dateFilter, setDateFilter]     = useState("all");
 
   const blankForm = { symptoms: "", severity: 5, food: "", medications: "", activity: "", sleep: null, stress: 5, weather: "", notes: "" };
   const [form, setForm] = useState(blankForm);
@@ -222,8 +223,10 @@ export default function CareCompassTracker() {
 
   const handleDelete = (id) => saveEntries(entries.filter(e => e.id !== id));
 
+  const uniqueDaysLogged = new Set(entries.map(e => new Date(e.timestamp).toDateString())).size;
+
   const handleInsights = async () => {
-    if (entries.length < 3) return;
+    if (uniqueDaysLogged < 3) return;
     setLoadingInsights(true); setInsights(null);
     try {
       const summary = entries.slice(0, 20).map(e => `[${new Date(e.timestamp).toLocaleDateString()}] Severity: ${e.severity}/10 | Symptoms: ${e.symptoms || "none"} | Food: ${e.food || "none"} | Meds: ${e.medications || "none"} | Activity: ${e.activity || "none"} | Sleep: ${e.sleep != null ? e.sleep + "/10" : "not logged"} | Stress: ${e.stress}/10 | Weather: ${e.weather || "none"} | Notes: ${e.notes || "none"}`).join("\n");
@@ -238,6 +241,15 @@ export default function CareCompassTracker() {
 
   const avgSeverity = entries.length ? (entries.reduce((sum, e) => sum + e.severity, 0) / entries.length).toFixed(1) : "—";
   const todayCount = entries.filter(e => new Date(e.timestamp).toDateString() === new Date().toDateString()).length;
+  const filteredEntries = dateFilter === "all" ? entries : entries.filter(e => {
+    const entryDate = new Date(e.timestamp);
+    const now = new Date();
+    if (dateFilter === "today") return entryDate.toDateString() === now.toDateString();
+    if (dateFilter === "week") return entryDate >= new Date(now - 7 * 86400000);
+    if (dateFilter === "month") return entryDate >= new Date(now - 30 * 86400000);
+    return true;
+  });
+
   const CHART_OPTIONS = [{ field: "severity", label: "Overall severity", color: SAGE }, { field: "stress", label: "Stress level", color: "#e8a838" }, { field: "sleep", label: "Sleep quality", color: TEAL }];
   const tabs = [{ id: "log", label: "Log" }, { id: "history", label: "History" }, { id: "trends", label: "Trends" }, { id: "insights", label: "AI Insights" }, { id: "report", label: "Doctor Report" }];
 
@@ -357,9 +369,22 @@ export default function CareCompassTracker() {
                     <LineChart entries={entries} field={chartField} color={CHART_OPTIONS.find(o => o.field === chartField)?.color}/>
                   </div>
                   <div style={s.recentEntries}>
-                    <p style={s.sectionLabel}>Recent entries</p>
-                    {entries.slice(0, 5).map(e => <EntryCard key={e.id} entry={e} onDelete={handleDelete} onEdit={openEdit}/>)}
-                    {entries.length > 5 && <button onClick={() => setView("history")} style={s.viewAllBtn}>View all {entries.length} entries →</button>}
+                    <div style={s.recentHeader}>
+                      <p style={s.sectionLabel}>Recent entries</p>
+                      <div style={s.dateFilterWrap}>
+                        {[{val:"all",label:"All"},{val:"today",label:"Today"},{val:"week",label:"7 days"},{val:"month",label:"30 days"}].map(opt => (
+                          <button key={opt.val} onClick={() => setDateFilter(opt.val)} style={{ ...s.dateFilterBtn, background: dateFilter === opt.val ? SAGE_DARK : "transparent", color: dateFilter === opt.val ? "#fff" : WARM_GRAY, borderColor: dateFilter === opt.val ? SAGE_DARK : "rgba(0,0,0,0.12)" }}>{opt.label}</button>
+                        ))}
+                      </div>
+                    </div>
+                    {filteredEntries.length === 0 ? (
+                      <p style={s.noEntriesMsg}>No entries for this period.</p>
+                    ) : (
+                      <>
+                        {filteredEntries.slice(0, 5).map(e => <EntryCard key={e.id} entry={e} onDelete={handleDelete} onEdit={openEdit}/>)}
+                        {filteredEntries.length > 5 && <button onClick={() => setView("history")} style={s.viewAllBtn}>View all {filteredEntries.length} entries →</button>}
+                      </>
+                    )}
                   </div>
                 </>
               )}
@@ -369,7 +394,20 @@ export default function CareCompassTracker() {
           {view === "history" && (
             <div style={s.tabContent}>
               {entries.length === 0 ? <div style={s.emptyState}><p style={s.emptyDesc}>No entries yet.</p></div> : (
-                <div style={s.recentEntries}><p style={s.sectionLabel}>All entries — {entries.length} total</p>{entries.map(e => <EntryCard key={e.id} entry={e} onDelete={handleDelete} onEdit={openEdit}/>)}</div>
+                <div style={s.recentEntries}>
+                  <div style={s.recentHeader}>
+                    <p style={s.sectionLabel}>All entries — {filteredEntries.length} of {entries.length}</p>
+                    <div style={s.dateFilterWrap}>
+                      {[{val:"all",label:"All"},{val:"today",label:"Today"},{val:"week",label:"7 days"},{val:"month",label:"30 days"}].map(opt => (
+                        <button key={opt.val} onClick={() => setDateFilter(opt.val)} style={{ ...s.dateFilterBtn, background: dateFilter === opt.val ? SAGE_DARK : "transparent", color: dateFilter === opt.val ? "#fff" : WARM_GRAY, borderColor: dateFilter === opt.val ? SAGE_DARK : "rgba(0,0,0,0.12)" }}>{opt.label}</button>
+                      ))}
+                    </div>
+                  </div>
+                  {filteredEntries.length === 0
+                    ? <p style={s.noEntriesMsg}>No entries for this period.</p>
+                    : filteredEntries.map(e => <EntryCard key={e.id} entry={e} onDelete={handleDelete} onEdit={openEdit}/>)
+                  }
+                </div>
               )}
             </div>
           )}
@@ -378,9 +416,9 @@ export default function CareCompassTracker() {
 
           {view === "insights" && (
             <div style={s.tabContent}>
-              {entries.length < 3 ? <div style={s.emptyState}><p style={s.emptyDesc}>Log at least 3 entries before running AI pattern analysis.</p><a href="/compass" style={{ ...s.assessmentPromptBtn, marginTop: "0.5rem" }}>Or take the full assessment →</a></div>
+              {uniqueDaysLogged < 3 ? <div style={s.emptyState}><p style={s.emptyDesc}>Log entries across at least 3 different days before running AI pattern analysis. You've logged on {uniqueDaysLogged} {uniqueDaysLogged === 1 ? "day" : "days"} so far.</p><a href="/compass" style={{ ...s.assessmentPromptBtn, marginTop: "0.5rem" }}>Or take the full assessment →</a></div>
               : !insights ? (
-                <div style={s.emptyState}><BotanicalMark size={48}/><h2 style={s.emptyTitle}>Ready to find your patterns?</h2><p style={s.emptyDesc}>Care Compass will analyze your {entries.length} entries and surface connections between your symptoms, food, activity, sleep, and stress.</p><button onClick={handleInsights} disabled={loadingInsights} style={s.addBtn}>{loadingInsights ? "Analyzing… 🌿" : "Analyze My Patterns →"}</button></div>
+                <div style={s.emptyState}><BotanicalMark size={48}/><h2 style={s.emptyTitle}>Ready to find your patterns?</h2><p style={s.emptyDesc}>Care Compass will analyze your {entries.length} entries across {uniqueDaysLogged} days and surface connections between your symptoms, food, activity, sleep, and stress.</p><button onClick={handleInsights} disabled={loadingInsights} style={s.addBtn}>{loadingInsights ? "Analyzing… 🌿" : "Analyze My Patterns →"}</button></div>
               ) : (
                 <div style={s.insightsWrap}>
                   <div style={s.insightsHeader}><h2 style={s.insightsTitle}>Your Pattern Insights</h2><p style={s.insightsMeta}>Based on {entries.length} entries · {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</p></div>
@@ -520,6 +558,10 @@ const s = {
   chartOptBtn: { padding: "0.35rem 0.85rem", borderRadius: "100px", border: "1px solid", fontSize: "0.78rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all 0.2s" },
   chartEmpty: { fontSize: "0.9rem", color: "#aaa", textAlign: "center", padding: "2rem" },
   recentEntries: { display: "flex", flexDirection: "column", gap: "0.75rem" },
+  recentHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.5rem", marginBottom: "0.25rem" },
+  dateFilterWrap: { display: "flex", gap: "0.3rem" },
+  dateFilterBtn: { padding: "0.3rem 0.75rem", borderRadius: "100px", border: "1px solid", fontSize: "0.75rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all 0.2s" },
+  noEntriesMsg: { fontSize: "0.9rem", color: "#aaa", textAlign: "center", padding: "2rem 0", margin: 0 },
   sectionLabel: { fontSize: "0.8rem", fontWeight: 600, color: WARM_GRAY, textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 0.75rem" },
   entryCard: { background: "#fff", borderRadius: "0.75rem", border: `1px solid rgba(0,0,0,0.07)`, overflow: "hidden" },
   entryCardHeader: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "1rem 1.25rem", cursor: "pointer", gap: "0.5rem" },
