@@ -110,14 +110,11 @@ function WaitlistForm() {
     if (!form.name.trim() || !form.email.trim()) return;
     setStatus("loading");
     try {
-      const params = new URLSearchParams({
-        name: form.name,
-        email: form.email,
-        condition: form.condition,
-      });
-      await fetch(`${APPS_SCRIPT_URL}?${params.toString()}`, {
-        method: "GET",
+      await fetch(APPS_SCRIPT_URL, {
+        method: "POST",
         mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...form, timestamp: new Date().toISOString() }),
       });
       setStatus("success");
       setForm({ name: "", email: "", condition: "" });
@@ -181,12 +178,6 @@ function WaitlistForm() {
       <button type="submit" disabled={status === "loading"} style={styles.ctaButton}>
         {status === "loading" ? "Submitting…" : "Notify Me at Launch →"}
       </button>
-      <p style={styles.privacyNote}>
-        🔒 Your information is private and will never be shared or sold.
-      </p>
-      <p style={styles.earlyStageNote}>
-        Care Compass is in early development. By joining the waitlist, you're helping shape what it becomes.
-      </p>
     </form>
   );
 }
@@ -470,7 +461,6 @@ export default function CareCompassLanding() {
             <a href="mailto:hello@joincarecompass.com" style={styles.footerLink}>
               hello@joincarecompass.com
             </a>
-            <a href="/privacy" style={styles.footerLink}>Privacy Policy</a>
             <span style={styles.footerCopy}>© {new Date().getFullYear()} Care Compass</span>
           </div>
         </div>
@@ -774,7 +764,7 @@ const styles = {
   },
   formRow: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+    gridTemplateColumns: "1fr 1fr",
     gap: "1rem",
   },
   formGroup: {
@@ -953,20 +943,5 @@ const styles = {
   footerCopy: {
     fontSize: "0.8rem",
     color: "#aaa",
-  },
-  privacyNote: {
-    fontSize: "0.78rem",
-    color: "#aaa",
-    margin: "0.25rem 0 0",
-    textAlign: "center",
-  },
-  earlyStageNote: {
-    fontSize: "0.9rem",
-    color: SAGE_DARK,
-    lineHeight: 1.7,
-    marginBottom: "0",
-    marginTop: "0.5rem",
-    fontStyle: "italic",
-    textAlign: "center",
   },
 };
