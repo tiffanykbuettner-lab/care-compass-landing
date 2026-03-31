@@ -121,16 +121,14 @@ const DR = ({ label, value }) => (
   <div style={s.detailRow}><span style={s.detailLabel}>{label}</span><span style={s.detailValue}>{value}</span></div>
 );
 
-function TrendsTab({ entries }) {
-  const [period, setPeriod] = useState("week");
+function TrendsTab({ entries, dateFilter }) {
   if (entries.length < 2) return <div style={s.emptyState}><p style={s.emptyDesc}>Add more entries to see symptom trends and frequency reports.</p></div>;
-  const now = new Date();
-  const cutoff = period === "week" ? new Date(now - 7 * 86400000) : new Date(now - 30 * 86400000);
-  const inPeriod = entries.filter(e => new Date(e.timestamp) >= cutoff);
-  const days = period === "week" ? 7 : 30;
-  const label = period === "week" ? "past 7 days" : "past 30 days";
+
+  const days = dateFilter === "today" ? 1 : dateFilter === "week" ? 7 : dateFilter === "month" ? 30 : new Set(entries.map(e => new Date(e.timestamp).toDateString())).size;
+  const label = dateFilter === "today" ? "today" : dateFilter === "week" ? "past 7 days" : dateFilter === "month" ? "past 30 days" : "all time";
+
   const symptomCounts = {};
-  inPeriod.forEach(e => {
+  entries.forEach(e => {
     if (!e.symptoms) return;
     const words = e.symptoms.toLowerCase();
     ["headache","migraine","pain","fatigue","nausea","dizziness","brain fog","palpitation","anxiety","insomnia","bloating","reflux","rash","swelling","stiffness","cramp","shortness of breath","numbness","tingling","joint","muscle","depression","diarrhea","constipation","vomiting","fever","cough"].forEach(kw => {
@@ -143,20 +141,17 @@ function TrendsTab({ entries }) {
     });
   });
   const topSymptoms = Object.entries(symptomCounts).map(([kw, data]) => ({ keyword: kw, dayCount: data.days.size, entryCount: data.entries.length, avgSeverity: (data.totalSeverity / data.entries.length).toFixed(1) })).sort((a, b) => b.dayCount - a.dayCount).slice(0, 8);
-  const avgSev = inPeriod.length ? (inPeriod.reduce((sum, e) => sum + e.severity, 0) / inPeriod.length).toFixed(1) : "—";
-  const daysLogged = new Set(inPeriod.map(e => new Date(e.timestamp).toDateString())).size;
+  const avgSev = entries.length ? (entries.reduce((sum, e) => sum + e.severity, 0) / entries.length).toFixed(1) : "—";
+  const daysLogged = new Set(entries.map(e => new Date(e.timestamp).toDateString())).size;
+
   return (
     <div style={s.trendsWrap}>
       <div style={s.trendsHeader}>
-        <p style={s.sectionLabel}>Symptom frequency report</p>
-        <div style={s.periodToggle}>
-          <button onClick={() => setPeriod("week")} style={{ ...s.periodBtn, background: period === "week" ? SAGE_DARK : "transparent", color: period === "week" ? "#fff" : WARM_GRAY }}>7 days</button>
-          <button onClick={() => setPeriod("month")} style={{ ...s.periodBtn, background: period === "month" ? SAGE_DARK : "transparent", color: period === "month" ? "#fff" : WARM_GRAY }}>30 days</button>
-        </div>
+        <p style={s.sectionLabel}>Symptom frequency report — {label}</p>
       </div>
       <div style={s.trendsSummary}>
-        <div style={s.trendsStat}><span style={s.trendsStatVal}>{inPeriod.length}</span><span style={s.trendsStatLabel}>Entries logged</span></div>
-        <div style={s.trendsStat}><span style={s.trendsStatVal}>{daysLogged}/{days}</span><span style={s.trendsStatLabel}>Days with entries</span></div>
+        <div style={s.trendsStat}><span style={s.trendsStatVal}>{entries.length}</span><span style={s.trendsStatLabel}>Entries logged</span></div>
+        <div style={s.trendsStat}><span style={s.trendsStatVal}>{daysLogged}{dateFilter !== "all" ? `/${days}` : ""}</span><span style={s.trendsStatLabel}>Days with entries</span></div>
         <div style={s.trendsStat}><span style={s.trendsStatVal}>{avgSev}</span><span style={s.trendsStatLabel}>Avg severity</span></div>
       </div>
       {topSymptoms.length > 0 ? (
@@ -412,7 +407,19 @@ export default function CareCompassTracker() {
             </div>
           )}
 
-          {view === "trends" && <TrendsTab entries={entries}/>}
+          {view === "trends" && (
+            <div style={s.tabContent}>
+              <div style={s.recentHeader}>
+                <p style={s.sectionLabel}>Filter period</p>
+                <div style={s.dateFilterWrap}>
+                  {[{val:"all",label:"All"},{val:"today",label:"Today"},{val:"week",label:"7 days"},{val:"month",label:"30 days"}].map(opt => (
+                    <button key={opt.val} onClick={() => setDateFilter(opt.val)} style={{ ...s.dateFilterBtn, background: dateFilter === opt.val ? SAGE_DARK : "transparent", color: dateFilter === opt.val ? "#fff" : WARM_GRAY, borderColor: dateFilter === opt.val ? SAGE_DARK : "rgba(0,0,0,0.12)" }}>{opt.label}</button>
+                  ))}
+                </div>
+              </div>
+              <TrendsTab entries={filteredEntries} dateFilter={dateFilter}/>
+            </div>
+          )}
 
           {view === "insights" && (
             <div style={s.tabContent}>
