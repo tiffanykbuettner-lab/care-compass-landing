@@ -372,28 +372,60 @@ export default function CareCompassLanding() {
               <p style={styles.differentTitle}>What makes Care Compass different from googling your symptoms?</p>
               <div style={styles.differentGrid}>
                 <div style={styles.differentItem}>
-                  <span style={styles.differentIcon}>🔍</span>
+                  <svg width="28" height="28" viewBox="0 0 72 72" fill="none" style={{ flexShrink: 0, marginTop: "0.1rem" }}>
+                    <circle cx="36" cy="36" r="34" fill="#e8f0eb" stroke="#7a9e87" strokeWidth="1"/>
+                    <ellipse cx="36" cy="17" rx="7" ry="17" fill="#4a7058"/>
+                    <ellipse cx="36" cy="55" rx="5.5" ry="13" fill="#7a9e87" opacity="0.55"/>
+                    <ellipse cx="55" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.8"/>
+                    <ellipse cx="17" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.45"/>
+                    <circle cx="36" cy="36" r="7" fill="#4a7058"/>
+                    <circle cx="36" cy="36" r="3" fill="#e8f0eb"/>
+                  </svg>
                   <div>
                     <p style={styles.differentItemTitle}>Whole-picture analysis</p>
                     <p style={styles.differentItemDesc}>Google treats each symptom in isolation. Care Compass looks at all of them together — the way a great diagnostician would.</p>
                   </div>
                 </div>
                 <div style={styles.differentItem}>
-                  <span style={styles.differentIcon}>🩺</span>
+                  <svg width="28" height="28" viewBox="0 0 72 72" fill="none" style={{ flexShrink: 0, marginTop: "0.1rem" }}>
+                    <circle cx="36" cy="36" r="34" fill="#e8f0eb" stroke="#7a9e87" strokeWidth="1"/>
+                    <ellipse cx="36" cy="17" rx="7" ry="17" fill="#4a7058"/>
+                    <ellipse cx="36" cy="55" rx="5.5" ry="13" fill="#7a9e87" opacity="0.55"/>
+                    <ellipse cx="55" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.8"/>
+                    <ellipse cx="17" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.45"/>
+                    <circle cx="36" cy="36" r="7" fill="#4a7058"/>
+                    <circle cx="36" cy="36" r="3" fill="#e8f0eb"/>
+                  </svg>
                   <div>
                     <p style={styles.differentItemTitle}>Doctor-ready output</p>
                     <p style={styles.differentItemDesc}>Instead of a list of scary possibilities, you get a structured report with specific questions and specialists — designed to make your appointments more productive.</p>
                   </div>
                 </div>
                 <div style={styles.differentItem}>
-                  <span style={styles.differentIcon}>📊</span>
+                  <svg width="28" height="28" viewBox="0 0 72 72" fill="none" style={{ flexShrink: 0, marginTop: "0.1rem" }}>
+                    <circle cx="36" cy="36" r="34" fill="#e8f0eb" stroke="#7a9e87" strokeWidth="1"/>
+                    <ellipse cx="36" cy="17" rx="7" ry="17" fill="#4a7058"/>
+                    <ellipse cx="36" cy="55" rx="5.5" ry="13" fill="#7a9e87" opacity="0.55"/>
+                    <ellipse cx="55" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.8"/>
+                    <ellipse cx="17" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.45"/>
+                    <circle cx="36" cy="36" r="7" fill="#4a7058"/>
+                    <circle cx="36" cy="36" r="3" fill="#e8f0eb"/>
+                  </svg>
                   <div>
                     <p style={styles.differentItemTitle}>Pattern recognition over time</p>
                     <p style={styles.differentItemDesc}>The symptom tracker connects dots across days, weeks, and months — surfacing triggers and trends that are impossible to see in a single appointment.</p>
                   </div>
                 </div>
                 <div style={styles.differentItem}>
-                  <span style={styles.differentIcon}>💚</span>
+                  <svg width="28" height="28" viewBox="0 0 72 72" fill="none" style={{ flexShrink: 0, marginTop: "0.1rem" }}>
+                    <circle cx="36" cy="36" r="34" fill="#e8f0eb" stroke="#7a9e87" strokeWidth="1"/>
+                    <ellipse cx="36" cy="17" rx="7" ry="17" fill="#4a7058"/>
+                    <ellipse cx="36" cy="55" rx="5.5" ry="13" fill="#7a9e87" opacity="0.55"/>
+                    <ellipse cx="55" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.8"/>
+                    <ellipse cx="17" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.45"/>
+                    <circle cx="36" cy="36" r="7" fill="#4a7058"/>
+                    <circle cx="36" cy="36" r="3" fill="#e8f0eb"/>
+                  </svg>
                   <div>
                     <p style={styles.differentItemTitle}>Built for chronic illness</p>
                     <p style={styles.differentItemDesc}>Care Compass is designed specifically for people with complex, overlapping, or long-undiagnosed conditions — not for acute illness or quick answers.</p>
@@ -876,7 +908,7 @@ const styles = {
   differentTitle: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.2rem", fontWeight: 700, color: INK, marginBottom: "1.75rem", marginTop: 0 },
   differentGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1.5rem" },
   differentItem: { display: "flex", gap: "1rem", alignItems: "flex-start" },
-  differentIcon: { fontSize: "1.4rem", flexShrink: 0, marginTop: "0.1rem" },
+  differentIcon: { flexShrink: 0, marginTop: "0.1rem" },
   differentItemTitle: { fontSize: "0.95rem", fontWeight: 600, color: INK, margin: "0 0 0.35rem" },
   differentItemDesc: { fontSize: "0.875rem", color: WARM_GRAY, lineHeight: 1.7, margin: 0 },
   founderSection: {
