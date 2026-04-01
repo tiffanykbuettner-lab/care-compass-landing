@@ -528,10 +528,24 @@ Never diagnose. Focus on patterns across days AND within-day timing. Be specific
                   </div>
                   <div style={s.disclaimer}><strong>Important:</strong> These are patterns to explore with your doctor — not medical advice or diagnosis.</div>
                   <div style={s.insightsContent}>
-                    {insights.split("\n").filter(l => l.trim()).map((line, i) => {
-                      if (line.startsWith("##")) return <h3 key={i} style={s.insightSection}>{line.replace(/^##\s*/, "")}</h3>;
-                      if (line.startsWith("- ")) return <div key={i} style={s.insightBullet}><span style={s.bulletDot}>•</span><span>{line.replace(/^- /, "").replace(/\*\*(.*?)\*\*/g, "$1")}</span></div>;
-                      return <p key={i} style={s.insightPara}>{line.replace(/\*\*(.*?)\*\*/g, "$1")}</p>;
+                    {insights.split("\n").map((line, i) => {
+                      const trimmed = line.trim();
+                      if (!trimmed) return null;
+                      // Single # = main title (skip — we already show a header)
+                      if (/^# [^#]/.test(trimmed)) return null;
+                      // ## = section heading
+                      if (trimmed.startsWith("##")) return <h3 key={i} style={s.insightSection}>{trimmed.replace(/^##\s*/, "")}</h3>;
+                      // --- = divider
+                      if (trimmed === "---" || trimmed === "—--" || trimmed === "- --") return <hr key={i} style={s.insightDivider}/>;
+                      // Bullet points
+                      if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
+                        const text = trimmed.replace(/^[-*]\s/, "").replace(/\*\*(.*?)\*\*/g, "$1");
+                        return <div key={i} style={s.insightBullet}><span style={s.bulletDot}>•</span><span>{text}</span></div>;
+                      }
+                      // Bold inline text handling
+                      const parts = trimmed.split(/\*\*(.*?)\*\*/g);
+                      const rendered = parts.map((part, j) => j % 2 === 1 ? <strong key={j} style={{ fontWeight: 700, color: INK }}>{part}</strong> : part);
+                      return <p key={i} style={s.insightPara}>{rendered}</p>;
                     })}
                   </div>
                   <div style={s.insightsFooter} className="no-print">
@@ -723,6 +737,7 @@ const s = {
   insightBullet: { display: "flex", gap: "0.75rem", fontSize: "0.92rem", color: INK_LIGHT, lineHeight: 1.7 },
   bulletDot: { color: SAGE, fontWeight: 700, flexShrink: 0 },
   insightPara: { fontSize: "0.92rem", color: INK_LIGHT, lineHeight: 1.75, margin: 0 },
+  insightDivider: { border: "none", borderTop: `1px solid ${SAGE_LIGHT}`, margin: "0.5rem 0" },
   rerunBtn: { background: "transparent", border: `1.5px solid ${SAGE_DARK}`, color: SAGE_DARK, padding: "0.7rem 1.5rem", borderRadius: "100px", fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", alignSelf: "flex-start" },
   reportWrap: { display: "flex", flexDirection: "column", gap: "1rem" },
   reportTopBar: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", flexWrap: "wrap" },
