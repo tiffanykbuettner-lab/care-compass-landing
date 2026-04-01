@@ -1,5 +1,17 @@
 import { useState, useEffect } from "react";
 
+const INSIGHTS_LOADING_STYLES = `
+@keyframes insightProgress {
+  0% { width: 0%; }
+  10% { width: 12%; }
+  30% { width: 35%; }
+  60% { width: 62%; }
+  80% { width: 78%; }
+  95% { width: 90%; }
+  100% { width: 94%; }
+}
+`;
+
 const SAGE       = "#7a9e87";
 const SAGE_LIGHT = "#e8f0eb";
 const SAGE_DARK  = "#4a7058";
@@ -224,12 +236,54 @@ export default function CareCompassTracker() {
     if (uniqueDaysLogged < 3) return;
     setLoadingInsights(true); setInsights(null);
     try {
-      const summary = entries.slice(0, 20).map(e => `[${new Date(e.timestamp).toLocaleDateString()}] Severity: ${e.severity}/10 | Symptoms: ${e.symptoms || "none"} | Food: ${e.food || "none"} | Meds: ${e.medications || "none"} | Activity: ${e.activity || "none"} | Sleep: ${e.sleep != null ? e.sleep + "/10" : "not logged"} | Stress: ${e.stress}/10 | Weather: ${e.weather || "none"} | Notes: ${e.notes || "none"}`).join("\n");
-      const response = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" }, body: JSON.stringify({ model: "claude-opus-4-6", max_tokens: 1500, messages: [{ role: "user", content: `You are Care Compass. Analyze these symptom tracker entries and identify patterns, triggers, and insights to discuss with a doctor.\n\nENTRIES:\n${summary}\n\nProvide:\n## Patterns We Notice\n## Potential Triggers to Explore\n## What's Improving vs Worsening\n## Questions to Bring to Your Doctor\n\nBe warm, specific, and never diagnose.` }] }) });
+      // Group entries by day to show full daily picture, preserving time-of-day context
+      const entriesByDay = entries.slice(0, 60).reduce((acc, e) => {
+        const day = new Date(e.timestamp).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+        if (!acc[day]) acc[day] = [];
+        acc[day].push(e);
+        return acc;
+      }, {});
+
+      const summary = Object.entries(entriesByDay).slice(0, 14).map(([day, dayEntries]) => {
+        const sorted = [...dayEntries].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+        const allMeds = [...new Set(sorted.flatMap(e => e.medications ? [e.medications] : []))].join(", ");
+        const allFood = [...new Set(sorted.flatMap(e => e.food ? [e.food] : []))].join(", ");
+        const allActivity = [...new Set(sorted.flatMap(e => e.activity ? [e.activity] : []))].join(", ");
+        const sleep = sorted.find(e => e.sleep != null);
+        const timeEntries = sorted.map(e =>
+          `  ${new Date(e.timestamp).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}: Severity ${e.severity}/10${e.symptoms ? ` — ${e.symptoms}` : ""}${e.stress ? ` | Stress: ${e.stress}/10` : ""}${e.notes ? ` | Notes: ${e.notes}` : ""}`
+        ).join("\n");
+        return `${day}:${sleep ? ` Sleep: ${sleep.sleep}/10` : ""}${allMeds ? ` | Medications: ${allMeds}` : ""}${allFood ? ` | Food: ${allFood}` : ""}${allActivity ? ` | Activity: ${allActivity}` : ""}\n${timeEntries}`;
+      }).join("\n\n");
+
+      const styleEl = document.createElement("style");
+      styleEl.id = "insights-loading-styles";
+      styleEl.innerHTML = INSIGHTS_LOADING_STYLES;
+      document.head.appendChild(styleEl);
+
+      const response = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" }, body: JSON.stringify({ model: "claude-opus-4-6", max_tokens: 2000, messages: [{ role: "user", content: `You are Care Compass, a compassionate health navigation assistant. Analyze these symptom tracker entries and identify patterns, triggers, and insights to discuss with a doctor.
+
+IMPORTANT CONTEXT: Users log entries MULTIPLE TIMES per day. Each day shows all entries chronologically with timestamps. Medications, food, and activity listed for a day represent the COMBINED picture across all that day's entries — not that each item was logged at every entry. Do NOT interpret partial fields in individual entries as missed doses or incomplete information. Look for TIME-BASED CORRELATIONS within days — e.g. a medication logged in the morning followed by symptom changes hours later, or food logged before a symptom spike.
+
+ENTRIES (grouped by day, chronological within each day):
+${summary}
+
+Please provide a warm, specific analysis:
+## Patterns We Notice
+## Time-Based Correlations Worth Exploring
+## Potential Triggers
+## What's Improving vs Worsening
+## Questions to Bring to Your Doctor
+
+Never diagnose. Focus on patterns across days AND within-day timing. Be specific about which days or time patterns seem significant.` }] }) });
       const data = await response.json();
       setInsights(data.content[0].text); setView("insights");
     } catch { setInsights("Something went wrong. Please try again."); }
-    finally { setLoadingInsights(false); }
+    finally {
+      setLoadingInsights(false);
+      const styleEl = document.getElementById("insights-loading-styles");
+      if (styleEl) styleEl.remove();
+    }
   };
 
   const handlePrint = () => { const style = document.createElement("style"); style.innerHTML = `@media print { .no-print { display: none !important; } @page { margin: 1.5cm; } }`; document.head.appendChild(style); window.print(); setTimeout(() => document.head.removeChild(style), 1000); };
@@ -423,12 +477,55 @@ export default function CareCompassTracker() {
 
           {view === "insights" && (
             <div style={s.tabContent}>
-              {uniqueDaysLogged < 3 ? <div style={s.emptyState}><p style={s.emptyDesc}>Log entries across at least 3 different days before running AI pattern analysis. You've logged on {uniqueDaysLogged} {uniqueDaysLogged === 1 ? "day" : "days"} so far.</p><a href="/compass" style={{ ...s.assessmentPromptBtn, marginTop: "0.5rem" }}>Or take the full assessment →</a></div>
-              : !insights ? (
-                <div style={s.emptyState}><BotanicalMark size={48}/><h2 style={s.emptyTitle}>Ready to find your patterns?</h2><p style={s.emptyDesc}>Care Compass will analyze your {entries.length} entries across {uniqueDaysLogged} days and surface connections between your symptoms, food, activity, sleep, and stress.</p><button onClick={handleInsights} disabled={loadingInsights} style={s.addBtn}>{loadingInsights ? "Analyzing… 🌿" : "Analyze My Patterns →"}</button></div>
+              {/* Loading overlay */}
+              {loadingInsights && (
+                <div style={s.insightsLoadingOverlay}>
+                  <div style={s.insightsLoadingCard}>
+                    <BotanicalMark size={48}/>
+                    <h2 style={s.insightsLoadingTitle}>Analyzing your patterns</h2>
+                    <p style={s.insightsLoadingDesc}>Care Compass is reviewing your entries day by day — looking for symptom patterns, timing correlations, and potential triggers across your full health picture.</p>
+                    <div style={s.insightsLoadingBarWrap}>
+                      <div style={s.insightsLoadingBar}/>
+                    </div>
+                    <p style={s.insightsLoadingNote}>This usually takes 15–25 seconds. Please don't close this page.</p>
+                  </div>
+                </div>
+              )}
+              {uniqueDaysLogged < 3 ? (
+                <div style={s.emptyState}>
+                  <p style={s.emptyDesc}>Log entries across at least 3 different days before running AI pattern analysis. You've logged on {uniqueDaysLogged} {uniqueDaysLogged === 1 ? "day" : "days"} so far.</p>
+                  <a href="/compass" style={{ ...s.assessmentPromptBtn, marginTop: "0.5rem" }}>Or take the full assessment →</a>
+                </div>
+              ) : !insights ? (
+                <div style={s.emptyState}>
+                  <BotanicalMark size={48}/>
+                  <h2 style={s.emptyTitle}>Ready to find your patterns?</h2>
+                  <p style={s.emptyDesc}>Care Compass will analyze your {entries.length} entries across {uniqueDaysLogged} days — including time-of-day correlations between medications, food, activity, and symptoms.</p>
+                  <button onClick={handleInsights} disabled={loadingInsights} style={s.addBtn}>Analyze My Patterns →</button>
+                </div>
               ) : (
                 <div style={s.insightsWrap}>
-                  <div style={s.insightsHeader}><h2 style={s.insightsTitle}>Your Pattern Insights</h2><p style={s.insightsMeta}>Based on {entries.length} entries · {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</p></div>
+                  {/* Polished report header */}
+                  <div style={s.insightsReportHeader}>
+                    <div style={s.insightsReportHeaderTop}>
+                      <BotanicalMark size={44}/>
+                      <div>
+                        <p style={s.insightsReportEyebrow}>Care Compass Pattern Report</p>
+                        <h2 style={s.insightsTitle}>Your Health Pattern Insights</h2>
+                        <p style={s.insightsMeta}>Based on {entries.length} entries across {uniqueDaysLogged} days · {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</p>
+                      </div>
+                    </div>
+                    <div style={s.insightsReportActions} className="no-print">
+                      <button onClick={() => {
+                        const style = document.createElement("style");
+                        style.innerHTML = `@media print { .no-print { display: none !important; } @page { margin: 1.5cm; } }`;
+                        document.head.appendChild(style);
+                        window.print();
+                        setTimeout(() => document.head.removeChild(style), 1000);
+                      }} style={s.insightsExportBtn}>↓ Save as PDF</button>
+                      <button onClick={handleInsights} style={s.rerunBtn}>Re-run Analysis →</button>
+                    </div>
+                  </div>
                   <div style={s.disclaimer}><strong>Important:</strong> These are patterns to explore with your doctor — not medical advice or diagnosis.</div>
                   <div style={s.insightsContent}>
                     {insights.split("\n").filter(l => l.trim()).map((line, i) => {
@@ -437,7 +534,19 @@ export default function CareCompassTracker() {
                       return <p key={i} style={s.insightPara}>{line.replace(/\*\*(.*?)\*\*/g, "$1")}</p>;
                     })}
                   </div>
-                  <button onClick={handleInsights} style={s.rerunBtn}>Re-run Analysis →</button>
+                  <div style={s.insightsFooter} className="no-print">
+                    <p style={s.insightsFooterNote}>🌿 Bring this report to your next appointment and ask your provider to help you explore these patterns.</p>
+                    <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center", flexWrap: "wrap" }}>
+                      <button onClick={() => {
+                        const style = document.createElement("style");
+                        style.innerHTML = `@media print { .no-print { display: none !important; } @page { margin: 1.5cm; } }`;
+                        document.head.appendChild(style);
+                        window.print();
+                        setTimeout(() => document.head.removeChild(style), 1000);
+                      }} style={s.insightsExportBtn}>↓ Save as PDF</button>
+                      <button onClick={handleInsights} style={s.rerunBtn}>Re-run Analysis →</button>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -658,6 +767,20 @@ const s = {
   footerText: { fontSize: "0.85rem", color: WARM_GRAY, margin: "0 0 0.25rem" },
   footerLink: { color: SAGE_DARK, textDecoration: "none" },
   footerDisclaimer: { fontSize: "0.75rem", color: "#aaa", margin: 0 },
+  insightsLoadingOverlay: { position: "fixed", inset: 0, background: "rgba(250,250,248,0.96)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem", backdropFilter: "blur(4px)" },
+  insightsLoadingCard: { background: "#fff", borderRadius: "1.5rem", border: "1px solid rgba(0,0,0,0.07)", padding: "2.5rem 2rem", maxWidth: 480, width: "100%", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: "1rem", boxShadow: "0 8px 40px rgba(0,0,0,0.08)" },
+  insightsLoadingTitle: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.4rem", fontWeight: 700, color: INK, margin: 0 },
+  insightsLoadingDesc: { fontSize: "0.9rem", color: WARM_GRAY, lineHeight: 1.75, margin: 0, maxWidth: 380 },
+  insightsLoadingBarWrap: { width: "100%", height: 6, background: SAGE_LIGHT, borderRadius: 100, overflow: "hidden" },
+  insightsLoadingBar: { height: "100%", borderRadius: 100, background: SAGE_DARK, animation: "insightProgress 22s ease-in-out forwards" },
+  insightsLoadingNote: { fontSize: "0.78rem", color: "#aaa", margin: 0, fontStyle: "italic" },
+  insightsReportHeader: { background: "#fff", borderRadius: "1.25rem", border: "1px solid rgba(0,0,0,0.07)", padding: "1.75rem", display: "flex", flexDirection: "column", gap: "1.25rem", boxShadow: "0 2px 20px rgba(0,0,0,0.06)" },
+  insightsReportHeaderTop: { display: "flex", gap: "1.25rem", alignItems: "flex-start" },
+  insightsReportEyebrow: { fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: TEAL, margin: "0 0 0.35rem" },
+  insightsReportActions: { display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" },
+  insightsExportBtn: { background: TEAL, color: "#fff", border: "none", padding: "0.65rem 1.5rem", borderRadius: "100px", fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" },
+  insightsFooter: { background: SAGE_LIGHT, borderRadius: "1rem", padding: "1.5rem 2rem", display: "flex", flexDirection: "column", gap: "1rem", alignItems: "center", textAlign: "center" },
+  insightsFooterNote: { fontSize: "0.92rem", color: SAGE_DARK, lineHeight: 1.7, margin: 0, fontStyle: "italic" },
   onboardingWrap: { maxWidth: 600, margin: "0 auto", display: "flex", flexDirection: "column", alignItems: "center", gap: "1.5rem", textAlign: "center", padding: "2rem 1rem" },
   onboardingTitle: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "clamp(1.6rem, 3vw, 2.2rem)", fontWeight: 700, color: INK, margin: 0, letterSpacing: "-0.02em", lineHeight: 1.2 },
   onboardingDesc: { fontSize: "1rem", color: WARM_GRAY, lineHeight: 1.75, margin: 0, maxWidth: 480 },
