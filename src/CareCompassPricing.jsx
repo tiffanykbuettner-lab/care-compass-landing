@@ -183,7 +183,7 @@ export default function CareCompassPricing() {
                   style={{ ...s.toggleBtn, background: billing === "annual" ? "#fff" : "transparent", color: billing === "annual" ? INK : WARM_GRAY, boxShadow: billing === "annual" ? "0 1px 4px rgba(0,0,0,0.1)" : "none" }}
                 >
                   Annual
-                  <span style={s.savingsBadge}>Save ${savings}</span>
+                  <span style={s.savingsBadge}>Save 10%</span>
                 </button>
               </div>
 
@@ -208,12 +208,12 @@ export default function CareCompassPricing() {
 
                   {billing === "annual" && (
                     <p style={s.annualNote}>
-                      Billed annually at ${annual.toFixed(2)} · Save ${savings} per year
+                      Billed annually at $140.30 · Save 10%
                     </p>
                   )}
                   {billing === "monthly" && (
                     <p style={s.annualNote}>
-                      Switch to annual and save ${savings} per year
+                      Switch to annual and save 10%
                     </p>
                   )}
 
@@ -226,9 +226,9 @@ export default function CareCompassPricing() {
                   <p style={s.subscribeNote}>Cancel anytime · No hidden fees · Secure checkout</p>
 
                   <div style={s.trustRow}>
-                    <span style={s.trustItem}>🔒 Encrypted & private</span>
-                    <span style={s.trustItem}>🏥 Not medical advice</span>
-                    <span style={s.trustItem}>💚 Cancel anytime</span>
+                    <span style={s.trustItem}><svg width="16" height="16" viewBox="0 0 72 72" fill="none" style={{marginRight:"0.35rem",verticalAlign:"middle"}}><circle cx="36" cy="36" r="34" fill="#e8f0eb" stroke="#7a9e87" strokeWidth="1"/><ellipse cx="36" cy="17" rx="7" ry="17" fill="#4a7058"/><ellipse cx="55" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.8"/><ellipse cx="17" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.45"/><circle cx="36" cy="36" r="7" fill="#4a7058"/><circle cx="36" cy="36" r="3" fill="#e8f0eb"/></svg>Encrypted & private</span>
+                    <span style={s.trustItem}><svg width="16" height="16" viewBox="0 0 72 72" fill="none" style={{marginRight:"0.35rem",verticalAlign:"middle"}}><circle cx="36" cy="36" r="34" fill="#e8f0eb" stroke="#7a9e87" strokeWidth="1"/><ellipse cx="36" cy="17" rx="7" ry="17" fill="#4a7058"/><ellipse cx="55" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.8"/><ellipse cx="17" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.45"/><circle cx="36" cy="36" r="7" fill="#4a7058"/><circle cx="36" cy="36" r="3" fill="#e8f0eb"/></svg>Not medical advice</span>
+                    <span style={s.trustItem}><svg width="16" height="16" viewBox="0 0 72 72" fill="none" style={{marginRight:"0.35rem",verticalAlign:"middle"}}><circle cx="36" cy="36" r="34" fill="#e8f0eb" stroke="#7a9e87" strokeWidth="1"/><ellipse cx="36" cy="17" rx="7" ry="17" fill="#4a7058"/><ellipse cx="55" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.8"/><ellipse cx="17" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.45"/><circle cx="36" cy="36" r="7" fill="#4a7058"/><circle cx="36" cy="36" r="3" fill="#e8f0eb"/></svg>Cancel anytime</span>
                   </div>
                 </div>
 
@@ -375,7 +375,7 @@ const s = {
 
   featuresLabel: { fontSize: "0.75rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: WARM_GRAY, margin: "0 0 1.25rem" },
   featuresList: { display: "flex", flexDirection: "column", gap: "1rem" },
-  featureItem: { display: "flex", gap: "0.75rem", alignItems: "flex-start" },
+  featureItem: { display: "flex", gap: "0.75rem", alignItems: "flex-start", textAlign: "left" },
   featureLabel: { fontSize: "0.9rem", fontWeight: 600, color: INK, margin: "0 0 0.15rem" },
   featureDesc: { fontSize: "0.78rem", color: WARM_GRAY, lineHeight: 1.6, margin: 0 },
 
