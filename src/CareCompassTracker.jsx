@@ -123,6 +123,18 @@ function EntryCard({ entry, onDelete, onEdit }) {
           {entry.stress && <DR label="Stress" value={`${entry.stress}/10`}/>}
           {entry.weather && <DR label="Weather" value={entry.weather}/>}
           {entry.notes && <DR label="Notes" value={entry.notes}/>}
+          {entry.photos && entry.photos.length > 0 && (
+            <div style={s.entryPhotos}>
+              <span style={s.detailLabel}>Photos</span>
+              <div style={s.entryPhotoRow}>
+                {entry.photos.map((photo, idx) => (
+                  <img key={idx} src={photo.data} alt={photo.name} style={s.entryPhotoThumb}
+                    onClick={() => window.open(photo.data, "_blank")}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -201,7 +213,7 @@ export default function CareCompassTracker() {
   const [chartField, setChartField]     = useState("severity");
   const [dateFilter, setDateFilter]     = useState("all");
 
-  const blankForm = { symptoms: "", severity: 5, food: "", medications: "", activity: "", sleep: null, stress: 5, weather: "", notes: "" };
+  const blankForm = { symptoms: "", severity: 5, food: "", medications: "", activity: "", sleep: null, stress: 5, weather: "", notes: "", photos: [] };
   const [form, setForm] = useState(blankForm);
 
   useEffect(() => { try { const stored = localStorage.getItem(STORAGE_KEY); if (stored) setEntries(JSON.parse(stored)); } catch {} }, []);
@@ -216,7 +228,25 @@ export default function CareCompassTracker() {
   const isFirstEntryToday = !entries.some(e => new Date(e.timestamp).toDateString() === new Date().toDateString());
 
   const openNew = () => { setEditingEntry(null); setForm({ ...blankForm, sleep: isFirstEntryToday ? 7 : null }); setShowForm(true); };
-  const openEdit = (entry) => { setEditingEntry(entry); setForm({ ...entry }); setShowForm(true); };
+  const openEdit = (entry) => { setEditingEntry(entry); setForm({ ...entry, photos: entry.photos || [] }); setShowForm(true); };
+
+  const handlePhotoUpload = (e) => {
+    const files = Array.from(e.target.files);
+    files.forEach(file => {
+      if (file.size > 2 * 1024 * 1024) { alert("Please choose a photo under 2MB."); return; }
+      const reader = new FileReader();
+      reader.onload = evt => {
+        setForm(f => ({
+          ...f,
+          photos: [...(f.photos || []), { data: evt.target.result, name: file.name, type: file.type }].slice(0, 3)
+        }));
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = "";
+  };
+
+  const removePhoto = (idx) => setForm(f => ({ ...f, photos: f.photos.filter((_, i) => i !== idx) }));
 
   const handleSubmit = () => {
     if (editingEntry) {
@@ -643,6 +673,26 @@ Never diagnose. Focus on patterns across days AND within-day timing. Be specific
                 </div>
               )}
               <div style={s.formGroup}><label style={s.label}>Additional notes <span style={s.optional}>(optional)</span></label><textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Anything else worth noting…" style={s.textarea} rows={2}/></div>
+
+              <div style={s.formGroup}>
+                <label style={s.label}>Photos <span style={s.optional}>(optional — up to 3, max 2MB each)</span></label>
+                <label style={s.photoUploadArea}>
+                  <input type="file" accept="image/*" multiple style={{ display: "none" }} onChange={handlePhotoUpload}/>
+                  <span style={s.photoUploadIcon}>📷</span>
+                  <span style={s.photoUploadText}>Tap to add photos</span>
+                  <span style={s.photoUploadSub}>Rashes, swelling, bruising — anything worth documenting</span>
+                </label>
+                {(form.photos || []).length > 0 && (
+                  <div style={s.photoPreviewRow}>
+                    {(form.photos || []).map((photo, idx) => (
+                      <div key={idx} style={s.photoPreviewWrap}>
+                        <img src={photo.data} alt={photo.name} style={s.photoPreview}/>
+                        <button onClick={() => removePhoto(idx)} style={s.photoRemoveBtn}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
             <div style={s.modalFooter}><button onClick={() => setShowForm(false)} style={s.cancelBtn}>Cancel</button><button onClick={handleSubmit} style={s.saveBtn}>{editingEntry ? "Update Entry →" : "Save Entry →"}</button></div>
           </div>
@@ -776,6 +826,17 @@ const s = {
   sevValue: { fontWeight: 400, color: SAGE_DARK, marginLeft: "0.5rem" },
   uploadLabel: { cursor: "pointer", display: "inline-block", marginTop: "0.25rem" },
   uploadBtn: { fontSize: "0.78rem", color: SAGE_DARK, fontWeight: 600, textDecoration: "underline", textDecorationColor: "rgba(74,112,88,0.3)" },
+  photoUploadArea: { display: "flex", flexDirection: "column", alignItems: "center", gap: "0.35rem", padding: "1.25rem", borderRadius: "0.75rem", border: `2px dashed rgba(74,112,88,0.3)`, background: SAGE_LIGHT, cursor: "pointer", textAlign: "center" },
+  photoUploadIcon: { fontSize: "1.5rem" },
+  photoUploadText: { fontSize: "0.9rem", fontWeight: 600, color: SAGE_DARK },
+  photoUploadSub: { fontSize: "0.75rem", color: WARM_GRAY },
+  photoPreviewRow: { display: "flex", gap: "0.75rem", flexWrap: "wrap", marginTop: "0.5rem" },
+  photoPreviewWrap: { position: "relative", display: "inline-block" },
+  photoPreview: { width: 80, height: 80, objectFit: "cover", borderRadius: "0.6rem", border: `1px solid rgba(0,0,0,0.1)` },
+  photoRemoveBtn: { position: "absolute", top: -6, right: -6, background: "#c0392b", color: "#fff", border: "none", borderRadius: "50%", width: 20, height: 20, fontSize: "0.6rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 },
+  entryPhotos: { display: "flex", flexDirection: "column", gap: "0.5rem" },
+  entryPhotoRow: { display: "flex", gap: "0.5rem", flexWrap: "wrap" },
+  entryPhotoThumb: { width: 72, height: 72, objectFit: "cover", borderRadius: "0.5rem", border: `1px solid rgba(0,0,0,0.1)`, cursor: "pointer" },
   cancelBtn: { background: "transparent", border: `1.5px solid rgba(0,0,0,0.15)`, color: WARM_GRAY, padding: "0.7rem 1.5rem", borderRadius: "100px", fontSize: "0.9rem", cursor: "pointer", fontFamily: "inherit" },
   saveBtn: { background: SAGE_DARK, color: "#fff", border: "none", padding: "0.7rem 1.75rem", borderRadius: "100px", fontSize: "0.9rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" },
   footer: { padding: "1.5rem 2rem", borderTop: `1px solid rgba(0,0,0,0.07)`, textAlign: "center" },
