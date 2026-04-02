@@ -400,6 +400,7 @@ export default function CareCompassPOC() {
   const goToStep = (i) => {
     setStep(i);
     setMaxVisited(prev => Math.max(prev, i));
+    saveFormState({ step: i });
   };
 
   const [symptoms, setSymptoms] = useState(
@@ -417,19 +418,57 @@ export default function CareCompassPOC() {
   const [stress, setStress]           = useState("");
   const [recentChanges, setRecentChanges] = useState("");
   const [name, setName]               = useState("");
+  const [retryCount, setRetryCount]   = useState(0);
+
+  // Restore saved form state from sessionStorage on mount
+  useState(() => {
+    try {
+      const saved = sessionStorage.getItem("cc-assessment-form");
+      if (saved) {
+        const f = JSON.parse(saved);
+        if (f.symptoms) setSymptoms(f.symptoms);
+        if (f.name) setName(f.name);
+        if (f.ageRange) setAgeRange(f.ageRange);
+        if (f.duration) setDuration(f.duration);
+        if (f.severity) setSeverity(f.severity);
+        if (f.diagnoses) setDiagnoses(f.diagnoses);
+        if (f.medications) setMedications(f.medications);
+        if (f.allergies) setAllergies(f.allergies);
+        if (f.diet) setDiet(f.diet);
+        if (f.activity) setActivity(f.activity);
+        if (f.sleep) setSleep(f.sleep);
+        if (f.stress) setStress(f.stress);
+        if (f.recentChanges) setRecentChanges(f.recentChanges);
+        if (f.step) { setStep(f.step); setMaxVisited(f.step); }
+      }
+    } catch {}
+  });
+
+  // Save form state to sessionStorage whenever fields change
+  const saveFormState = (updates = {}) => {
+    try {
+      const current = { symptoms, name, ageRange, duration, severity, diagnoses, medications, allergies, diet, activity, sleep, stress, recentChanges, step, ...updates };
+      sessionStorage.setItem("cc-assessment-form", JSON.stringify(current));
+    } catch {}
+  };
+
+  const clearSavedForm = () => { try { sessionStorage.removeItem("cc-assessment-form"); } catch {} };
 
   const filledSystems = Object.entries(symptoms).filter(([, v]) => v.trim());
   const allSymptoms   = filledSystems.map(([sys, desc]) => `${sys}: ${desc}`).join("\n");
 
-  const handleAnalyze = async () => {
+  const handleAnalyze = async (attempt = 1) => {
+    const MAX_ATTEMPTS = 3;
     setLoading(true);
     setError(null);
-    const styleEl = document.createElement("style");
+    setRetryCount(attempt - 1);
+
+    const styleEl = document.getElementById("loading-styles") || document.createElement("style");
     styleEl.id = "loading-styles";
     styleEl.innerHTML = LOADING_STYLES;
-    document.head.appendChild(styleEl);
-    try {
-      const prompt = `You are a compassionate, knowledgeable health navigation assistant for Care Compass — a platform that helps people with chronic illness understand their symptoms and advocate for themselves.
+    if (!document.getElementById("loading-styles")) document.head.appendChild(styleEl);
+
+    const prompt = `You are a compassionate, knowledgeable health navigation assistant for Care Compass — a platform that helps people with chronic illness understand their symptoms and advocate for themselves.
 
 A user has shared the following health information. Your role is to:
 1. Identify symptom patterns and clusters that may be connected
@@ -472,6 +511,7 @@ Please provide a Care Compass Insight Report with these sections:
 ## Questions to Bring to Your Doctor
 ## A Note From Care Compass`;
 
+    try {
       const response = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
@@ -487,17 +527,31 @@ Please provide a Care Compass Insight Report with these sections:
         }),
       });
 
-      if (!response.ok) throw new Error("API request failed");
+      if (!response.ok) throw new Error(`API error: ${response.status}`);
       const data = await response.json();
+      if (!data.content?.[0]?.text) throw new Error("Empty response");
       setGuidance(data.content[0].text);
       setStep(4);
+      clearSavedForm();
     } catch (err) {
-      setError("Something went wrong generating your insights. Please try again.");
-    } finally {
-      setLoading(false);
-      const styleEl = document.getElementById("loading-styles");
-      if (styleEl) styleEl.remove();
+      if (attempt < MAX_ATTEMPTS) {
+        // Auto-retry with delay: 3s then 6s
+        const delay = attempt * 3000;
+        setError(`Something went wrong — automatically retrying (attempt ${attempt} of ${MAX_ATTEMPTS})…`);
+        setTimeout(() => handleAnalyze(attempt + 1), delay);
+      } else {
+        // All retries exhausted — show friendly final error
+        setError("We weren't able to generate your insights after a few attempts. Your answers have been saved — please try again in a moment.");
+        setLoading(false);
+        const styleEl = document.getElementById("loading-styles");
+        if (styleEl) styleEl.remove();
+      }
+      return;
     }
+
+    setLoading(false);
+    const styleElFinal = document.getElementById("loading-styles");
+    if (styleElFinal) styleElFinal.remove();
   };
 
   const handleReset = () => {
@@ -510,6 +564,7 @@ Please provide a Care Compass Insight Report with these sections:
     setMedications(""); setAllergies(""); setDiet("");
     setActivity(""); setSleep(""); setStress("");
     setRecentChanges(""); setName("");
+    clearSavedForm();
   };
 
   return (
@@ -731,7 +786,16 @@ Please provide a Care Compass Insight Report with these sections:
                     <a href="/privacy" target="_blank" rel="noreferrer" style={s.consentLink}>Read our Privacy Policy →</a>
                   </p>
                 </div>
-                {error && <p style={s.errorMsg}>{error}</p>}
+                {error && (
+                  <div style={{ ...s.errorBox, background: error.includes("retrying") ? "#fff8e8" : "#fdeaea", borderColor: error.includes("retrying") ? "#f0d080" : "#f5c6c6" }}>
+                    <p style={{ ...s.errorMsg, color: error.includes("retrying") ? "#8a6000" : "#c0392b" }}>
+                      {error.includes("retrying") ? "⏳ " : "⚠️ "}{error}
+                    </p>
+                    {!error.includes("retrying") && (
+                      <button onClick={() => handleAnalyze(1)} style={s.retryBtn}>Try Again →</button>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
@@ -864,7 +928,9 @@ const s = {
   analyzeBtn: { background: SAGE_DARK, color: "#fff", border: "none", padding: "0.95rem 2.25rem", borderRadius: "100px", fontSize: "1rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", marginLeft: "auto" },
   spinner: { display: "inline-block", animation: "spin 1s linear infinite" },
 
-  errorMsg: { color: "#c0392b", fontSize: "0.875rem", textAlign: "center" },
+  errorMsg: { fontSize: "0.875rem", textAlign: "center", margin: 0 },
+  errorBox: { borderRadius: "0.75rem", padding: "1rem 1.25rem", border: "1px solid", display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem" },
+  retryBtn: { background: SAGE_DARK, color: "#fff", border: "none", padding: "0.6rem 1.5rem", borderRadius: "100px", fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" },
 
   guidanceWrap: { display: "flex", flexDirection: "column", gap: "1.5rem" },
   reportHeader: { background: "#fff", borderRadius: "1.25rem", border: `1px solid rgba(0,0,0,0.07)`, padding: "2rem", display: "flex", flexDirection: "column", gap: "1.25rem", boxShadow: "0 2px 20px rgba(0,0,0,0.06)" },
