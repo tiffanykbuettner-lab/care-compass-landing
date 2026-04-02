@@ -226,9 +226,9 @@ export default function CareCompassPricing() {
                   <p style={s.subscribeNote}>Cancel anytime · No hidden fees · Secure checkout</p>
 
                   <div style={s.trustRow}>
-                    <span style={s.trustItem}><svg width="16" height="16" viewBox="0 0 72 72" fill="none" style={{marginRight:"0.35rem",verticalAlign:"middle"}}><circle cx="36" cy="36" r="34" fill="#e8f0eb" stroke="#7a9e87" strokeWidth="1"/><ellipse cx="36" cy="17" rx="7" ry="17" fill="#4a7058"/><ellipse cx="55" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.8"/><ellipse cx="17" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.45"/><circle cx="36" cy="36" r="7" fill="#4a7058"/><circle cx="36" cy="36" r="3" fill="#e8f0eb"/></svg>Encrypted & private</span>
-                    <span style={s.trustItem}><svg width="16" height="16" viewBox="0 0 72 72" fill="none" style={{marginRight:"0.35rem",verticalAlign:"middle"}}><circle cx="36" cy="36" r="34" fill="#e8f0eb" stroke="#7a9e87" strokeWidth="1"/><ellipse cx="36" cy="17" rx="7" ry="17" fill="#4a7058"/><ellipse cx="55" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.8"/><ellipse cx="17" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.45"/><circle cx="36" cy="36" r="7" fill="#4a7058"/><circle cx="36" cy="36" r="3" fill="#e8f0eb"/></svg>Not medical advice</span>
-                    <span style={s.trustItem}><svg width="16" height="16" viewBox="0 0 72 72" fill="none" style={{marginRight:"0.35rem",verticalAlign:"middle"}}><circle cx="36" cy="36" r="34" fill="#e8f0eb" stroke="#7a9e87" strokeWidth="1"/><ellipse cx="36" cy="17" rx="7" ry="17" fill="#4a7058"/><ellipse cx="55" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.8"/><ellipse cx="17" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.45"/><circle cx="36" cy="36" r="7" fill="#4a7058"/><circle cx="36" cy="36" r="3" fill="#e8f0eb"/></svg>Cancel anytime</span>
+                    <span style={s.trustItem}><CheckIcon/> Encrypted & private</span>
+                    <span style={s.trustItem}><CheckIcon/> Not medical advice</span>
+                    <span style={s.trustItem}><CheckIcon/> Cancel anytime</span>
                   </div>
                 </div>
 
@@ -370,8 +370,8 @@ const s = {
   annualNote: { fontSize: "0.82rem", color: WARM_GRAY, margin: 0, lineHeight: 1.6 },
   subscribeBtn: { display: "block", background: SAGE_DARK, color: "#fff", padding: "1rem 2rem", borderRadius: "100px", fontSize: "1rem", fontWeight: 600, textDecoration: "none", textAlign: "center", transition: "background 0.2s" },
   subscribeNote: { fontSize: "0.75rem", color: "#aaa", textAlign: "center", margin: 0 },
-  trustRow: { display: "flex", flexDirection: "column", gap: "0.4rem" },
-  trustItem: { fontSize: "0.8rem", color: WARM_GRAY },
+  trustRow: { display: "flex", flexDirection: "column", gap: "0.6rem", alignItems: "flex-start" },
+  trustItem: { display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.85rem", fontWeight: 600, color: INK_LIGHT },
 
   featuresLabel: { fontSize: "0.75rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: WARM_GRAY, margin: "0 0 1.25rem" },
   featuresList: { display: "flex", flexDirection: "column", gap: "1rem" },
