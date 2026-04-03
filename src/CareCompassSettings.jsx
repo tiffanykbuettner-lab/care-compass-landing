@@ -388,7 +388,7 @@ function ProfilePanel({ form, setForm, markDirty }) {
           <Field
             label="Preferred name"
             optional
-            hint="Used in greetings and notifications — e.g. "Tiff" instead of "Tiffany""
+            hint={'Used in greetings and notifications — e.g. "Tiff" instead of "Tiffany"'}
           >
             <StyledInput
               type="text"
