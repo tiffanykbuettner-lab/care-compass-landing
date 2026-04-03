@@ -16,6 +16,7 @@ const SAGE       = "#7a9e87";
 const SAGE_LIGHT = "#e8f0eb";
 const SAGE_DARK  = "#4a7058";
 const TEAL       = "#4a9fa5";
+const TEAL_LIGHT = "#e0f2f4";
 const WARM_GRAY  = "#6b6560";
 const OFF_WHITE  = "#fafaf8";
 const CREAM      = "#f4f1ec";
