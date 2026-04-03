@@ -12,6 +12,7 @@ const INK        = "#2d2926";
 const INK_LIGHT  = "#4a4540";
 
 const STORAGE_KEY = "care-compass-tracker-v1";
+const APPT_KEY = "care-compass-appointments-v1";
 
 const BotanicalMark = ({ size = 32 }) => (
   <svg width={size} height={size} viewBox="0 0 72 72" fill="none">
@@ -28,6 +29,173 @@ const BotanicalMark = ({ size = 32 }) => (
     <circle cx="36" cy="36" r="3" fill="#e8f0eb"/>
   </svg>
 );
+
+
+const APPT_SPECIALTIES = [
+  "Primary Care", "Cardiologist", "Rheumatologist", "Neurologist",
+  "Gastroenterologist", "Immunologist / Allergist", "Endocrinologist",
+  "Dermatologist", "Physical Therapist", "Pain Management",
+  "Psychiatrist / Psychologist", "Gynecologist", "Orthopedist",
+  "Pulmonologist", "Nephrologist", "Other",
+];
+
+function daysUntil(dateStr) {
+  const appt = new Date(dateStr);
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  appt.setHours(0, 0, 0, 0);
+  return Math.round((appt - now) / 86400000);
+}
+
+function formatApptDate(dateStr, timeStr) {
+  const d = new Date(`${dateStr}T${timeStr || "00:00"}`);
+  return d.toLocaleDateString("en-US", { weekday: "short", month: "long", day: "numeric", year: "numeric" }) +
+    (timeStr ? " · " + d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "");
+}
+
+function urgencyColor(days) {
+  if (days < 0) return "#aaa";
+  if (days <= 3) return "#c0392b";
+  if (days <= 7) return "#e8a838";
+  return SAGE_DARK;
+}
+
+function AppointmentCard({ appt, onEdit, onDelete }) {
+  const days = daysUntil(appt.date);
+  const color = urgencyColor(days);
+  const isPast = days < 0;
+  return (
+    <div style={{
+      background: "#fff", borderRadius: "1rem",
+      border: `1px solid rgba(0,0,0,0.07)`,
+      borderLeft: `4px solid ${color}`,
+      padding: "1rem 1.25rem",
+      display: "flex", justifyContent: "space-between", alignItems: "flex-start",
+      gap: "1rem", opacity: isPast ? 0.6 : 1,
+    }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap", marginBottom: "0.3rem" }}>
+          <span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "0.95rem", fontWeight: 700, color: INK }}>
+            {appt.specialty}
+          </span>
+          {appt.doctor && <span style={{ fontSize: "0.8rem", color: WARM_GRAY }}>· {appt.doctor}</span>}
+          <span style={{
+            fontSize: "0.7rem", fontWeight: 700, padding: "0.15rem 0.6rem",
+            borderRadius: "100px", background: isPast ? "#f0ede8" : color + "18",
+            color: isPast ? WARM_GRAY : color, marginLeft: "auto", whiteSpace: "nowrap",
+          }}>
+            {isPast ? "Past" : days === 0 ? "Today!" : days === 1 ? "Tomorrow" : `${days} days`}
+          </span>
+        </div>
+        <p style={{ fontSize: "0.78rem", color: TEAL, margin: "0 0 0.3rem", fontWeight: 500 }}>
+          {formatApptDate(appt.date, appt.time)}
+        </p>
+        {appt.location && <p style={{ fontSize: "0.75rem", color: WARM_GRAY, margin: "0 0 0.2rem" }}>📍 {appt.location}</p>}
+        {appt.reason && <p style={{ fontSize: "0.78rem", color: INK_LIGHT, margin: 0, fontStyle: "italic" }}>"{appt.reason}"</p>}
+        <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
+          {appt.reminder && (
+            <span style={{ fontSize: "0.7rem", background: SAGE_LIGHT, color: SAGE_DARK, borderRadius: "100px", padding: "0.2rem 0.65rem", fontWeight: 500 }}>
+              ⏰ Reminder set
+            </span>
+          )}
+          {appt.prepReport && (
+            <span style={{ fontSize: "0.7rem", background: TEAL_LIGHT, color: TEAL, borderRadius: "100px", padding: "0.2rem 0.65rem", fontWeight: 500 }}>
+              📋 Report requested
+            </span>
+          )}
+        </div>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", flexShrink: 0 }}>
+        <button onClick={() => onEdit(appt)} style={{ background: "none", border: "1px solid rgba(0,0,0,0.12)", borderRadius: "6px", padding: "0.25rem 0.65rem", fontSize: "0.72rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit" }}>Edit</button>
+        <button onClick={() => onDelete(appt.id)} style={{ background: "none", border: "none", color: "#ddd", cursor: "pointer", fontSize: "0.9rem", textAlign: "center" }}>✕</button>
+      </div>
+    </div>
+  );
+}
+
+function AppointmentForm({ initial, onSave, onCancel }) {
+  const blank = { specialty: "", doctor: "", date: "", time: "", location: "", reason: "", reminder: true, prepReport: true };
+  const [form, setForm] = useState(initial || blank);
+  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
+  const toggle = (k) => setForm(f => ({ ...f, [k]: !f[k] }));
+  const valid = form.specialty && form.date;
+
+  const inp = {
+    padding: "0.65rem 0.9rem", borderRadius: "0.65rem",
+    border: "1.5px solid rgba(0,0,0,0.12)", fontSize: "0.9rem",
+    color: INK, background: OFF_WHITE, outline: "none",
+    fontFamily: "inherit", width: "100%", boxSizing: "border-box",
+  };
+  const lbl = { fontSize: "0.78rem", fontWeight: 600, color: INK_LIGHT, marginBottom: "0.3rem", display: "block" };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+      {/* Specialty + Doctor */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.875rem" }}>
+        <div>
+          <label style={lbl}>Specialty <span style={{ color: "#c0392b" }}>*</span></label>
+          <select value={form.specialty} onChange={set("specialty")} style={{ ...inp, WebkitAppearance: "none" }}>
+            <option value="">Select specialty...</option>
+            {APPT_SPECIALTIES.map(s => <option key={s}>{s}</option>)}
+          </select>
+        </div>
+        <div>
+          <label style={lbl}>Doctor <span style={{ fontWeight: 400, color: "#aaa" }}>(optional)</span></label>
+          <input type="text" value={form.doctor} onChange={set("doctor")} placeholder="e.g. Dr. Patel" style={inp}/>
+        </div>
+      </div>
+
+      {/* Date + Time */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.875rem" }}>
+        <div>
+          <label style={lbl}>Date <span style={{ color: "#c0392b" }}>*</span></label>
+          <input type="date" value={form.date} onChange={set("date")} style={inp}/>
+        </div>
+        <div>
+          <label style={lbl}>Time <span style={{ fontWeight: 400, color: "#aaa" }}>(optional)</span></label>
+          <input type="time" value={form.time} onChange={set("time")} style={inp}/>
+        </div>
+      </div>
+
+      {/* Location */}
+      <div>
+        <label style={lbl}>Location <span style={{ fontWeight: 400, color: "#aaa" }}>(optional)</span></label>
+        <input type="text" value={form.location} onChange={set("location")} placeholder="e.g. Houston Methodist, 6565 Fannin St" style={inp}/>
+      </div>
+
+      {/* Reason */}
+      <div>
+        <label style={lbl}>Reason for appointment <span style={{ fontWeight: 400, color: "#aaa" }}>(optional)</span></label>
+        <textarea value={form.reason} onChange={set("reason")} placeholder="e.g. Follow-up on dysautonomia symptoms, medication review..." rows={2} style={{ ...inp, resize: "vertical", lineHeight: 1.5 }}/>
+      </div>
+
+      {/* Reminder + Report toggles */}
+      <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+        <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", userSelect: "none" }}>
+          <input type="checkbox" checked={form.reminder} onChange={() => toggle("reminder")} style={{ accentColor: SAGE_DARK, width: 16, height: 16 }}/>
+          <span style={{ fontSize: "0.85rem", color: INK }}>Set reminder 24h before</span>
+        </label>
+        <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", userSelect: "none" }}>
+          <input type="checkbox" checked={form.prepReport} onChange={() => toggle("prepReport")} style={{ accentColor: TEAL, width: 16, height: 16 }}/>
+          <span style={{ fontSize: "0.85rem", color: INK }}>Request report prep</span>
+        </label>
+      </div>
+
+      {form.prepReport && (
+        <div style={{ background: TEAL_LIGHT, borderRadius: "0.75rem", padding: "0.75rem 1rem", fontSize: "0.78rem", color: TEAL, lineHeight: 1.6 }}>
+          📋 We'll remind you to generate a symptom report 48 hours before your appointment so you can walk in prepared.
+        </div>
+      )}
+
+      <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end", paddingTop: "0.25rem" }}>
+        <button onClick={onCancel} style={{ background: "transparent", border: "1.5px solid rgba(0,0,0,0.12)", borderRadius: "100px", padding: "0.6rem 1.25rem", fontSize: "0.875rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+        <button onClick={() => valid && onSave(form)} disabled={!valid} style={{ background: valid ? SAGE_DARK : "#ccc", color: "#fff", border: "none", borderRadius: "100px", padding: "0.6rem 1.5rem", fontSize: "0.875rem", fontWeight: 600, cursor: valid ? "pointer" : "default", fontFamily: "inherit" }}>
+          {initial ? "Save changes" : "Add appointment"}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 const severityColor = (n) => {
   if (!n) return SAGE;
@@ -145,6 +313,45 @@ export default function CareCompassDashboard() {
   }, []);
   // UI demo states — in production these come from Supabase + Clerk
   const [showOnboarding, setShowOnboarding] = useState(false);
+
+  // ── Appointments state ────────────────────────────────────────────────────
+  const [appointments, setAppointments] = useState([]);
+  const [showApptForm, setShowApptForm] = useState(false);
+  const [editingAppt, setEditingAppt]   = useState(null);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(APPT_KEY);
+      if (stored) setAppointments(JSON.parse(stored));
+    } catch {}
+  }, []);
+
+  const saveAppointments = (updated) => {
+    setAppointments(updated);
+    try { localStorage.setItem(APPT_KEY, JSON.stringify(updated)); } catch {}
+  };
+
+  const handleSaveAppt = (form) => {
+    if (editingAppt) {
+      saveAppointments(appointments.map(a => a.id === editingAppt.id ? { ...form, id: editingAppt.id } : a));
+    } else {
+      saveAppointments([...appointments, { ...form, id: Date.now() }]);
+    }
+    setShowApptForm(false);
+    setEditingAppt(null);
+  };
+
+  const handleEditAppt = (appt) => { setEditingAppt(appt); setShowApptForm(true); };
+  const handleDeleteAppt = (id) => saveAppointments(appointments.filter(a => a.id !== id));
+
+  // Sort: upcoming first, then past
+  const upcomingAppts = appointments
+    .filter(a => daysUntil(a.date) >= 0)
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
+  const pastAppts = appointments
+    .filter(a => daysUntil(a.date) < 0)
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+  const nextAppt = upcomingAppts[0] || null;
   const [demoState, setDemoState] = useState("returning"); // new | empty | returning
 
   // Mock user data — replace with Clerk user object
@@ -399,6 +606,90 @@ export default function CareCompassDashboard() {
             </div>
           )}
 
+
+          {/* ── Appointments ── */}
+          {!isNew && (
+            <div style={s.sectionCard}>
+              <div style={{ ...s.sectionCardHeader, marginBottom: "1rem" }}>
+                <div>
+                  <p style={s.sectionEyebrow}>Appointments</p>
+                  <h2 style={s.sectionTitle}>Upcoming visits</h2>
+                </div>
+                <button
+                  onClick={() => { setEditingAppt(null); setShowApptForm(true); }}
+                  style={{ background: SAGE_DARK, color: "#fff", border: "none", borderRadius: "100px", padding: "0.55rem 1.25rem", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}
+                >
+                  + Add appointment
+                </button>
+              </div>
+
+              {/* Inline form */}
+              {showApptForm && (
+                <div style={{ background: OFF_WHITE, borderRadius: "1rem", border: "1px solid rgba(0,0,0,0.07)", padding: "1.25rem", marginBottom: "1.25rem" }}>
+                  <p style={{ ...s.sectionEyebrow, marginBottom: "1rem" }}>{editingAppt ? "Edit appointment" : "New appointment"}</p>
+                  <AppointmentForm
+                    initial={editingAppt}
+                    onSave={handleSaveAppt}
+                    onCancel={() => { setShowApptForm(false); setEditingAppt(null); }}
+                  />
+                </div>
+              )}
+
+              {/* Next appointment highlight */}
+              {nextAppt && !showApptForm && (
+                <div style={{ background: `linear-gradient(135deg, ${SAGE_LIGHT}, ${TEAL_LIGHT})`, borderRadius: "1rem", padding: "1rem 1.25rem", marginBottom: "1.25rem", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.75rem" }}>
+                  <div>
+                    <p style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: SAGE_DARK, margin: "0 0 0.25rem" }}>Next appointment</p>
+                    <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.05rem", fontWeight: 700, color: INK, margin: "0 0 0.15rem" }}>
+                      {nextAppt.specialty}{nextAppt.doctor ? ` · ${nextAppt.doctor}` : ""}
+                    </p>
+                    <p style={{ fontSize: "0.8rem", color: TEAL, margin: 0, fontWeight: 500 }}>
+                      {formatApptDate(nextAppt.date, nextAppt.time)}
+                      {daysUntil(nextAppt.date) === 0 ? " · Today!" : daysUntil(nextAppt.date) === 1 ? " · Tomorrow" : ` · ${daysUntil(nextAppt.date)} days away`}
+                    </p>
+                  </div>
+                  {nextAppt.prepReport && (
+                    <a href="/tracker" style={{ background: TEAL, color: "#fff", borderRadius: "100px", padding: "0.55rem 1.1rem", fontSize: "0.8rem", fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" }}>
+                      Generate report →
+                    </a>
+                  )}
+                </div>
+              )}
+
+              {/* Appointment list */}
+              {appointments.length === 0 && !showApptForm ? (
+                <div style={s.emptyCard}>
+                  <span style={{ fontSize: "2rem" }}>🗓️</span>
+                  <p style={s.emptyTitle}>No appointments yet</p>
+                  <p style={s.emptyDesc}>Add upcoming doctor visits to get reminders and auto-prepare reports before you go.</p>
+                  <button onClick={() => setShowApptForm(true)} style={{ ...s.emptyBtn, border: "none", cursor: "pointer", fontFamily: "inherit" }}>Add your first appointment →</button>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
+                  {upcomingAppts.length > 0 && (
+                    <>
+                      {upcomingAppts.map(a => (
+                        <AppointmentCard key={a.id} appt={a} onEdit={handleEditAppt} onDelete={handleDeleteAppt}/>
+                      ))}
+                    </>
+                  )}
+                  {pastAppts.length > 0 && (
+                    <details style={{ marginTop: "0.5rem" }}>
+                      <summary style={{ fontSize: "0.78rem", color: WARM_GRAY, cursor: "pointer", fontWeight: 600, padding: "0.5rem 0", listStyle: "none", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                        <span>▸</span> Past appointments ({pastAppts.length})
+                      </summary>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.5rem" }}>
+                        {pastAppts.map(a => (
+                          <AppointmentCard key={a.id} appt={a} onEdit={handleEditAppt} onDelete={handleDeleteAppt}/>
+                        ))}
+                      </div>
+                    </details>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* ── Quick actions ── */}
           {!isNew && (
             <div style={s.quickActions}>
@@ -408,12 +699,20 @@ export default function CareCompassDashboard() {
                   { label: "Log a new entry", desc: "Record how you're feeling right now", href: "/tracker", color: SAGE_DARK },
                   { label: "Run the assessment", desc: "Map symptoms and get pattern insights", href: "/compass", color: TEAL },
                   { label: "Generate a report", desc: "Create a PDF to bring to your doctor", href: "/tracker", color: WARM_GRAY },
+                  { label: "Add appointment", desc: "Schedule a visit and prep your report", href: null, color: "#7a6fa0" },
                   { label: "Account settings", desc: "Manage your profile and subscription", href: "/account", color: INK_LIGHT },
                 ].map(({ label, desc, href, color }) => (
-                  <a key={label} href={href} style={{ ...s.quickActionCard, borderTop: `3px solid ${color}` }}>
-                    <p style={{ ...s.quickActionLabel, color }}>{label}</p>
-                    <p style={s.quickActionDesc}>{desc}</p>
-                  </a>
+                  {href ? (
+                    <a key={label} href={href} style={{ ...s.quickActionCard, borderTop: `3px solid ${color}` }}>
+                      <p style={{ ...s.quickActionLabel, color }}>{label}</p>
+                      <p style={s.quickActionDesc}>{desc}</p>
+                    </a>
+                  ) : (
+                    <div key={label} onClick={() => { setShowApptForm(true); setEditingAppt(null); window.scrollTo({ top: 0, behavior: "smooth" }); }} style={{ ...s.quickActionCard, borderTop: `3px solid ${color}`, cursor: "pointer" }}>
+                      <p style={{ ...s.quickActionLabel, color }}>{label}</p>
+                      <p style={s.quickActionDesc}>{desc}</p>
+                    </div>
+                  )}
                 ))}
               </div>
             </div>
@@ -532,6 +831,7 @@ const s = {
   quickActionDesc: { fontSize: "0.78rem", color: WARM_GRAY, margin: 0, lineHeight: 1.5 },
 
   footer: { padding: "1.5rem 2rem", borderTop: `1px solid rgba(0,0,0,0.07)`, textAlign: "center" },
+  apptCard: { background: "#fff", borderRadius: "1rem", border: "1px solid rgba(0,0,0,0.07)", padding: "1rem 1.25rem", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem" },
   footerText: { fontSize: "0.85rem", color: WARM_GRAY, margin: "0 0 0.25rem" },
   footerLink: { color: SAGE_DARK, textDecoration: "none" },
   footerDisclaimer: { fontSize: "0.75rem", color: "#aaa", margin: 0 },
