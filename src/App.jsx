@@ -6,6 +6,7 @@ import CareCompassTracker from './CareCompassTracker'
 import CareCompassPricing from './CareCompassPricing'
 import CareCompassLogin from './CareCompassLogin'
 import CareCompassSignup from './CareCompassSignup'
+import CareCompassDashboard from './CareCompassDashboard'
 
 export default function App() {
   return (
@@ -18,6 +19,7 @@ export default function App() {
         <Route path="/pricing" element={<CareCompassPricing />} />
         <Route path="/login" element={<CareCompassLogin />} />
         <Route path="/signup" element={<CareCompassSignup />} />
+        <Route path="/dashboard" element={<CareCompassDashboard />} />
       </Routes>
     </BrowserRouter>
   )
