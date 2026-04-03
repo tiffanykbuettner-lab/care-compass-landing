@@ -4,6 +4,8 @@ import PrivacyPolicy from './PrivacyPolicy'
 import CareCompassPOC from './CareCompassPOC'
 import CareCompassTracker from './CareCompassTracker'
 import CareCompassPricing from './CareCompassPricing'
+import CareCompassLogin from './CareCompassLogin'
+import CareCompassSignup from './CareCompassSignup'
 
 export default function App() {
   return (
@@ -14,6 +16,8 @@ export default function App() {
         <Route path="/compass" element={<CareCompassPOC />} />
         <Route path="/tracker" element={<CareCompassTracker />} />
         <Route path="/pricing" element={<CareCompassPricing />} />
+        <Route path="/login" element={<CareCompassLogin />} />
+        <Route path="/signup" element={<CareCompassSignup />} />
       </Routes>
     </BrowserRouter>
   )
