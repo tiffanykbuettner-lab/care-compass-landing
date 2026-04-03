@@ -494,7 +494,39 @@ function ProfilePanel({ form, setForm, markDirty }) {
 
 /* ─── Panel: Notifications ───────────────────────────────────────────────── */
 function NotificationsPanel({ prefs, setPrefs, markDirty }) {
-  const toggle = (key) => { setPrefs(p => ({ ...p, [key]: !p[key] })); markDirty(); };
+  const toggle = (key) => {
+    setPrefs(p => ({ ...p, [key]: { ...p[key], on: !p[key].on } }));
+    markDirty();
+  };
+  const setTime = (key, time) => {
+    setPrefs(p => ({ ...p, [key]: { ...p[key], time } }));
+    markDirty();
+  };
+
+  const ALERTS = [
+    {
+      key: "dailyReminder",
+      label: "Daily tracking reminder",
+      sub: "A nudge to log your symptoms each day",
+      showTime: true,
+      cadenceLabel: "Daily at",
+    },
+    {
+      key: "weeklyDigest",
+      label: "Weekly insights digest",
+      sub: "A summary of patterns from your past 7 days, sent every week",
+      showTime: true,
+      showDay: true,
+      cadenceLabel: "Every",
+    },
+    {
+      key: "productUpdates",
+      label: "Product updates & tips",
+      sub: "Occasional emails from the Care Compass team about new features and tips — sent when we have something worth sharing",
+      showTime: false,
+      cadenceLabel: null,
+    },
+  ];
 
   return (
     <SectionCard>
@@ -503,28 +535,65 @@ function NotificationsPanel({ prefs, setPrefs, markDirty }) {
         title="Reminders & alerts"
         desc="How and when Care Compass reaches you"
       />
-      <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column" }}>
-        {[
-          { key: "dailyReminder",  label: "Daily tracking reminder",   sub: "Nudge to log your symptoms each day" },
-          { key: "weeklyDigest",   label: "Weekly insights digest",    sub: "Summary of patterns from your past 7 days" },
-          { key: "medReminders",   label: "Medication reminders",      sub: "Alerts for medications you've logged" },
-          { key: "appointmentPrep",label: "Appointment prep",          sub: "Prompt to generate a report before scheduled appointments" },
-          { key: "productUpdates", label: "Product updates & tips",    sub: "New features and how-to guides from Care Compass" },
-        ].map(({ key, label, sub }, i, arr) => (
-          <div key={key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 0", borderBottom: i < arr.length - 1 ? `1px solid ${BORDER}` : "none" }}>
-            <div>
-              <div style={{ fontSize: 14, color: INK, fontFamily: "sans-serif" }}>{label}</div>
-              <div style={{ fontSize: 12, color: WARM_GRAY, marginTop: 2, fontFamily: "sans-serif" }}>{sub}</div>
-            </div>
-            <Toggle checked={prefs[key]} onChange={() => toggle(key)} />
-          </div>
-        ))}
+      <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 0 }}>
+        {ALERTS.map(({ key, label, sub, cadenceLabel, showTime, showDay }, i) => {
+          const pref = prefs[key];
+          const isLast = i === ALERTS.length - 1;
+          return (
+            <div
+              key={key}
+              style={{
+                borderBottom: isLast ? "none" : `1px solid ${BORDER}`,
+                padding: "14px 0",
+              }}
+            >
+              {/* Toggle row */}
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 14, color: INK, fontFamily: "sans-serif", fontWeight: 500 }}>{label}</div>
+                  <div style={{ fontSize: 12, color: WARM_GRAY, marginTop: 2, fontFamily: "sans-serif" }}>{sub}</div>
+                </div>
+                <Toggle checked={pref.on} onChange={() => toggle(key)} />
+              </div>
 
-        <div style={{ marginTop: 18 }}>
-          <Field label="Reminder time" hint="All reminders will be sent around this time (your local time)">
-            <StyledInput type="time" value={prefs.reminderTime} onChange={e => { setPrefs(p => ({ ...p, reminderTime: e.target.value })); markDirty(); }} style={{ maxWidth: 160 }} />
-          </Field>
-        </div>
+              {/* Schedule — only shown when enabled and relevant */}
+              {pref.on && showTime && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 12, color: WARM_GRAY, fontFamily: "sans-serif", whiteSpace: "nowrap" }}>
+                    {cadenceLabel}
+                  </span>
+                  {showDay && (
+                    <select
+                      value={pref.day || "Sunday"}
+                      onChange={e => { setPrefs(p => ({ ...p, [key]: { ...p[key], day: e.target.value } })); markDirty(); }}
+                      style={{ ...inputStyle, maxWidth: 120, fontSize: 13, padding: "5px 10px" }}
+                    >
+                      {["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"].map(d => (
+                        <option key={d}>{d}</option>
+                      ))}
+                    </select>
+                  )}
+                  <span style={{ fontSize: 12, color: WARM_GRAY, fontFamily: "sans-serif" }}>at</span>
+                  <StyledInput
+                    type="time"
+                    value={pref.time}
+                    onChange={e => setTime(key, e.target.value)}
+                    style={{ maxWidth: 130, fontSize: 13, padding: "5px 10px" }}
+                  />
+                  <span style={{ fontSize: 11, color: "#b0a89e", fontFamily: "sans-serif" }}>your local time</span>
+                </div>
+              )}
+              {/* Email opt-in — no schedule needed */}
+              {pref.on && !showTime && (
+                <div style={{ marginTop: 8 }}>
+                  <span style={{ fontSize: 12, color: SAGE_DARK, background: SAGE_LIGHT, borderRadius: 6, padding: "3px 10px", fontFamily: "sans-serif", fontWeight: 500 }}>
+                    ✓ Opted in
+                  </span>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </SectionCard>
   );
@@ -973,8 +1042,9 @@ export default function CareCompassSettings() {
 
   // Notification prefs state
   const [notifPrefs, setNotifPrefs] = useState({
-    dailyReminder: true, weeklyDigest: true, medReminders: false,
-    appointmentPrep: true, productUpdates: false, reminderTime: "20:00",
+    dailyReminder:  { on: true,  time: "20:00" },
+    weeklyDigest:   { on: true,  time: "08:00", day: "Sunday" },
+    productUpdates: { on: false },
   });
 
   // Privacy prefs state
