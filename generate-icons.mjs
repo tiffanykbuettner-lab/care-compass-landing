@@ -24,27 +24,38 @@ mkdirSync(OUTPUT_DIR, { recursive: true });
 // ── Standard icon SVG (botanical mark on #e8f0eb background) ─────────────────
 const iconSVG = `
 <svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Background -->
+  <!-- Rounded square background -->
   <rect width="512" height="512" rx="112" fill="#e8f0eb"/>
-  <!-- Outer ring -->
-  <circle cx="256" cy="256" r="210" fill="#e8f0eb" stroke="#7a9e87" stroke-width="6"/>
-  <!-- North leaf -->
-  <ellipse cx="256" cy="136" rx="49" ry="119" fill="#4a7058"/>
-  <!-- South leaf -->
-  <ellipse cx="256" cy="376" rx="38.5" ry="91" fill="#7a9e87" opacity="0.55"/>
-  <!-- East leaf -->
-  <ellipse cx="376" cy="256" rx="119" ry="49" fill="#4a9fa5" opacity="0.8"/>
-  <!-- West leaf -->
-  <ellipse cx="136" cy="256" rx="119" ry="49" fill="#4a9fa5" opacity="0.45"/>
-  <!-- NE diagonal -->
-  <ellipse cx="256" cy="256" rx="31.5" ry="77" fill="#4a7058" opacity="0.4" transform="rotate(42 256 256) translate(0 -98)"/>
-  <!-- NW diagonal -->
-  <ellipse cx="256" cy="256" rx="31.5" ry="77" fill="#4a7058" opacity="0.4" transform="rotate(-42 256 256) translate(0 -98)"/>
-  <!-- SE diagonal -->
-  <ellipse cx="256" cy="256" rx="24.5" ry="63" fill="#7a9e87" opacity="0.3" transform="rotate(135 256 256) translate(0 -98)"/>
-  <!-- SW diagonal -->
-  <ellipse cx="256" cy="256" rx="24.5" ry="63" fill="#7a9e87" opacity="0.3" transform="rotate(-135 256 256) translate(0 -98)"/>
-  <!-- Center dot -->
+  <defs>
+    <!-- Clip everything to the inner circle so leaves don't escape the ring -->
+    <clipPath id="ring-clip">
+      <circle cx="256" cy="256" r="208"/>
+    </clipPath>
+  </defs>
+  <!-- Outer ring (drawn first, behind clipped content) -->
+  <circle cx="256" cy="256" r="210" fill="#e8f0eb" stroke="#7a9e87" stroke-width="5"/>
+  <!-- All leaves clipped to the circle -->
+  <g clip-path="url(#ring-clip)">
+    <!-- North leaf -->
+    <ellipse cx="256" cy="136" rx="49" ry="119" fill="#4a7058"/>
+    <!-- South leaf -->
+    <ellipse cx="256" cy="376" rx="38.5" ry="91" fill="#7a9e87" opacity="0.55"/>
+    <!-- East leaf -->
+    <ellipse cx="376" cy="256" rx="119" ry="49" fill="#4a9fa5" opacity="0.8"/>
+    <!-- West leaf -->
+    <ellipse cx="136" cy="256" rx="119" ry="49" fill="#4a9fa5" opacity="0.45"/>
+    <!-- NE diagonal -->
+    <ellipse cx="256" cy="256" rx="31.5" ry="77" fill="#4a7058" opacity="0.4" transform="rotate(42 256 256) translate(0 -98)"/>
+    <!-- NW diagonal -->
+    <ellipse cx="256" cy="256" rx="31.5" ry="77" fill="#4a7058" opacity="0.4" transform="rotate(-42 256 256) translate(0 -98)"/>
+    <!-- SE diagonal -->
+    <ellipse cx="256" cy="256" rx="24.5" ry="63" fill="#4a9fa5" opacity="0.6" transform="rotate(135 256 256) translate(0 -98)"/>
+    <!-- SW diagonal -->
+    <ellipse cx="256" cy="256" rx="24.5" ry="63" fill="#4a9fa5" opacity="0.6" transform="rotate(-135 256 256) translate(0 -98)"/>
+  </g>
+  <!-- Ring stroke on top of leaves -->
+  <circle cx="256" cy="256" r="210" fill="none" stroke="#7a9e87" stroke-width="5"/>
+  <!-- Center dot (above clip) -->
   <circle cx="256" cy="256" r="49" fill="#4a7058"/>
   <circle cx="256" cy="256" r="21" fill="#e8f0eb"/>
   <!-- Stem lines -->
