@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CareCompass — Offline</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Georgia', serif;
+      background: #e8f0eb;
+      color: #2d4a35;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 2rem;
+    }
+    .icon { margin-bottom: 2rem; }
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+      color: #4a7058;
+    }
+    p {
+      font-size: 1rem;
+      line-height: 1.7;
+      color: #5a7a62;
+      max-width: 320px;
+      margin-bottom: 2rem;
+    }
+    button {
+      background: #4a7058;
+      color: #e8f0eb;
+      border: none;
+      border-radius: 12px;
+      padding: 0.85rem 2rem;
+      font-size: 1rem;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover { background: #3d5e48; }
+    .tip {
+      margin-top: 3rem;
+      font-size: 0.8rem;
+      color: #7a9e87;
+      opacity: 0.8;
+    }
+  </style>
+</head>
+<body>
+  <div class="icon">
+    <svg width="80" height="80" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="36" cy="36" r="34" fill="#e8f0eb" stroke="#7a9e87" stroke-width="1"/>
+      <ellipse cx="36" cy="17" rx="7" ry="17" fill="#4a7058"/>
+      <ellipse cx="36" cy="55" rx="5.5" ry="13" fill="#7a9e87" opacity="0.55"/>
+      <ellipse cx="55" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.8"/>
+      <ellipse cx="17" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.45"/>
+      <ellipse cx="36" cy="36" rx="4.5" ry="11" fill="#4a7058" opacity="0.4" transform="rotate(42 36 36) translate(0 -14)"/>
+      <ellipse cx="36" cy="36" rx="4.5" ry="11" fill="#4a7058" opacity="0.4" transform="rotate(-42 36 36) translate(0 -14)"/>
+      <circle cx="36" cy="36" r="7" fill="#4a7058"/>
+      <circle cx="36" cy="36" r="3" fill="#e8f0eb"/>
+    </svg>
+  </div>
+
+  <h1>You're offline</h1>
+  <p>
+    CareCompass needs a connection right now, but your previously viewed data 
+    is still available. Reconnect to sync your latest entries.
+  </p>
+
+  <button onclick="window.location.reload()">Try again</button>
+
+  <p class="tip">
+    Tip: once connected, your symptom logs sync automatically.
+  </p>
+</body>
+</html>

@@ -1,38 +1,183 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Care Compass</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Playfair+Display:ital,wght@0,700;1,700&display=swap" rel="stylesheet">
-<script>
-  const canvas = document.createElement('canvas');
-  canvas.width = 64; canvas.height = 64;
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#4a7058';
-  ctx.beginPath();
-  ctx.arc(32, 32, 32, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = '#e8f0eb';
-  ctx.fillRect(28, 8, 8, 48);
-  ctx.fillRect(8, 28, 48, 8);
-  ctx.beginPath();
-  ctx.arc(32, 32, 8, 0, Math.PI * 2);
-  ctx.fillStyle = '#e8f0eb';
-  ctx.fill();
-  ctx.beginPath();
-  ctx.arc(32, 32, 4, 0, Math.PI * 2);
-  ctx.fillStyle = '#4a7058';
-  ctx.fill();
-  const link = document.querySelector("link[rel='icon']") || document.createElement('link');
-  link.rel = 'icon';
-  link.href = canvas.toDataURL();
-  document.head.appendChild(link);
-</script>  
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+  <!-- ── Primary meta ─────────────────────────────────────────────────────── -->
+  <title>CareCompass — Your Chronic Illness Companion</title>
+  <meta name="description" content="Track symptoms, identify patterns, and communicate clearly with your care team. CareCompass helps you navigate chronic illness with confidence." />
+  <meta name="theme-color" content="#4a7058" />
+
+  <!-- ── PWA manifest ──────────────────────────────────────────────────────── -->
+  <link rel="manifest" href="/manifest.json" />
+
+  <!-- ── Favicon ───────────────────────────────────────────────────────────── -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-96x96.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-72x72.png" />
+  <link rel="shortcut icon" href="/favicon.ico" />
+
+  <!-- ── Apple PWA meta ────────────────────────────────────────────────────── -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="CareCompass" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+  <link rel="apple-touch-icon" sizes="57x57"  href="/icons/apple-touch-icon-57x57.png" />
+  <link rel="apple-touch-icon" sizes="60x60"  href="/icons/apple-touch-icon-60x60.png" />
+  <link rel="apple-touch-icon" sizes="72x72"  href="/icons/apple-touch-icon-72x72.png" />
+  <link rel="apple-touch-icon" sizes="76x76"  href="/icons/apple-touch-icon-76x76.png" />
+  <link rel="apple-touch-icon" sizes="114x114" href="/icons/apple-touch-icon-114x114.png" />
+  <link rel="apple-touch-icon" sizes="120x120" href="/icons/apple-touch-icon-120x120.png" />
+  <link rel="apple-touch-icon" sizes="144x144" href="/icons/apple-touch-icon-144x144.png" />
+  <link rel="apple-touch-icon" sizes="152x152" href="/icons/apple-touch-icon-152x152.png" />
+  <link rel="apple-touch-icon" sizes="167x167" href="/icons/apple-touch-icon-167x167.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon-180x180.png" />
+
+  <!-- ── Apple splash screens ─────────────────────────────────────────────── -->
+  <!-- iPhone 14 Pro Max -->
+  <link rel="apple-touch-startup-image" media="screen and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)"
+        href="/splash/splash-1290x2796.png" />
+  <!-- iPhone 14 Pro -->
+  <link rel="apple-touch-startup-image" media="screen and (device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)"
+        href="/splash/splash-1179x2556.png" />
+  <!-- iPhone 14 Plus / 13 Pro Max -->
+  <link rel="apple-touch-startup-image" media="screen and (device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3)"
+        href="/splash/splash-1284x2778.png" />
+  <!-- iPhone 14 / 13 / 12 -->
+  <link rel="apple-touch-startup-image" media="screen and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)"
+        href="/splash/splash-1170x2532.png" />
+  <!-- iPhone SE (3rd gen) -->
+  <link rel="apple-touch-startup-image" media="screen and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)"
+        href="/splash/splash-750x1334.png" />
+  <!-- iPad Pro 12.9" -->
+  <link rel="apple-touch-startup-image" media="screen and (device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)"
+        href="/splash/splash-2048x2732.png" />
+  <!-- iPad Pro 11" / Air 4 -->
+  <link rel="apple-touch-startup-image" media="screen and (device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2)"
+        href="/splash/splash-1668x2388.png" />
+
+  <!-- ── Microsoft / Windows tile ─────────────────────────────────────────── -->
+  <meta name="msapplication-TileColor" content="#4a7058" />
+  <meta name="msapplication-TileImage" content="/icons/icon-144x144.png" />
+  <meta name="msapplication-config" content="/browserconfig.xml" />
+
+  <!-- ── Open Graph ────────────────────────────────────────────────────────── -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="CareCompass — Your Chronic Illness Companion" />
+  <meta property="og:description" content="Track symptoms, identify patterns, and communicate clearly with your care team." />
+  <meta property="og:image" content="/icons/icon-512x512.png" />
+  <meta property="og:url" content="https://carecompass.app" />
+
+  <!-- ── Twitter card ──────────────────────────────────────────────────────── -->
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="CareCompass" />
+  <meta name="twitter:description" content="Track symptoms, identify patterns, and communicate with your care team." />
+  <meta name="twitter:image" content="/icons/icon-512x512.png" />
+
+  <!-- ── Inline splash screen (shown before React hydrates) ───────────────── -->
+  <style>
+    #splash {
+      position: fixed;
+      inset: 0;
+      background: #e8f0eb;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 99999;
+      transition: opacity 0.5s ease 0.3s;
+      font-family: 'Georgia', serif;
+    }
+    #splash.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    #splash svg { margin-bottom: 1.25rem; animation: pulse 2s ease-in-out infinite; }
+    #splash h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #4a7058;
+      letter-spacing: 0.01em;
+      margin-bottom: 0.25rem;
+    }
+    #splash p { font-size: 0.8rem; color: #7a9e87; }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.04); opacity: 0.9; }
+    }
+  </style>
 </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<body>
+
+  <!-- ── Splash screen ─────────────────────────────────────────────────────── -->
+  <div id="splash">
+    <svg width="88" height="88" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="36" cy="36" r="34" fill="#e8f0eb" stroke="#7a9e87" stroke-width="1"/>
+      <ellipse cx="36" cy="17" rx="7" ry="17" fill="#4a7058"/>
+      <ellipse cx="36" cy="55" rx="5.5" ry="13" fill="#7a9e87" opacity="0.55"/>
+      <ellipse cx="55" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.8"/>
+      <ellipse cx="17" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.45"/>
+      <ellipse cx="36" cy="36" rx="4.5" ry="11" fill="#4a7058" opacity="0.4" transform="rotate(42 36 36) translate(0 -14)"/>
+      <ellipse cx="36" cy="36" rx="4.5" ry="11" fill="#4a7058" opacity="0.4" transform="rotate(-42 36 36) translate(0 -14)"/>
+      <circle cx="36" cy="36" r="7" fill="#4a7058"/>
+      <circle cx="36" cy="36" r="3" fill="#e8f0eb"/>
+      <line x1="36" y1="29" x2="36" y2="17" stroke="#e8f0eb" stroke-width="0.8" opacity="0.6"/>
+      <line x1="36" y1="43" x2="36" y2="53" stroke="#e8f0eb" stroke-width="0.8" opacity="0.4"/>
+      <line x1="43" y1="36" x2="55" y2="36" stroke="#e8f0eb" stroke-width="0.8" opacity="0.5"/>
+      <line x1="29" y1="36" x2="17" y2="36" stroke="#e8f0eb" stroke-width="0.8" opacity="0.35"/>
+    </svg>
+    <h1>CareCompass</h1>
+    <p>Your chronic illness companion</p>
+  </div>
+
+  <!-- ── React root ─────────────────────────────────────────────────────────── -->
+  <div id="root"></div>
+
+  <!-- ── Vite entry point ───────────────────────────────────────────────────── -->
+  <script type="module" src="/src/main.jsx"></script>
+
+  <!-- ── Service worker registration ──────────────────────────────────────── -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker
+          .register('/sw.js', { scope: '/' })
+          .then((reg) => {
+            console.log('[SW] Registered:', reg.scope);
+
+            // Notify user of new version available
+            reg.addEventListener('updatefound', () => {
+              const newWorker = reg.installing;
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  // Dispatch event — app can show an "Update available" toast
+                  window.dispatchEvent(new CustomEvent('sw-update-available'));
+                }
+              });
+            });
+          })
+          .catch((err) => console.error('[SW] Registration failed:', err));
+      });
+    }
+
+    // Hide splash screen once React has mounted
+    window.addEventListener('carecompass-ready', () => {
+      const splash = document.getElementById('splash');
+      if (splash) {
+        splash.classList.add('hidden');
+        setTimeout(() => splash.remove(), 800);
+      }
+    });
+
+    // Fallback: hide splash after 3s if event never fires
+    setTimeout(() => {
+      const splash = document.getElementById('splash');
+      if (splash) {
+        splash.classList.add('hidden');
+        setTimeout(() => splash.remove(), 800);
+      }
+    }, 3000);
+  </script>
+
+</body>
 </html>
