@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 const SAGE       = "#7a9e87";
 const SAGE_LIGHT = "#e8f0eb";
@@ -22,8 +22,14 @@ const BotanicalMark = ({ size = 28 }) => (
     <ellipse cx="36" cy="55" rx="5.5" ry="13" fill="#7a9e87" opacity="0.55"/>
     <ellipse cx="55" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.8"/>
     <ellipse cx="17" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.45"/>
+    <ellipse cx="36" cy="36" rx="4.5" ry="11" fill="#4a7058" opacity="0.4" transform="rotate(42 36 36) translate(0 -14)"/>
+    <ellipse cx="36" cy="36" rx="4.5" ry="11" fill="#4a7058" opacity="0.4" transform="rotate(-42 36 36) translate(0 -14)"/>
+    <ellipse cx="36" cy="36" rx="3.5" ry="9" fill="#4a9fa5" opacity="0.6" transform="rotate(135 36 36) translate(0 -14)"/>
+    <ellipse cx="36" cy="36" rx="3.5" ry="9" fill="#4a9fa5" opacity="0.6" transform="rotate(-135 36 36) translate(0 -14)"/>
     <circle cx="36" cy="36" r="7" fill="#4a7058"/>
     <circle cx="36" cy="36" r="3" fill="#e8f0eb"/>
+    <line x1="36" y1="29" x2="36" y2="17" stroke="#e8f0eb" strokeWidth="0.8" opacity="0.6"/>
+    <line x1="43" y1="36" x2="55" y2="36" stroke="#e8f0eb" strokeWidth="0.8" opacity="0.5"/>
   </svg>
 );
 
@@ -100,7 +106,7 @@ function Field({ label, optional, hint, children }) {
 const inputStyle = {
   border: `1px solid ${BORDER}`, borderRadius: 8, padding: "9px 12px",
   fontSize: 14, color: INK, background: OFF_WHITE, outline: "none",
-  fontFamily: "sans-serif", width: "100%",
+  fontFamily: "sans-serif", width: "100%", boxSizing: "border-box",
 };
 
 function StyledInput(props) {
@@ -225,6 +231,117 @@ const NAV_ITEMS = [
   },
 ];
 
+
+/* ─── Multi-condition tag input ─────────────────────────────────────────── */
+const SUGGESTED_CONDITIONS = [
+  "POTS", "hEDS", "MCAS", "Fibromyalgia", "ME/CFS", "Long COVID",
+  "Psoriatic Arthritis", "Lupus", "SIBO", "IBS", "Dysautonomia",
+  "Raynaud's", "Hashimoto's", "Endometriosis", "ADHD", "Anxiety",
+];
+
+function ConditionTagInput({ conditions, onChange }) {
+  const [inputVal, setInputVal] = useState("");
+  const [focused, setFocused] = useState(false);
+  const inputRef = React.useRef(null);
+
+  const addCondition = (val) => {
+    const trimmed = val.trim().replace(/,+$/, "");
+    if (!trimmed || conditions.includes(trimmed)) return;
+    onChange([...conditions, trimmed]);
+    setInputVal("");
+  };
+
+  const removeCondition = (idx) => onChange(conditions.filter((_, i) => i !== idx));
+
+  const handleKey = (e) => {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      addCondition(inputVal);
+    } else if (e.key === "Backspace" && !inputVal && conditions.length) {
+      removeCondition(conditions.length - 1);
+    }
+  };
+
+  const suggestions = SUGGESTED_CONDITIONS.filter(s =>
+    inputVal.length > 0 &&
+    s.toLowerCase().includes(inputVal.toLowerCase()) &&
+    !conditions.includes(s)
+  ).slice(0, 5);
+
+  return (
+    <div style={{ position: "relative" }}>
+      <div
+        onClick={() => inputRef.current?.focus()}
+        style={{
+          ...inputStyle,
+          minHeight: 42,
+          height: "auto",
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 6,
+          alignItems: "center",
+          cursor: "text",
+          padding: "6px 10px",
+          ...(focused ? { borderColor: SAGE, background: "white" } : {}),
+        }}
+      >
+        {conditions.map((c, i) => (
+          <span key={i} style={{
+            display: "inline-flex", alignItems: "center", gap: 4,
+            background: SAGE_LIGHT, color: SAGE_DARK,
+            borderRadius: 100, padding: "3px 10px 3px 10px",
+            fontSize: 12.5, fontWeight: 500, fontFamily: "sans-serif",
+            whiteSpace: "nowrap",
+          }}>
+            {c}
+            <button
+              onClick={(e) => { e.stopPropagation(); removeCondition(i); }}
+              style={{ background: "none", border: "none", cursor: "pointer", color: SAGE_DARK, padding: 0, lineHeight: 1, fontSize: 13, display: "flex", alignItems: "center" }}
+            >×</button>
+          </span>
+        ))}
+        <input
+          ref={inputRef}
+          value={inputVal}
+          onChange={e => setInputVal(e.target.value)}
+          onKeyDown={handleKey}
+          onFocus={() => setFocused(true)}
+          onBlur={() => { setFocused(false); if (inputVal.trim()) addCondition(inputVal); }}
+          placeholder={conditions.length === 0 ? "e.g. hEDS, POTS, MCAS..." : "Add another..."}
+          style={{
+            border: "none", outline: "none", background: "transparent",
+            fontSize: 13.5, fontFamily: "sans-serif", color: INK,
+            minWidth: 140, flex: 1,
+          }}
+        />
+      </div>
+      {/* Suggestions dropdown */}
+      {suggestions.length > 0 && focused && (
+        <div style={{
+          position: "absolute", top: "100%", left: 0, right: 0, zIndex: 20,
+          background: "white", border: `1px solid ${BORDER}`, borderRadius: 8,
+          boxShadow: "0 4px 16px rgba(0,0,0,0.08)", marginTop: 4, overflow: "hidden",
+        }}>
+          {suggestions.map(s => (
+            <div
+              key={s}
+              onMouseDown={(e) => { e.preventDefault(); addCondition(s); }}
+              style={{
+                padding: "9px 14px", fontSize: 13.5, color: INK, cursor: "pointer",
+                fontFamily: "sans-serif",
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = SAGE_LIGHT}
+              onMouseLeave={e => e.currentTarget.style.background = "white"}
+            >
+              {s}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── Panel: Profile ─────────────────────────────────────────────────────── */
 function ProfilePanel({ form, setForm, markDirty }) {
   const set = (key) => (e) => { setForm(f => ({ ...f, [key]: e.target.value })); markDirty(); };
@@ -258,7 +375,7 @@ function ProfilePanel({ form, setForm, markDirty }) {
           </div>
 
           {/* Name row */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, boxSizing: "border-box" }}>
             <Field label="First name">
               <StyledInput type="text" value={form.firstName} onChange={set("firstName")} />
             </Field>
@@ -278,7 +395,7 @@ function ProfilePanel({ form, setForm, markDirty }) {
           </Field>
 
           {/* DOB + sex */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, boxSizing: "border-box" }}>
             <Field label="Date of birth" optional hint="Used to personalize health insights">
               <StyledInput type="date" value={form.dob} onChange={set("dob")} />
             </Field>
@@ -329,26 +446,22 @@ function ProfilePanel({ form, setForm, markDirty }) {
             All fields in this section are optional
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-            <Field label="Primary condition">
-              <StyledSelect value={form.condition} onChange={set("condition")}>
-                <option>POTS / Dysautonomia</option>
-                <option>Long COVID</option>
-                <option>ME/CFS</option>
-                <option>Fibromyalgia</option>
-                <option>EDS / HSD</option>
-                <option>MCAS</option>
-                <option>Other / Undiagnosed</option>
-              </StyledSelect>
-            </Field>
-            <Field label="Diagnosis status">
-              <StyledSelect value={form.diagnosisStatus} onChange={set("diagnosisStatus")}>
-                <option>Formally diagnosed</option>
-                <option>Suspected / investigating</option>
-                <option>Self-identified</option>
-              </StyledSelect>
-            </Field>
-          </div>
+          {/* Conditions — multi-tag free text */}
+          <Field label="Conditions" hint="Add all your diagnoses — press Enter or comma to add each one">
+            <ConditionTagInput
+              conditions={form.conditions || (form.condition ? [form.condition] : [])}
+              onChange={(conditions) => { setForm(f => ({ ...f, conditions })); markDirty(); }}
+            />
+          </Field>
+
+          <Field label="Diagnosis status">
+            <StyledSelect value={form.diagnosisStatus} onChange={set("diagnosisStatus")}>
+              <option>Formally diagnosed</option>
+              <option>Suspected / investigating</option>
+              <option>Self-identified</option>
+              <option>Mixed (some diagnosed, some suspected)</option>
+            </StyledSelect>
+          </Field>
 
           <Field label="Care team" hint="Shows in generated reports to help your doctors coordinate">
             <StyledInput
@@ -841,7 +954,7 @@ export default function CareCompassSettings() {
     firstName: "Maya", lastName: "Rodriguez", email: "maya@example.com",
     dob: "1988-04-14", sex: "Female", pronouns: "She / Her",
     timezone: "America/Chicago (CDT, UTC−5)",
-    condition: "POTS / Dysautonomia", diagnosisStatus: "Formally diagnosed", careTeam: "",
+    condition: "POTS / Dysautonomia", conditions: ["POTS / Dysautonomia"], diagnosisStatus: "Formally diagnosed", careTeam: "",
   });
 
   // Notification prefs state
