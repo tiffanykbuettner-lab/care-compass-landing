@@ -125,13 +125,19 @@ function OnboardingFlow({ userName, onComplete }) {
 
 /* ─── Main Dashboard ─────────────────────────────────────────────────────── */
 export default function CareCompassDashboard() {
+  const [menuOpen, setMenuOpen] = useState(false);
+
   useEffect(() => {
     const style = document.createElement("style");
     style.id = "dashboard-responsive";
     style.innerHTML = `
       @media (max-width: 600px) {
-        .dash-nav-links a { display: none !important; }
+        .dash-nav-links { display: none !important; }
+        .dash-hamburger { display: flex !important; }
         .dash-demo-bar { flex-wrap: wrap; }
+      }
+      @media (min-width: 601px) {
+        .dash-hamburger { display: none !important; }
       }
     `;
     document.head.appendChild(style);
@@ -183,13 +189,34 @@ export default function CareCompassDashboard() {
             <BotanicalMark size={28}/>
             <span style={s.navLogoText}>Care Compass</span>
           </a>
+          {/* Desktop links */}
           <div style={s.navLinks} className="dash-nav-links">
             <a href="/compass" style={s.navLink}>Assessment</a>
             <a href="/tracker" style={s.navLink}>Tracker</a>
             <a href="/pricing" style={s.navLink}>Pricing</a>
             <a href="/account" style={s.navAvatar}>{user.name[0]}</a>
           </div>
+          {/* Hamburger — mobile only */}
+          <button className="dash-hamburger" onClick={() => setMenuOpen(o => !o)} style={s.hamburgerBtn} aria-label="Toggle menu">
+            {menuOpen
+              ? <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={SAGE_DARK} strokeWidth="2.2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              : <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={SAGE_DARK} strokeWidth="2.2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            }
+          </button>
         </div>
+        {/* Mobile dropdown */}
+        {menuOpen && (
+          <div style={s.mobileMenu}>
+            <a href="/compass" style={s.mobileMenuLink} onClick={() => setMenuOpen(false)}>Assessment</a>
+            <a href="/tracker" style={s.mobileMenuLink} onClick={() => setMenuOpen(false)}>Tracker</a>
+            <a href="/pricing" style={s.mobileMenuLink} onClick={() => setMenuOpen(false)}>Pricing</a>
+            <div style={s.mobileMenuDivider}/>
+            <a href="/account" style={s.mobileMenuLink} onClick={() => setMenuOpen(false)}>
+              <span style={s.mobileMenuAvatar}>{user.name[0]}</span>
+              Account settings
+            </a>
+          </div>
+        )}
       </nav>
 
       <main style={s.main}>
@@ -425,6 +452,11 @@ const s = {
   navLinks: { display: "flex", alignItems: "center", gap: "0.85rem", flexShrink: 0 },
   navLink: { fontSize: "0.8rem", color: WARM_GRAY, textDecoration: "none", whiteSpace: "nowrap" },
   navAvatar: { width: 34, height: 34, borderRadius: "50%", background: SAGE_DARK, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.875rem", textDecoration: "none", fontFamily: "'Playfair Display', Georgia, serif" },
+  hamburgerBtn: { display: "none", alignItems: "center", justifyContent: "center", background: "none", border: "none", cursor: "pointer", padding: "0.35rem", borderRadius: "8px", flexShrink: 0 },
+  mobileMenu: { borderTop: "1px solid rgba(0,0,0,0.07)", padding: "0.75rem 1.25rem 1rem", display: "flex", flexDirection: "column", gap: "0.15rem", background: "#fff" },
+  mobileMenuLink: { display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.75rem 0.5rem", fontSize: "0.95rem", color: INK, textDecoration: "none", borderRadius: "0.5rem", fontWeight: 500 },
+  mobileMenuDivider: { height: 1, background: "rgba(0,0,0,0.07)", margin: "0.35rem 0" },
+  mobileMenuAvatar: { width: 28, height: 28, borderRadius: "50%", background: SAGE_DARK, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.8rem", fontFamily: "'Playfair Display', Georgia, serif", flexShrink: 0 },
 
   main: { flex: 1, padding: "2rem 1.25rem", boxSizing: "border-box", width: "100%" },
   container: { maxWidth: 1100, margin: "0 auto", display: "flex", flexDirection: "column", gap: "2rem" },
