@@ -344,7 +344,7 @@ const s = {
   leftFooter: { fontSize: "0.75rem", color: "rgba(255,255,255,0.4)", marginTop: "auto", paddingTop: "1rem" },
   leftFooterLink: { color: "rgba(255,255,255,0.5)", textDecoration: "none" },
 
-  rightPanel: { flex: 1, background: OFF_WHITE, display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1.5rem", minWidth: 0 },
+  rightPanel: { flex: 1, background: OFF_WHITE, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "3rem 1.5rem", minWidth: 0, overflowY: "auto" },
   formWrap: { width: "100%", maxWidth: 440, display: "flex", flexDirection: "column", gap: "1.5rem" },
 
   mobileLogo: { display: "flex", alignItems: "center", gap: "0.55rem", textDecoration: "none" },

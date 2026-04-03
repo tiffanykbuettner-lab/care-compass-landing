@@ -256,7 +256,7 @@ const s = {
   leftFooterLink: { color: "rgba(255,255,255,0.5)", textDecoration: "none" },
 
   // Right form panel
-  rightPanel: { flex: 1, background: OFF_WHITE, display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1.5rem", minWidth: 0 },
+  rightPanel: { flex: 1, background: OFF_WHITE, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "3rem 1.5rem", minWidth: 0, overflowY: "auto" },
   formWrap: { width: "100%", maxWidth: 420, display: "flex", flexDirection: "column", gap: "1.5rem" },
 
   // Mobile logo (hidden on desktop via width logic — shown when left panel not visible)
