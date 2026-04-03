@@ -748,27 +748,37 @@ function PrivacyPanel({ prefs, setPrefs, markDirty }) {
         </div>
       </SectionCard>
 
-      {/* Danger zone */}
-      <SectionCard danger>
+      {/* Account actions */}
+      <SectionCard>
         <SectionHeader
-          danger
-          icon={<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 6v4M8 12h.01" stroke={DANGER} strokeWidth="1.5" strokeLinecap="round"/><path d="M7.1 2.5L1.5 12.5a1 1 0 00.9 1.5h11.2a1 1 0 00.9-1.5L8.9 2.5a1 1 0 00-1.8 0z" stroke={DANGER} strokeWidth="1.5" strokeLinejoin="round"/></svg>}
-          title="Danger zone"
-          desc="Irreversible actions — proceed carefully"
+          icon={<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2a6 6 0 100 12A6 6 0 008 2zm0 5v4M8 5h.01" stroke={SAGE_DARK} strokeWidth="1.5" strokeLinecap="round"/></svg>}
+          title="Account actions"
+          desc="Need to make changes to your data or account?"
         />
-        <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column" }}>
-          {[
-            { label: "Delete all tracking data", sub: "Permanently removes all symptom logs, notes, and photos" },
-            { label: "Close account",            sub: "Deletes your account and all associated data permanently" },
-          ].map(({ label, sub }, i, arr) => (
-            <div key={label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 0", borderBottom: i < arr.length - 1 ? `1px solid rgba(192,57,43,0.08)` : "none" }}>
-              <div>
-                <div style={{ fontSize: 14, color: INK, fontFamily: "sans-serif" }}>{label}</div>
-                <div style={{ fontSize: 12, color: WARM_GRAY, marginTop: 2, fontFamily: "sans-serif" }}>{sub}</div>
-              </div>
-              <DangerBtn>{label === "Close account" ? "Close account" : "Delete data"}</DangerBtn>
-            </div>
-          ))}
+        <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: 12 }}>
+          <p style={{ fontSize: 14, color: INK, fontFamily: "sans-serif", margin: 0, lineHeight: 1.6 }}>
+            To delete your tracking data or close your account, please reach out to us directly and we will take care of it promptly.
+          </p>
+          <a
+            href="mailto:hello@joincarecompass.com?subject=Account request"
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 7,
+              fontSize: 13.5, fontWeight: 500, color: SAGE_DARK,
+              fontFamily: "sans-serif", textDecoration: "none",
+              background: SAGE_LIGHT, borderRadius: 8,
+              padding: "9px 16px", alignSelf: "flex-start",
+              border: `1px solid rgba(74,112,88,0.2)`,
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+              <rect x="1.5" y="3.5" width="13" height="9" rx="1.5" stroke={SAGE_DARK} strokeWidth="1.4"/>
+              <path d="M1.5 5.5l6.5 4.5 6.5-4.5" stroke={SAGE_DARK} strokeWidth="1.4" strokeLinecap="round"/>
+            </svg>
+            hello@joincarecompass.com
+          </a>
+          <p style={{ fontSize: 12, color: WARM_GRAY, fontFamily: "sans-serif", margin: 0, fontStyle: "italic" }}>
+            We typically respond within 1 business day.
+          </p>
         </div>
       </SectionCard>
     </div>
