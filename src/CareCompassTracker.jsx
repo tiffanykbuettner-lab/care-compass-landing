@@ -1051,6 +1051,63 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
                     </div>
                   </div>
                   <div style={s.disclaimer}><strong>Important:</strong> These are patterns to explore with your doctor — not medical advice or diagnosis.</div>
+
+                  {/* ── Visual summary — shown when generating appointment report ── */}
+                  {apptContext && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+
+                      {/* Stats row */}
+                      <div style={{ background: "#fff", borderRadius: "1.25rem", border: "1px solid rgba(0,0,0,0.07)", padding: "1.5rem" }}>
+                        <p style={{ fontSize: "0.75rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: "0 0 1rem" }}>At a Glance</p>
+                        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+                          {(() => {
+                            const totalDays = new Set(entries.map(e => new Date(e.timestamp).toDateString())).size;
+                            const avgSev = (entries.reduce((s, e) => s + e.severity, 0) / entries.length).toFixed(1);
+                            const highDays = new Set(entries.filter(e => e.severity >= 7).map(e => new Date(e.timestamp).toDateString())).size;
+                            const sleepEntries = entries.filter(e => e.sleep != null);
+                            const avgSleep = sleepEntries.length ? (sleepEntries.reduce((s, e) => s + e.sleep, 0) / sleepEntries.length).toFixed(1) : null;
+                            const stressEntries = entries.filter(e => e.stress != null);
+                            const avgStress = stressEntries.length ? (stressEntries.reduce((s, e) => s + e.stress, 0) / stressEntries.length).toFixed(1) : null;
+                            const sevColor = avgSev <= 3 ? SAGE_DARK : avgSev <= 6 ? "#e8a838" : "#c0392b";
+                            return <>
+                              <ReportStatBox label="Days tracked" value={totalDays} sub={`${entries.length} total entries`}/>
+                              <ReportStatBox label="Avg severity" value={`${avgSev}/10`} color={sevColor} sub={avgSev <= 3 ? "Manageable" : avgSev <= 6 ? "Moderate" : "High"}/>
+                              <ReportStatBox label="High severity days" value={highDays} color={highDays > 0 ? "#c0392b" : SAGE_DARK} sub="≥7/10"/>
+                              {avgSleep && <ReportStatBox label="Avg sleep quality" value={`${avgSleep}/10`} color={TEAL}/>}
+                              {avgStress && <ReportStatBox label="Avg stress level" value={`${avgStress}/10`} color="#e8a838"/>}
+                            </>;
+                          })()}
+                        </div>
+                      </div>
+
+                      {/* Daily severity bar chart */}
+                      <div style={{ background: "#fff", borderRadius: "1.25rem", border: "1px solid rgba(0,0,0,0.07)", padding: "1.5rem" }}>
+                        <p style={{ fontSize: "0.75rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: "0 0 0.5rem" }}>Daily Severity — Last 30 Days</p>
+                        <p style={{ fontSize: "0.72rem", color: "#aaa", margin: "0 0 0.75rem", fontStyle: "italic" }}>
+                          <span style={{ color: SAGE_DARK }}>■</span> Low (1–3) &nbsp;
+                          <span style={{ color: "#e8a838" }}>■</span> Moderate (4–6) &nbsp;
+                          <span style={{ color: "#c0392b" }}>■</span> High (7–10)
+                        </p>
+                        <SeverityBarChart entries={entries}/>
+                      </div>
+
+                      {/* Symptom frequency */}
+                      <div style={{ background: "#fff", borderRadius: "1.25rem", border: "1px solid rgba(0,0,0,0.07)", padding: "1.5rem" }}>
+                        <p style={{ fontSize: "0.75rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: "0 0 0.5rem" }}>Most Frequent Symptoms</p>
+                        <p style={{ fontSize: "0.72rem", color: "#aaa", margin: "0 0 0.75rem", fontStyle: "italic" }}>Frequency as % of days tracked</p>
+                        <SymptomFrequencyChart entries={entries}/>
+                      </div>
+
+                      {/* Sleep & stress */}
+                      {entries.some(e => e.sleep != null) && (
+                        <div style={{ background: "#fff", borderRadius: "1.25rem", border: "1px solid rgba(0,0,0,0.07)", padding: "1.5rem" }}>
+                          <p style={{ fontSize: "0.75rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: "0 0 0.75rem" }}>Sleep Quality & Stress Levels</p>
+                          <SleepStressChart entries={entries}/>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div style={s.insightsContent}>
                     {insights.split("\n").map((line, i) => {
                       const trimmed = line.trim();
