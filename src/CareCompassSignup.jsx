@@ -139,16 +139,16 @@ export default function CareCompassSignup() {
             <p style={s.leftSub}>Join thousands of people navigating chronic illness with more clarity, confidence, and data.</p>
             <div style={s.trustList}>
               {[
-                { icon: "🔒", text: "Your data is encrypted and never sold" },
-                { icon: "🌿", text: "Built by someone with lived experience" },
-                { icon: "📋", text: "Doctor-ready reports at your fingertips" },
-                { icon: "↩️", text: "Cancel anytime, no questions asked" },
-              ].map(({ icon, text }) => (
-                <div key={text} style={s.trustItem}>
-                  <span style={s.trustIcon}>{icon}</span>
-                  <span style={s.trustText}>{text}</span>
-                </div>
-              ))}
+  		"Your data is encrypted and never sold",
+  		"Built by someone with lived experience",
+  		"Doctor-ready reports at your fingertips",
+  		"Cancel anytime, no questions asked",
+	      ].map(text => (
+  		<div key={text} style={s.trustItem}>
+    		  <BotanicalMark size={20}/>
+    		  <span style={s.trustText}>{text}</span>
+  		</div>
+	      ))}
             </div>
           </div>
           <p style={s.leftFooter}>© {new Date().getFullYear()} Care Compass · <a href="/privacy" style={s.leftFooterLink}>Privacy Policy</a></p>
@@ -339,8 +339,7 @@ const s = {
   leftHeadline: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "clamp(1.6rem, 2.5vw, 2.2rem)", fontWeight: 700, color: "#fff", lineHeight: 1.25, margin: 0 },
   leftSub: { fontSize: "1rem", color: "rgba(255,255,255,0.7)", lineHeight: 1.75, margin: 0 },
   trustList: { display: "flex", flexDirection: "column", gap: "0.875rem" },
-  trustItem: { display: "flex", alignItems: "flex-start", gap: "0.75rem", marginTop: "0.1rem" },
-  trustIcon: { fontSize: "1rem", flexShrink: 0, marginTop: "0.1rem" },
+  trustItem: { display: "flex", alignItems: "flex-start", gap: "0.75rem" },
   trustText: { fontSize: "0.9rem", color: "rgba(255,255,255,0.8)", lineHeight: 1.6 },
   leftFooter: { fontSize: "0.75rem", color: "rgba(255,255,255,0.4)", marginTop: "auto", paddingTop: "1rem" },
   leftFooterLink: { color: "rgba(255,255,255,0.5)", textDecoration: "none" },
