@@ -619,11 +619,9 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
   };
 
   const handleBulkImport = () => {
-    const lines = bulkText.split(/[
-,;]+/).map(l => l.trim()).filter(Boolean);
+    const lines = bulkText.replace(/,|;/g, "\n").split("\n").map(l => l.trim()).filter(Boolean);
     const newMeds = lines.map(line => {
-      // Try to parse "MedName Dose Frequency" patterns
-      const parts = line.split(/\s+/);
+      const parts = line.split(" ");
       const name = parts[0] || line;
       const dose = parts.length > 1 ? parts.slice(1, 3).join(" ") : "";
       return { name, dose, frequency: "", notes: "", reminder: false, reminderTime: "08:00", id: Date.now() + Math.random() };
