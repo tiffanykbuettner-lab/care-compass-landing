@@ -81,77 +81,63 @@ function ApptTimePicker({ value, onChange, style: extraStyle = {} }) {
 
 /* ─── Google Places location autocomplete ────────────────────────────────── */
 function LocationInput({ value, onChange, style: inp }) {
-  const [suggestions, setSuggestions] = useState([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const debounceRef = React.useRef(null);
+  const inputRef = React.useRef(null);
+  const autocompleteRef = React.useRef(null);
 
-  const fetchSuggestions = (query) => {
-    if (!query || query.length < 3) { setSuggestions([]); return; }
-    clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(async () => {
-      setLoading(true);
-      try {
-        // Google Places Autocomplete API via proxy-friendly approach
-        // Note: In production, proxy through a serverless function to protect the API key
-        // For now we use the Places Autocomplete widget pattern
-        const key = import.meta.env.VITE_GOOGLE_PLACES_KEY;
-        if (!key) { setSuggestions([]); setLoading(false); return; }
-        const res = await fetch(
-          `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&types=establishment|geocode&key=${key}`
-        );
-        const data = await res.json();
-        setSuggestions((data.predictions || []).slice(0, 5).map(p => ({
-          id: p.place_id,
-          label: p.description,
-          main: p.structured_formatting?.main_text || p.description,
-          secondary: p.structured_formatting?.secondary_text || "",
-        })));
-      } catch {
-        setSuggestions([]);
-      }
-      setLoading(false);
-    }, 350);
-  };
+  React.useEffect(() => {
+    // Load Google Maps JS SDK with Places library
+    const key = import.meta.env.VITE_GOOGLE_PLACES_KEY;
+    if (!key) return;
+
+    const initAutocomplete = () => {
+      if (!window.google || !inputRef.current) return;
+      autocompleteRef.current = new window.google.maps.places.Autocomplete(inputRef.current, {
+        types: ["establishment", "geocode"],
+        fields: ["formatted_address", "name", "geometry"],
+      });
+      autocompleteRef.current.addListener("place_changed", () => {
+        const place = autocompleteRef.current.getPlace();
+        if (place.name && place.formatted_address) {
+          onChange(`${place.name}, ${place.formatted_address}`);
+        } else if (place.formatted_address) {
+          onChange(place.formatted_address);
+        }
+      });
+    };
+
+    if (window.google?.maps?.places) {
+      initAutocomplete();
+    } else if (!document.getElementById("google-maps-script")) {
+      const script = document.createElement("script");
+      script.id = "google-maps-script";
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places`;
+      script.async = true;
+      script.defer = true;
+      script.onload = initAutocomplete;
+      document.head.appendChild(script);
+    } else {
+      // Script already loading — wait for it
+      const interval = setInterval(() => {
+        if (window.google?.maps?.places) {
+          clearInterval(interval);
+          initAutocomplete();
+        }
+      }, 200);
+      return () => clearInterval(interval);
+    }
+  }, []);
 
   return (
     <div style={{ position: "relative" }}>
       <input
+        ref={inputRef}
         type="text"
         value={value}
-        onChange={e => { onChange(e.target.value); fetchSuggestions(e.target.value); setShowSuggestions(true); }}
-        onFocus={() => value && setShowSuggestions(true)}
-        onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+        onChange={e => onChange(e.target.value)}
         placeholder="e.g. Houston Methodist, 6565 Fannin St"
         style={inp}
         autoComplete="off"
       />
-      {loading && (
-        <span style={{ position: "absolute", right: "0.75rem", top: "50%", transform: "translateY(-50%)", fontSize: "0.7rem", color: WARM_GRAY }}>...</span>
-      )}
-      {showSuggestions && suggestions.length > 0 && (
-        <div style={{
-          position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 100,
-          background: "#fff", border: "1px solid rgba(0,0,0,0.1)", borderRadius: "0.75rem",
-          boxShadow: "0 4px 20px rgba(0,0,0,0.1)", overflow: "hidden",
-        }}>
-          {suggestions.map(s => (
-            <div
-              key={s.id}
-              onMouseDown={() => { onChange(s.label); setSuggestions([]); setShowSuggestions(false); }}
-              style={{ padding: "0.65rem 1rem", cursor: "pointer", borderBottom: "1px solid rgba(0,0,0,0.05)" }}
-              onMouseEnter={e => e.currentTarget.style.background = SAGE_LIGHT}
-              onMouseLeave={e => e.currentTarget.style.background = "#fff"}
-            >
-              <div style={{ fontSize: "0.875rem", color: INK, fontWeight: 500 }}>📍 {s.main}</div>
-              {s.secondary && <div style={{ fontSize: "0.75rem", color: WARM_GRAY, marginTop: "0.1rem" }}>{s.secondary}</div>}
-            </div>
-          ))}
-          <div style={{ padding: "0.4rem 1rem", fontSize: "0.65rem", color: "#bbb", textAlign: "right" }}>
-            Powered by Google
-          </div>
-        </div>
-      )}
     </div>
   );
 }
