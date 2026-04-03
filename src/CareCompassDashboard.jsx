@@ -84,12 +84,9 @@ function LocationInput({ value, onChange, style: inp }) {
   const inputRef = React.useRef(null);
   const autocompleteRef = React.useRef(null);
 
-  const [apiReady, setApiReady] = useState(false);
-  const [apiError, setApiError] = useState(false);
-
   React.useEffect(() => {
     const key = import.meta.env.VITE_GOOGLE_PLACES_KEY;
-    if (!key) { setApiError(true); return; }
+    if (!key) return;
 
     const initAutocomplete = () => {
       if (!window.google?.maps?.places || !inputRef.current) return;
@@ -106,18 +103,12 @@ function LocationInput({ value, onChange, style: inp }) {
             onChange(place.formatted_address);
           }
         });
-        setApiReady(true);
       } catch (e) {
         console.warn("Places autocomplete error:", e);
-        setApiError(true);
       }
     };
 
-    // Set a global error handler for Google Maps auth errors
-    window.gm_authFailure = () => {
-      console.warn("Google Maps auth failed — check API key and billing");
-      setApiError(true);
-    };
+    window.gm_authFailure = () => console.warn("Google Maps auth failed");
 
     if (window.google?.maps?.places) {
       initAutocomplete();
@@ -128,7 +119,6 @@ function LocationInput({ value, onChange, style: inp }) {
       script.async = true;
       script.defer = true;
       script.onload = initAutocomplete;
-      script.onerror = () => setApiError(true);
       document.head.appendChild(script);
     } else {
       const interval = setInterval(() => {
@@ -137,32 +127,23 @@ function LocationInput({ value, onChange, style: inp }) {
           initAutocomplete();
         }
       }, 200);
-      setTimeout(() => { clearInterval(interval); if (!apiReady) setApiError(true); }, 5000);
       return () => clearInterval(interval);
     }
   }, []);
 
-  // Always render a plain input — Google attaches its dropdown to it
-  // If API errors out, it stays as a clean plain text field
   return (
-    <div style={{ position: "relative" }}>
-      <input
-        ref={inputRef}
-        type="text"
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        placeholder="e.g. Houston Methodist, 6565 Fannin St"
-        style={inp}
-        autoComplete="off"
-      />
-      {apiError && (
-        <span style={{ position: "absolute", right: "0.75rem", top: "50%", transform: "translateY(-50%)", fontSize: "0.7rem", color: WARM_GRAY, fontStyle: "italic" }}>
-          Type to enter location
-        </span>
-      )}
-    </div>
+    <input
+      ref={inputRef}
+      type="text"
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      placeholder="e.g. Houston Methodist, 6565 Fannin St"
+      style={inp}
+      autoComplete="off"
+    />
   );
 }
+
 
 const REMINDER_OPTIONS = [
   { value: "2880", label: "2 days before" },
@@ -174,11 +155,13 @@ const REMINDER_OPTIONS = [
 ];
 
 function daysUntil(dateStr) {
-  const appt = new Date(dateStr);
+  // Parse date as local date (YYYY-MM-DD) to avoid timezone shifts
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const appt = new Date(y, m - 1, d);
   const now = new Date();
   now.setHours(0, 0, 0, 0);
   appt.setHours(0, 0, 0, 0);
-  return Math.round((appt - now) / 86400000);
+  return Math.floor((appt - now) / 86400000);
 }
 
 function formatApptDate(dateStr, timeStr) {
