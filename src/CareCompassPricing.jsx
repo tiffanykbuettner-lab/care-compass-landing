@@ -368,9 +368,9 @@ const s = {
   toggleBtn: { padding: "0.6rem 1.5rem", borderRadius: "100px", border: "none", fontSize: "0.9rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all 0.2s", display: "flex", alignItems: "center", gap: "0.5rem" },
   savingsBadge: { background: TEAL, color: "#fff", fontSize: "0.7rem", fontWeight: 700, padding: "0.15rem 0.5rem", borderRadius: "100px" },
 
-  planCard: { background: "#fff", borderRadius: "1.75rem", border: `1px solid rgba(0,0,0,0.07)`, boxShadow: "0 8px 48px rgba(0,0,0,0.08)", display: "grid", gridTemplateColumns: "1fr 1fr", overflow: "hidden" },
-  planCardLeft: { padding: "2.5rem", display: "flex", flexDirection: "column", gap: "1.25rem", borderRight: `1px solid rgba(0,0,0,0.06)` },
-  planCardRight: { padding: "2.5rem", background: OFF_WHITE },
+  planCard: { background: "#fff", borderRadius: "1.75rem", border: `1px solid rgba(0,0,0,0.07)`, boxShadow: "0 8px 48px rgba(0,0,0,0.08)", display: "flex", flexDirection: "column", overflow: "hidden", width: "100%", boxSizing: "border-box" },
+  planCardLeft: { padding: "2rem 2rem 1.5rem", display: "flex", flexDirection: "column", gap: "1.25rem" },
+  planCardRight: { padding: "1.5rem 2rem 2rem", background: OFF_WHITE, borderTop: `1px solid rgba(0,0,0,0.06)` },
   planHeader: { display: "flex", alignItems: "center", gap: "1rem" },
   planEyebrow: { fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: TEAL, margin: "0 0 0.2rem" },
   planName: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.4rem", fontWeight: 700, color: INK, margin: 0 },
