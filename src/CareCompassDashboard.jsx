@@ -84,25 +84,39 @@ function LocationInput({ value, onChange, style: inp }) {
   const inputRef = React.useRef(null);
   const autocompleteRef = React.useRef(null);
 
+  const [apiReady, setApiReady] = useState(false);
+  const [apiError, setApiError] = useState(false);
+
   React.useEffect(() => {
-    // Load Google Maps JS SDK with Places library
     const key = import.meta.env.VITE_GOOGLE_PLACES_KEY;
-    if (!key) return;
+    if (!key) { setApiError(true); return; }
 
     const initAutocomplete = () => {
-      if (!window.google || !inputRef.current) return;
-      autocompleteRef.current = new window.google.maps.places.Autocomplete(inputRef.current, {
-        types: ["establishment", "geocode"],
-        fields: ["formatted_address", "name", "geometry"],
-      });
-      autocompleteRef.current.addListener("place_changed", () => {
-        const place = autocompleteRef.current.getPlace();
-        if (place.name && place.formatted_address) {
-          onChange(`${place.name}, ${place.formatted_address}`);
-        } else if (place.formatted_address) {
-          onChange(place.formatted_address);
-        }
-      });
+      if (!window.google?.maps?.places || !inputRef.current) return;
+      try {
+        autocompleteRef.current = new window.google.maps.places.Autocomplete(inputRef.current, {
+          types: ["establishment", "geocode"],
+          fields: ["formatted_address", "name"],
+        });
+        autocompleteRef.current.addListener("place_changed", () => {
+          const place = autocompleteRef.current.getPlace();
+          if (place.name && place.formatted_address) {
+            onChange(`${place.name}, ${place.formatted_address}`);
+          } else if (place.formatted_address) {
+            onChange(place.formatted_address);
+          }
+        });
+        setApiReady(true);
+      } catch (e) {
+        console.warn("Places autocomplete error:", e);
+        setApiError(true);
+      }
+    };
+
+    // Set a global error handler for Google Maps auth errors
+    window.gm_authFailure = () => {
+      console.warn("Google Maps auth failed — check API key and billing");
+      setApiError(true);
     };
 
     if (window.google?.maps?.places) {
@@ -114,19 +128,22 @@ function LocationInput({ value, onChange, style: inp }) {
       script.async = true;
       script.defer = true;
       script.onload = initAutocomplete;
+      script.onerror = () => setApiError(true);
       document.head.appendChild(script);
     } else {
-      // Script already loading — wait for it
       const interval = setInterval(() => {
         if (window.google?.maps?.places) {
           clearInterval(interval);
           initAutocomplete();
         }
       }, 200);
+      setTimeout(() => { clearInterval(interval); if (!apiReady) setApiError(true); }, 5000);
       return () => clearInterval(interval);
     }
   }, []);
 
+  // Always render a plain input — Google attaches its dropdown to it
+  // If API errors out, it stays as a clean plain text field
   return (
     <div style={{ position: "relative" }}>
       <input
@@ -138,6 +155,11 @@ function LocationInput({ value, onChange, style: inp }) {
         style={inp}
         autoComplete="off"
       />
+      {apiError && (
+        <span style={{ position: "absolute", right: "0.75rem", top: "50%", transform: "translateY(-50%)", fontSize: "0.7rem", color: WARM_GRAY, fontStyle: "italic" }}>
+          Type to enter location
+        </span>
+      )}
     </div>
   );
 }
