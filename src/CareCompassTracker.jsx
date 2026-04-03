@@ -425,6 +425,9 @@ export default function CareCompassTracker() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("insight") === "1") {
+      // Skip onboarding if coming from appointment flow
+      try { localStorage.setItem("cc-tracker-onboarded", "true"); } catch {}
+      setHasSeenOnboarding(true);
       setView("insights");
       const specialty = params.get("specialty") || "";
       const doctor = params.get("doctor") || "";
