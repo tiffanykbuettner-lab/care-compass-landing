@@ -6,12 +6,11 @@
      • Images                  → Cache-first, long TTL
    ───────────────────────────────────────────────────────────────────────────── */
 
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const SHELL_CACHE   = `carecompass-shell-${CACHE_VERSION}`;
 const IMAGE_CACHE   = `carecompass-images-${CACHE_VERSION}`;
 const DATA_CACHE    = `carecompass-data-${CACHE_VERSION}`;
 
-// App shell assets to precache on install
 const SHELL_ASSETS = [
   '/',
   '/dashboard',
@@ -23,19 +22,18 @@ const SHELL_ASSETS = [
   '/offline.html',
 ];
 
-// ── Install: precache the app shell ──────────────────────────────────────────
+// ── Install ───────────────────────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(SHELL_CACHE).then((cache) => {
-      console.log('[SW] Pre-caching app shell');
+      console.log('[SW] Pre-caching app shell v2');
       return cache.addAll(SHELL_ASSETS);
     })
   );
-  // Activate immediately — don't wait for old tabs to close
   self.skipWaiting();
 });
 
-// ── Activate: clean up old caches ────────────────────────────────────────────
+// ── Activate: wipe ALL old caches, claim clients immediately ──────────────────
 self.addEventListener('activate', (event) => {
   const validCaches = [SHELL_CACHE, IMAGE_CACHE, DATA_CACHE];
   event.waitUntil(
@@ -48,22 +46,18 @@ self.addEventListener('activate', (event) => {
             return caches.delete(key);
           })
       )
-    )
+    ).then(() => self.clients.claim())
   );
-  // Take control of all open clients immediately
-  self.clients.claim();
 });
 
-// ── Fetch: route to the right strategy ───────────────────────────────────────
+// ── Fetch ─────────────────────────────────────────────────────────────────────
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Skip non-GET and chrome-extension requests
   if (request.method !== 'GET') return;
   if (url.protocol === 'chrome-extension:') return;
 
-  // 1. API / external requests → Network-first
   if (
     url.hostname !== self.location.hostname ||
     url.pathname.startsWith('/api/') ||
@@ -73,28 +67,29 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 2. Images → Cache-first
   if (request.destination === 'image') {
     event.respondWith(cacheFirst(request, IMAGE_CACHE));
     return;
   }
 
-  // 3. App shell / navigation → Cache-first with offline fallback
+  // For navigation requests always try network first so fresh HTML is served
+  if (request.mode === 'navigate') {
+    event.respondWith(networkFirst(request, SHELL_CACHE));
+    return;
+  }
+
   event.respondWith(cacheFirst(request, SHELL_CACHE));
 });
 
-// ── Strategy: Cache-first ─────────────────────────────────────────────────────
 async function cacheFirst(request, cacheName) {
   const cache = await caches.open(cacheName);
   const cached = await cache.match(request);
   if (cached) return cached;
-
   try {
     const response = await fetch(request);
     if (response.ok) cache.put(request, response.clone());
     return response;
   } catch {
-    // Return offline page for navigation requests
     if (request.mode === 'navigate') {
       const offlinePage = await caches.match('/offline.html');
       return offlinePage || new Response('Offline', { status: 503 });
@@ -103,7 +98,6 @@ async function cacheFirst(request, cacheName) {
   }
 }
 
-// ── Strategy: Network-first ───────────────────────────────────────────────────
 async function networkFirst(request, cacheName) {
   const cache = await caches.open(cacheName);
   try {
@@ -116,7 +110,6 @@ async function networkFirst(request, cacheName) {
   }
 }
 
-// ── Background sync: queue failed log submissions ─────────────────────────────
 self.addEventListener('sync', (event) => {
   if (event.tag === 'sync-symptom-logs') {
     event.waitUntil(syncSymptomLogs());
@@ -124,12 +117,9 @@ self.addEventListener('sync', (event) => {
 });
 
 async function syncSymptomLogs() {
-  // When backend is live, this will flush queued symptom logs from IndexedDB
-  // to the server once connectivity is restored.
   console.log('[SW] Background sync: symptom logs (pending backend)');
 }
 
-// ── Push notifications (stub — activate when backend is ready) ────────────────
 self.addEventListener('push', (event) => {
   if (!event.data) return;
   const data = event.data.json();
