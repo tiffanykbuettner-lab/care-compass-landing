@@ -351,7 +351,7 @@ const s = {
   navLink: { fontSize: "0.875rem", color: WARM_GRAY, textDecoration: "none" },
   navCta: { background: SAGE_DARK, color: "#fff", padding: "0.55rem 1.3rem", borderRadius: "100px", fontSize: "0.875rem", fontWeight: 600, textDecoration: "none" },
 
-  hero: { minHeight: "50vh", display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", padding: "10rem 2rem 5rem", position: "relative", overflow: "hidden" },
+  hero: { display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", padding: "5rem 2rem 3rem", position: "relative", overflow: "hidden" },
   heroBg: { position: "absolute", inset: 0, zIndex: 0, pointerEvents: "none" },
   heroBlobA: { position: "absolute", top: "-10%", left: "10%", width: 500, height: 500, borderRadius: "50%", background: `radial-gradient(circle, ${SAGE_LIGHT} 0%, transparent 70%)`, opacity: 0.6 },
   heroBlobB: { position: "absolute", bottom: "-10%", right: "5%", width: 400, height: 400, borderRadius: "50%", background: `radial-gradient(circle, #e0f2f4 0%, transparent 70%)`, opacity: 0.5 },
