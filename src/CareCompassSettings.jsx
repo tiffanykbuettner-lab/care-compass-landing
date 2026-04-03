@@ -695,6 +695,48 @@ function SecurityPanel() {
 }
 
 /* ─── Panel: Privacy & Data ──────────────────────────────────────────────── */
+
+/* ─── Info popover ───────────────────────────────────────────────────────── */
+function InfoPopover({ children }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        style={{
+          background: "none", border: "none", cursor: "pointer", padding: "2px 4px",
+          display: "flex", alignItems: "center", color: WARM_GRAY, lineHeight: 1,
+        }}
+        aria-label="More information"
+      >
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+          <circle cx="8" cy="8" r="6.5" stroke="#b0a89e" strokeWidth="1.3"/>
+          <path d="M8 7v4" stroke="#b0a89e" strokeWidth="1.4" strokeLinecap="round"/>
+          <circle cx="8" cy="5.5" r="0.7" fill="#b0a89e"/>
+        </svg>
+      </button>
+      {open && (
+        <div style={{
+          position: "absolute", left: 0, top: "calc(100% + 6px)", zIndex: 50,
+          background: "white", border: `1px solid ${BORDER}`,
+          borderRadius: 10, padding: "14px 16px",
+          boxShadow: "0 4px 20px rgba(0,0,0,0.10)",
+          width: 280, fontFamily: "sans-serif",
+        }}>
+          {children}
+          <div style={{
+            position: "absolute", top: -5, left: 10,
+            width: 10, height: 10, background: "white",
+            border: `1px solid ${BORDER}`, borderRight: "none", borderBottom: "none",
+            transform: "rotate(45deg)",
+          }}/>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PrivacyPanel({ prefs, setPrefs, markDirty }) {
   const toggle = (key) => { setPrefs(p => ({ ...p, [key]: !p[key] })); markDirty(); };
 
@@ -708,18 +750,47 @@ function PrivacyPanel({ prefs, setPrefs, markDirty }) {
           desc="How your health data is used and shared"
         />
         <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column" }}>
-          {[
-            { key: "improveData",    label: "Improve Care Compass with my data",  sub: "Anonymized patterns help train better insights for everyone" },
-            { key: "crashAnalytics", label: "Crash & usage analytics",            sub: "Help us identify bugs and performance issues" },
-          ].map(({ key, label, sub }, i, arr) => (
-            <div key={key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 0", borderBottom: i < arr.length - 1 ? `1px solid ${BORDER}` : "none" }}>
-              <div>
-                <div style={{ fontSize: 14, color: INK, fontFamily: "sans-serif" }}>{label}</div>
-                <div style={{ fontSize: 12, color: WARM_GRAY, marginTop: 2, fontFamily: "sans-serif" }}>{sub}</div>
+          {/* Improve data row — with info popover */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 0", borderBottom: `1px solid ${BORDER}` }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <span style={{ fontSize: 14, color: INK, fontFamily: "sans-serif" }}>Improve Care Compass with my data</span>
+                <InfoPopover>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: INK, marginBottom: 8 }}>What this means</div>
+                  <div style={{ fontSize: 12.5, color: INK_LIGHT, lineHeight: 1.65, marginBottom: 10 }}>
+                    When enabled, anonymized symptom patterns — with all personal details removed — may help us improve the AI insights Care Compass generates for everyone.
+                  </div>
+                  <div style={{ fontSize: 12.5, fontWeight: 600, color: SAGE_DARK, marginBottom: 4 }}>What we never do</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                    {[
+                      "Share or sell your data to third parties",
+                      "Use your name, email, or any identifying details",
+                      "Store anything that could be traced back to you",
+                    ].map(item => (
+                      <div key={item} style={{ display: "flex", gap: 7, alignItems: "flex-start" }}>
+                        <span style={{ color: SAGE_DARK, fontSize: 11, marginTop: 1, flexShrink: 0 }}>✕</span>
+                        <span style={{ fontSize: 12, color: WARM_GRAY, lineHeight: 1.5, fontFamily: "sans-serif" }}>{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${BORDER}`, fontSize: 11.5, color: WARM_GRAY, fontStyle: "italic", fontFamily: "sans-serif" }}>
+                    This is entirely optional and off by default. You can change this at any time.
+                  </div>
+                </InfoPopover>
               </div>
-              <Toggle checked={prefs[key]} onChange={() => toggle(key)} />
+              <div style={{ fontSize: 12, color: WARM_GRAY, marginTop: 2, fontFamily: "sans-serif" }}>Anonymized patterns help train better insights for everyone</div>
             </div>
-          ))}
+            <Toggle checked={prefs.improveData} onChange={() => toggle("improveData")} />
+          </div>
+
+          {/* Crash analytics row */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 0" }}>
+            <div>
+              <div style={{ fontSize: 14, color: INK, fontFamily: "sans-serif" }}>Crash & usage analytics</div>
+              <div style={{ fontSize: 12, color: WARM_GRAY, marginTop: 2, fontFamily: "sans-serif" }}>Help us identify bugs and performance issues</div>
+            </div>
+            <Toggle checked={prefs.crashAnalytics} onChange={() => toggle("crashAnalytics")} />
+          </div>
         </div>
       </SectionCard>
 
