@@ -138,7 +138,6 @@ export default function CareCompassDashboard() {
       }
       @media (min-width: 601px) {
         .dash-hamburger { display: none !important; }
-        .dash-mobile-menu { display: none !important; }
       }
     `;
     document.head.appendChild(style);
@@ -217,7 +216,7 @@ export default function CareCompassDashboard() {
         </div>
         {/* Mobile dropdown menu */}
         {menuOpen && (
-          <div className="dash-mobile-menu" style={s.mobileMenu}>
+          <div style={s.mobileMenu}>
             <a href="/compass" style={s.mobileMenuLink} onClick={() => setMenuOpen(false)}>Assessment</a>
             <a href="/tracker" style={s.mobileMenuLink} onClick={() => setMenuOpen(false)}>Tracker</a>
             <a href="/pricing" style={s.mobileMenuLink} onClick={() => setMenuOpen(false)}>Pricing</a>

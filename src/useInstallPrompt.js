@@ -22,8 +22,12 @@ export function useInstallPrompt() {
   const [isInstalled, setIsInstalled]       = useState(false);
   const [showBanner, setShowBanner]         = useState(false);
 
-  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) &&
-                !window.navigator.standalone;
+  const [isIOS] = useState(() => {
+    try {
+      return /iphone|ipad|ipod/i.test(navigator.userAgent) &&
+             !window.navigator.standalone;
+    } catch { return false; }
+  });
 
   useEffect(() => {
     // Already running as installed PWA?
