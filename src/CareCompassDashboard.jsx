@@ -148,8 +148,11 @@ export default function CareCompassDashboard() {
   const [demoState, setDemoState] = useState("returning"); // new | empty | returning
 
   // Mock user data — replace with Clerk user object
+  // preferredName reads from localStorage (set in Account Settings)
+  const storedDisplayName = (() => { try { return localStorage.getItem("cc-display-name"); } catch { return null; } })();
   const user = {
-    name: "Tiffany",
+    name: storedDisplayName || "Tiffany",
+    fullName: (() => { try { return localStorage.getItem("cc-full-name"); } catch { return null; } })() || "Tiffany",
     subscriptionTier: "pro",
     memberSince: "March 2026",
   };
@@ -194,7 +197,7 @@ export default function CareCompassDashboard() {
             <a href="/compass" style={s.navLink}>Assessment</a>
             <a href="/tracker" style={s.navLink}>Tracker</a>
             <a href="/pricing" style={s.navLink}>Pricing</a>
-            <a href="/account" style={s.navAvatar}>{user.name[0]}</a>
+            <a href="/account" style={s.navAvatar}>{(user.fullName || user.name)[0]}</a>
           </div>
           {/* Hamburger — mobile only */}
           <button className="dash-hamburger" onClick={() => setMenuOpen(o => !o)} style={s.hamburgerBtn} aria-label="Toggle menu">

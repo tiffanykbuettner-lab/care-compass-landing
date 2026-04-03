@@ -384,6 +384,20 @@ function ProfilePanel({ form, setForm, markDirty }) {
             </Field>
           </div>
 
+          {/* Preferred name */}
+          <Field
+            label="Preferred name"
+            optional
+            hint="Used in greetings and notifications — e.g. "Tiff" instead of "Tiffany""
+          >
+            <StyledInput
+              type="text"
+              value={form.preferredName || ""}
+              onChange={set("preferredName")}
+              placeholder={form.firstName || "e.g. Tiff, Mia, Alex..."}
+            />
+          </Field>
+
           {/* Email */}
           <Field label="Email address">
             <div style={{ position: "relative" }}>
@@ -951,7 +965,7 @@ export default function CareCompassSettings() {
 
   // Profile form state
   const [profileForm, setProfileForm] = useState({
-    firstName: "Maya", lastName: "Rodriguez", email: "maya@example.com",
+    firstName: "Maya", lastName: "Rodriguez", preferredName: "Maya", email: "maya@example.com",
     dob: "1988-04-14", sex: "Female", pronouns: "She / Her",
     timezone: "America/Chicago (CDT, UTC−5)",
     condition: "POTS / Dysautonomia", conditions: ["POTS / Dysautonomia"], diagnosisStatus: "Formally diagnosed", careTeam: "",
@@ -974,6 +988,12 @@ export default function CareCompassSettings() {
     setDirty(false);
     setToastVisible(true);
     setTimeout(() => setToastVisible(false), 2800);
+    // Persist display name for dashboard greeting
+    try {
+      const displayName = profileForm.preferredName?.trim() || profileForm.firstName?.trim() || "";
+      localStorage.setItem("cc-display-name", displayName);
+      localStorage.setItem("cc-full-name", `${profileForm.firstName} ${profileForm.lastName}`.trim());
+    } catch {}
   };
 
   const switchPanel = (id) => {
