@@ -22,8 +22,8 @@ const BotanicalMark = ({ size = 32 }) => (
     <ellipse cx="17" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.45"/>
     <ellipse cx="36" cy="36" rx="4.5" ry="11" fill="#4a7058" opacity="0.4" transform="rotate(42 36 36) translate(0 -14)"/>
     <ellipse cx="36" cy="36" rx="4.5" ry="11" fill="#4a7058" opacity="0.4" transform="rotate(-42 36 36) translate(0 -14)"/>
-    <ellipse cx="36" cy="36" rx="3.5" ry="9" fill="#7a9e87" opacity="0.3" transform="rotate(135 36 36) translate(0 -14)"/>
-    <ellipse cx="36" cy="36" rx="3.5" ry="9" fill="#7a9e87" opacity="0.3" transform="rotate(-135 36 36) translate(0 -14)"/>
+    <ellipse cx="36" cy="36" rx="3.5" ry="9" fill="#4a9fa5" opacity="0.6" transform="rotate(135 36 36) translate(0 -14)"/>
+    <ellipse cx="36" cy="36" rx="3.5" ry="9" fill="#4a9fa5" opacity="0.6" transform="rotate(-135 36 36) translate(0 -14)"/>
     <circle cx="36" cy="36" r="7" fill="#4a7058"/>
     <circle cx="36" cy="36" r="3" fill="#e8f0eb"/>
   </svg>
@@ -125,19 +125,13 @@ function OnboardingFlow({ userName, onComplete }) {
 
 /* ─── Main Dashboard ─────────────────────────────────────────────────────── */
 export default function CareCompassDashboard() {
-  const [menuOpen, setMenuOpen] = useState(false);
-
   useEffect(() => {
     const style = document.createElement("style");
     style.id = "dashboard-responsive";
     style.innerHTML = `
       @media (max-width: 600px) {
-        .dash-nav-links { display: none !important; }
-        .dash-hamburger { display: flex !important; }
+        .dash-nav-links a { display: none !important; }
         .dash-demo-bar { flex-wrap: wrap; }
-      }
-      @media (min-width: 601px) {
-        .dash-hamburger { display: none !important; }
       }
     `;
     document.head.appendChild(style);
@@ -189,44 +183,13 @@ export default function CareCompassDashboard() {
             <BotanicalMark size={28}/>
             <span style={s.navLogoText}>Care Compass</span>
           </a>
-          {/* Desktop nav links */}
           <div style={s.navLinks} className="dash-nav-links">
             <a href="/compass" style={s.navLink}>Assessment</a>
             <a href="/tracker" style={s.navLink}>Tracker</a>
             <a href="/pricing" style={s.navLink}>Pricing</a>
             <a href="/account" style={s.navAvatar}>{user.name[0]}</a>
           </div>
-          {/* Hamburger button — mobile only */}
-          <button
-            className="dash-hamburger"
-            onClick={() => setMenuOpen(o => !o)}
-            style={s.hamburgerBtn}
-            aria-label="Toggle menu"
-          >
-            {menuOpen ? (
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={SAGE_DARK} strokeWidth="2.2" strokeLinecap="round">
-                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
-            ) : (
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={SAGE_DARK} strokeWidth="2.2" strokeLinecap="round">
-                <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
-              </svg>
-            )}
-          </button>
         </div>
-        {/* Mobile dropdown menu */}
-        {menuOpen && (
-          <div style={s.mobileMenu}>
-            <a href="/compass" style={s.mobileMenuLink} onClick={() => setMenuOpen(false)}>Assessment</a>
-            <a href="/tracker" style={s.mobileMenuLink} onClick={() => setMenuOpen(false)}>Tracker</a>
-            <a href="/pricing" style={s.mobileMenuLink} onClick={() => setMenuOpen(false)}>Pricing</a>
-            <div style={s.mobileMenuDivider}/>
-            <a href="/account" style={s.mobileMenuLink} onClick={() => setMenuOpen(false)}>
-              <span style={s.mobileMenuAvatar}>{user.name[0]}</span>
-              Account settings
-            </a>
-          </div>
-        )}
       </nav>
 
       <main style={s.main}>
@@ -462,12 +425,6 @@ const s = {
   navLinks: { display: "flex", alignItems: "center", gap: "0.85rem", flexShrink: 0 },
   navLink: { fontSize: "0.8rem", color: WARM_GRAY, textDecoration: "none", whiteSpace: "nowrap" },
   navAvatar: { width: 34, height: 34, borderRadius: "50%", background: SAGE_DARK, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.875rem", textDecoration: "none", fontFamily: "'Playfair Display', Georgia, serif" },
-
-  hamburgerBtn: { display: "none", alignItems: "center", justifyContent: "center", background: "none", border: "none", cursor: "pointer", padding: "0.35rem", borderRadius: "8px", flexShrink: 0 },
-  mobileMenu: { borderTop: `1px solid rgba(0,0,0,0.07)`, padding: "0.75rem 1.25rem 1rem", display: "flex", flexDirection: "column", gap: "0.15rem", background: "#fff" },
-  mobileMenuLink: { display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.75rem 0.5rem", fontSize: "0.95rem", color: INK, textDecoration: "none", borderRadius: "0.5rem", fontWeight: 500 },
-  mobileMenuDivider: { height: 1, background: "rgba(0,0,0,0.07)", margin: "0.35rem 0" },
-  mobileMenuAvatar: { width: 28, height: 28, borderRadius: "50%", background: SAGE_DARK, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.8rem", fontFamily: "'Playfair Display', Georgia, serif", flexShrink: 0 },
 
   main: { flex: 1, padding: "2rem 1.25rem", boxSizing: "border-box", width: "100%" },
   container: { maxWidth: 1100, margin: "0 auto", display: "flex", flexDirection: "column", gap: "2rem" },
