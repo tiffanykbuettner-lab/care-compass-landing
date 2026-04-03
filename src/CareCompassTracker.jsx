@@ -458,12 +458,12 @@ Please provide a warm, specific analysis:
 ## What's Improving vs Worsening
 ## Questions to Bring to Your Doctor
 
-Never diagnose. Focus on patterns across days AND within-day timing. Be specific about which days or time patterns seem significant.${bpReadings.length > 0 ? `
+Never diagnose. Focus on patterns across days AND within-day timing. Be specific about which days or time patterns seem significant.` + (bpReadings.length > 0 ? `
 
 BLOOD PRESSURE READINGS (most recent first):
-${bpReadings.slice(0, 20).map(r => `${formatBPTime(r.timestamp)}: ${r.systolic}/${r.diastolic} mmHg${r.pulse ? ` | Pulse: ${r.pulse} bpm` : ""}${r.notes ? ` | Notes: ${r.notes}` : ""} — ${bpCategory(r.systolic, r.diastolic).label}`).join("\n")}
+` + bpReadings.slice(0, 20).map(r => formatBPTime(r.timestamp) + ": " + r.systolic + "/" + r.diastolic + " mmHg" + (r.pulse ? " | Pulse: " + r.pulse + " bpm" : "") + (r.notes ? " | Notes: " + r.notes : "") + " — " + bpCategory(r.systolic, r.diastolic).label).join("\n") + `
 
-Please also include a ## Blood Pressure Patterns section if you notice correlations between BP readings and symptoms (e.g. high BP days correlating with headaches, stress, poor sleep, or specific activities).` : ""}\` }] }) });
+Please also include a ## Blood Pressure Patterns section if you notice correlations between BP readings and symptoms (e.g. high BP days correlating with headaches, stress, poor sleep, or specific activities).` : "") }] }) });
       const data = await response.json();
       setInsights(data.content[0].text); setView("insights");
     } catch { setInsights("Something went wrong. Please try again."); }
