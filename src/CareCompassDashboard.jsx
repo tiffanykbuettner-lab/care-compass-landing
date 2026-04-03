@@ -701,18 +701,16 @@ export default function CareCompassDashboard() {
                   { label: "Generate a report", desc: "Create a PDF to bring to your doctor", href: "/tracker", color: WARM_GRAY },
                   { label: "Add appointment", desc: "Schedule a visit and prep your report", href: null, color: "#7a6fa0" },
                   { label: "Account settings", desc: "Manage your profile and subscription", href: "/account", color: INK_LIGHT },
-                ].map(({ label, desc, href, color }) => (
-                  {href ? (
-                    <a key={label} href={href} style={{ ...s.quickActionCard, borderTop: `3px solid ${color}` }}>
-                      <p style={{ ...s.quickActionLabel, color }}>{label}</p>
-                      <p style={s.quickActionDesc}>{desc}</p>
-                    </a>
-                  ) : (
-                    <div key={label} onClick={() => { setShowApptForm(true); setEditingAppt(null); window.scrollTo({ top: 0, behavior: "smooth" }); }} style={{ ...s.quickActionCard, borderTop: `3px solid ${color}`, cursor: "pointer" }}>
-                      <p style={{ ...s.quickActionLabel, color }}>{label}</p>
-                      <p style={s.quickActionDesc}>{desc}</p>
-                    </div>
-                  )}
+                ].map(({ label, desc, href, color }) => href ? (
+                  <a key={label} href={href} style={{ ...s.quickActionCard, borderTop: `3px solid ${color}` }}>
+                    <p style={{ ...s.quickActionLabel, color }}>{label}</p>
+                    <p style={s.quickActionDesc}>{desc}</p>
+                  </a>
+                ) : (
+                  <div key={label} onClick={() => { setShowApptForm(true); setEditingAppt(null); window.scrollTo({ top: 0, behavior: "smooth" }); }} style={{ ...s.quickActionCard, borderTop: `3px solid ${color}`, cursor: "pointer" }}>
+                    <p style={{ ...s.quickActionLabel, color }}>{label}</p>
+                    <p style={s.quickActionDesc}>{desc}</p>
+                  </div>
                 ))}
               </div>
             </div>
