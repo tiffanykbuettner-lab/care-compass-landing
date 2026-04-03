@@ -22,6 +22,8 @@ const CREAM      = "#f4f1ec";
 const INK        = "#2d2926";
 const INK_LIGHT  = "#4a4540";
 const STORAGE_KEY = "care-compass-tracker-v1";
+const BP_STORAGE_KEY = "care-compass-bp-v1";
+const BP_REMINDERS_KEY = "care-compass-bp-reminders-v1";
 
 const BotanicalMark = ({ size = 32 }) => (
   <svg width={size} height={size} viewBox="0 0 72 72" fill="none">
@@ -42,6 +44,21 @@ const BotanicalMark = ({ size = 32 }) => (
     <line x1="29" y1="36" x2="17" y2="36" stroke="#e8f0eb" strokeWidth="0.8" opacity="0.35"/>
   </svg>
 );
+
+
+const bpCategory = (systolic, diastolic) => {
+  if (systolic < 120 && diastolic < 80) return { label: "Normal", color: "#4a7058", bg: "#e8f0eb" };
+  if (systolic < 130 && diastolic < 80) return { label: "Elevated", color: "#8a5a00", bg: "#fef3da" };
+  if (systolic < 140 || diastolic < 90) return { label: "High Stage 1", color: "#c0392b", bg: "#fdeaea" };
+  if (systolic >= 140 || diastolic >= 90) return { label: "High Stage 2", color: "#922b21", bg: "#f5b7b1" };
+  return { label: "Unknown", color: "#aaa", bg: "#f5f5f5" };
+};
+
+const formatBPTime = (iso) => {
+  const d = new Date(iso);
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) +
+    " · " + d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+};
 
 const severityColor = (n) => {
   if (n <= 3) return "#7a9e87";
@@ -145,6 +162,84 @@ const DR = ({ label, value }) => (
   <div style={s.detailRow}><span style={s.detailLabel}>{label}</span><span style={s.detailValue}>{value}</span></div>
 );
 
+
+function BPChart({ readings }) {
+  if (readings.length < 2) return <div style={s.chartEmpty}>Add at least 2 readings to see your trend</div>;
+  const last30 = [...readings].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)).slice(-30);
+  const W = 580, H = 140, PAD = 24;
+  const maxSys = Math.max(...last30.map(r => r.systolic), 160);
+  const minSys = Math.min(...last30.map(r => r.systolic), 90);
+  const range = maxSys - minSys || 40;
+  const xStep = (W - PAD * 2) / Math.max(last30.length - 1, 1);
+  const toY = (v) => H - PAD - ((v - minSys) / range) * (H - PAD * 2);
+  const sysPoints = last30.map((r, i) => ({ x: PAD + i * xStep, y: toY(r.systolic) }));
+  const diaPoints = last30.map((r, i) => ({ x: PAD + i * xStep, y: toY(r.diastolic) }));
+  const sysPath = sysPoints.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+  const diaPath = diaPoints.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+  // Normal range band (systolic 90-120)
+  const normalTop = toY(120);
+  const normalBot = toY(Math.max(minSys, 90));
+  return (
+    <div>
+      <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ overflow: "visible" }}>
+        {/* Normal range band */}
+        {normalBot > normalTop && (
+          <rect x={PAD} y={normalTop} width={W - PAD * 2} height={normalBot - normalTop} fill="#e8f0eb" opacity="0.5" rx="2"/>
+        )}
+        {/* Grid lines */}
+        {[100, 120, 140, 160].filter(v => v >= minSys && v <= maxSys + 10).map(v => {
+          const y = toY(v);
+          return <g key={v}><line x1={PAD} y1={y} x2={W - PAD} y2={y} stroke="#e0dbd5" strokeWidth="0.5" strokeDasharray="4 4"/><text x={PAD - 6} y={y + 4} fontSize="9" fill="#aaa" textAnchor="end">{v}</text></g>;
+        })}
+        {/* Diastolic line */}
+        <path d={diaPath} fill="none" stroke={TEAL} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="5 3"/>
+        {diaPoints.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r="3" fill={TEAL} stroke="#fff" strokeWidth="1.5"/>)}
+        {/* Systolic line */}
+        <path d={sysPath} fill="none" stroke="#c0392b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        {sysPoints.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r="4" fill={bpCategory(last30[i].systolic, last30[i].diastolic).color} stroke="#fff" strokeWidth="1.5"/>)}
+        {/* Date labels */}
+        {last30.map((r, i) => i % Math.ceil(last30.length / 7) === 0 && (
+          <text key={i} x={sysPoints[i].x} y={H - 4} fontSize="9" fill="#aaa" textAnchor="middle">
+            {new Date(r.timestamp).toLocaleDateString("en-US", { month: "numeric", day: "numeric" })}
+          </text>
+        ))}
+      </svg>
+      <div style={{ display: "flex", gap: "1.5rem", marginTop: "0.5rem", fontSize: "0.78rem", color: WARM_GRAY }}>
+        <span><span style={{ display: "inline-block", width: 16, height: 3, background: "#c0392b", borderRadius: 2, verticalAlign: "middle", marginRight: 4 }}/>Systolic</span>
+        <span><span style={{ display: "inline-block", width: 16, height: 2, background: TEAL, borderRadius: 2, verticalAlign: "middle", marginRight: 4, borderTop: "2px dashed " + TEAL }}/>Diastolic</span>
+        <span><span style={{ display: "inline-block", width: 16, height: 8, background: "#e8f0eb", borderRadius: 2, verticalAlign: "middle", marginRight: 4 }}/>Normal range</span>
+      </div>
+    </div>
+  );
+}
+
+function BPReadingCard({ reading, onDelete }) {
+  const cat = bpCategory(reading.systolic, reading.diastolic);
+  return (
+    <div style={{ background: "#fff", borderRadius: "0.875rem", border: "1px solid rgba(0,0,0,0.07)", padding: "1rem 1.25rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+        <div style={{ textAlign: "center", minWidth: 72 }}>
+          <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.4rem", fontWeight: 700, color: cat.color, lineHeight: 1 }}>
+            {reading.systolic}<span style={{ fontSize: "0.9rem", fontWeight: 400, color: WARM_GRAY }}>/</span>{reading.diastolic}
+          </div>
+          <div style={{ fontSize: "0.7rem", color: WARM_GRAY, marginTop: 2 }}>mmHg</div>
+        </div>
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.2rem" }}>
+            <span style={{ background: cat.bg, color: cat.color, fontSize: "0.7rem", fontWeight: 700, padding: "0.15rem 0.6rem", borderRadius: "100px" }}>{cat.label}</span>
+            {reading.pulse && <span style={{ fontSize: "0.75rem", color: WARM_GRAY }}>♥ {reading.pulse} bpm</span>}
+            {reading.arm && <span style={{ fontSize: "0.72rem", color: "#aaa" }}>{reading.arm} arm</span>}
+          </div>
+          <div style={{ fontSize: "0.78rem", color: WARM_GRAY }}>{formatBPTime(reading.timestamp)}</div>
+          {reading.notes && <div style={{ fontSize: "0.78rem", color: INK_LIGHT, marginTop: "0.25rem", fontStyle: "italic" }}>{reading.notes}</div>}
+          {reading.position && <div style={{ fontSize: "0.72rem", color: "#aaa" }}>{reading.position}</div>}
+        </div>
+      </div>
+      <button onClick={() => onDelete(reading.id)} style={{ background: "none", border: "none", color: "#ddd", cursor: "pointer", fontSize: "1rem", padding: "0.25rem", flexShrink: 0 }}>✕</button>
+    </div>
+  );
+}
+
 function TrendsTab({ entries, dateFilter }) {
   if (entries.length < 2) return <div style={s.emptyState}><p style={s.emptyDesc}>Add more entries to see symptom trends and frequency reports.</p></div>;
 
@@ -213,12 +308,70 @@ export default function CareCompassTracker() {
   const [chartField, setChartField]     = useState("severity");
   const [dateFilter, setDateFilter]     = useState("all");
 
+  // ── Blood pressure state ──────────────────────────────────────────────────
+  const [bpReadings, setBpReadings]       = useState([]);
+  const [bpReminders, setBpReminders]     = useState([]);
+  const [showBpForm, setShowBpForm]       = useState(false);
+  const [bpView, setBpView]               = useState("log"); // log | history | report
+  const [bpSaved, setBpSaved]             = useState(false);
+  const blankBpForm = { systolic: "", diastolic: "", pulse: "", arm: "left", position: "sitting", notes: "" };
+  const [bpForm, setBpForm]               = useState(blankBpForm);
+  const [showReminderForm, setShowReminderForm] = useState(false);
+  const [reminderTime, setReminderTime]   = useState("08:00");
+  const [reminderLabel, setReminderLabel] = useState("Morning reading");
+
   const blankForm = { symptoms: "", severity: 5, food: "", medications: "", activity: "", sleep: null, stress: 5, weather: "", notes: "", photos: [] };
   const [form, setForm] = useState(blankForm);
 
   useEffect(() => { try { const stored = localStorage.getItem(STORAGE_KEY); if (stored) setEntries(JSON.parse(stored)); } catch {} }, []);
+  useEffect(() => { try { const stored = localStorage.getItem(BP_STORAGE_KEY); if (stored) setBpReadings(JSON.parse(stored)); } catch {} }, []);
+  useEffect(() => { try { const stored = localStorage.getItem(BP_REMINDERS_KEY); if (stored) setBpReminders(JSON.parse(stored)); } catch {} }, []);
 
   const saveEntries = (updated) => { setEntries(updated); try { localStorage.setItem(STORAGE_KEY, JSON.stringify(updated)); } catch {} };
+  const saveBpReadings = (updated) => { setBpReadings(updated); try { localStorage.setItem(BP_STORAGE_KEY, JSON.stringify(updated)); } catch {} };
+  const saveBpReminders = (updated) => { setBpReminders(updated); try { localStorage.setItem(BP_REMINDERS_KEY, JSON.stringify(updated)); } catch {} };
+
+  const handleBpSubmit = () => {
+    if (!bpForm.systolic || !bpForm.diastolic) return;
+    const reading = { ...bpForm, id: Date.now(), timestamp: new Date().toISOString(),
+      systolic: Number(bpForm.systolic), diastolic: Number(bpForm.diastolic),
+      pulse: bpForm.pulse ? Number(bpForm.pulse) : null };
+    saveBpReadings([reading, ...bpReadings]);
+    setBpForm(blankBpForm); setShowBpForm(false);
+    setBpSaved(true); setTimeout(() => setBpSaved(false), 3000);
+  };
+
+  const handleBpDelete = (id) => saveBpReadings(bpReadings.filter(r => r.id !== id));
+
+  const handleAddReminder = async () => {
+    if (!reminderTime) return;
+    let permission = Notification.permission;
+    if (permission === "default") permission = await Notification.requestPermission();
+    const reminder = { id: Date.now(), time: reminderTime, label: reminderLabel, enabled: true };
+    saveBpReminders([...bpReminders, reminder]);
+    setShowReminderForm(false); setReminderTime("08:00"); setReminderLabel("Morning reading");
+  };
+
+  const toggleReminder = (id) => {
+    saveBpReminders(bpReminders.map(r => r.id === id ? { ...r, enabled: !r.enabled } : r));
+  };
+
+  const deleteReminder = (id) => saveBpReminders(bpReminders.filter(r => r.id !== id));
+
+  const handleBpPrint = () => {
+    const style = document.createElement("style");
+    style.innerHTML = `@media print { .no-print { display: none !important; } @page { margin: 1.5cm; } }`;
+    document.head.appendChild(style); window.print(); setTimeout(() => document.head.removeChild(style), 1000);
+  };
+
+  const bpAvgRecent = () => {
+    const recent = bpReadings.slice(0, 10);
+    if (!recent.length) return null;
+    return {
+      systolic: Math.round(recent.reduce((s, r) => s + r.systolic, 0) / recent.length),
+      diastolic: Math.round(recent.reduce((s, r) => s + r.diastolic, 0) / recent.length),
+    };
+  };
 
   const dismissOnboarding = () => {
     try { localStorage.setItem("cc-tracker-onboarded", "true"); } catch {}
@@ -305,7 +458,12 @@ Please provide a warm, specific analysis:
 ## What's Improving vs Worsening
 ## Questions to Bring to Your Doctor
 
-Never diagnose. Focus on patterns across days AND within-day timing. Be specific about which days or time patterns seem significant.` }] }) });
+Never diagnose. Focus on patterns across days AND within-day timing. Be specific about which days or time patterns seem significant.${bpReadings.length > 0 ? `
+
+BLOOD PRESSURE READINGS (most recent first):
+${bpReadings.slice(0, 20).map(r => `${formatBPTime(r.timestamp)}: ${r.systolic}/${r.diastolic} mmHg${r.pulse ? ` | Pulse: ${r.pulse} bpm` : ""}${r.notes ? ` | Notes: ${r.notes}` : ""} — ${bpCategory(r.systolic, r.diastolic).label}`).join("\n")}
+
+Please also include a ## Blood Pressure Patterns section if you notice correlations between BP readings and symptoms (e.g. high BP days correlating with headaches, stress, poor sleep, or specific activities).` : ""}\` }] }) });
       const data = await response.json();
       setInsights(data.content[0].text); setView("insights");
     } catch { setInsights("Something went wrong. Please try again."); }
@@ -330,7 +488,7 @@ Never diagnose. Focus on patterns across days AND within-day timing. Be specific
   });
 
   const CHART_OPTIONS = [{ field: "severity", label: "Overall severity", color: SAGE }, { field: "stress", label: "Stress level", color: "#e8a838" }, { field: "sleep", label: "Sleep quality", color: TEAL }];
-  const tabs = [{ id: "log", label: "Log" }, { id: "history", label: "History" }, { id: "trends", label: "Trends" }, { id: "insights", label: "AI Insights" }, { id: "report", label: "Doctor Report" }];
+  const tabs = [{ id: "log", label: "Log" }, { id: "history", label: "History" }, { id: "trends", label: "Trends" }, { id: "insights", label: "AI Insights" }, { id: "report", label: "Doctor Report" }, { id: "bp", label: "Blood Pressure" }];
 
   if (!hasSeenOnboarding) {
     return (
@@ -624,6 +782,300 @@ Never diagnose. Focus on patterns across days AND within-day timing. Be specific
                       </table>
                     </div>
                     <div style={s.reportFooter}><p style={s.reportFooterText}>Generated by Care Compass · joincarecompass.com · Not medical advice.</p></div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {view === "bp" && (
+            <div style={s.tabContent}>
+              {/* Header */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "1rem", marginBottom: "1.5rem" }}>
+                <div>
+                  <p style={s.eyebrow}>Blood Pressure</p>
+                  <h2 style={{ ...s.title, fontSize: "1.4rem", marginBottom: "0.25rem" }}>BP Log</h2>
+                  <p style={{ fontSize: "0.85rem", color: WARM_GRAY, margin: 0 }}>Track readings separately from your symptom log. Your cardiologist report is always one tap away.</p>
+                </div>
+                <button onClick={() => setShowBpForm(true)} style={s.addBtn}>+ Log Reading</button>
+              </div>
+
+              {bpSaved && <div style={s.savedBanner}>🫀 Reading saved!</div>}
+
+              {/* Sub-tabs */}
+              <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.5rem", borderBottom: "1px solid rgba(0,0,0,0.07)", paddingBottom: "0" }} className="no-print">
+                {[{ id: "log", label: "Overview" }, { id: "history", label: "History" }, { id: "report", label: "Doctor Report" }].map(t => (
+                  <button key={t.id} onClick={() => setBpView(t.id)} style={{ ...s.tab, borderBottom: bpView === t.id ? `2px solid #c0392b` : "2px solid transparent", color: bpView === t.id ? "#c0392b" : WARM_GRAY, fontWeight: bpView === t.id ? 600 : 400 }}>{t.label}</button>
+                ))}
+              </div>
+
+              {/* ── Overview ── */}
+              {bpView === "log" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+                  {bpReadings.length === 0 ? (
+                    <div style={s.emptyState}>
+                      <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>🫀</div>
+                      <h2 style={s.emptyTitle}>Start your BP log</h2>
+                      <p style={s.emptyDesc}>Log your first reading. Your cardiologist wants a record — this will build it automatically.</p>
+                      <button onClick={() => setShowBpForm(true)} style={s.addBtn}>+ Log First Reading</button>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Stats row */}
+                      {(() => {
+                        const avg = bpAvgRecent();
+                        const cat = avg ? bpCategory(avg.systolic, avg.diastolic) : null;
+                        const last = bpReadings[0];
+                        const lastCat = last ? bpCategory(last.systolic, last.diastolic) : null;
+                        return (
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "1rem" }}>
+                            <div style={s.statCard}>
+                              <p style={s.statLabel}>Last reading</p>
+                              <p style={{ ...s.statValue, color: lastCat?.color, fontFamily: "'Playfair Display', Georgia, serif" }}>{last ? `${last.systolic}/${last.diastolic}` : "—"}</p>
+                              {lastCat && <p style={{ fontSize: "0.75rem", color: lastCat.color, fontWeight: 600, margin: 0 }}>{lastCat.label}</p>}
+                            </div>
+                            <div style={s.statCard}>
+                              <p style={s.statLabel}>10-reading avg</p>
+                              <p style={{ ...s.statValue, color: cat?.color, fontFamily: "'Playfair Display', Georgia, serif" }}>{avg ? `${avg.systolic}/${avg.diastolic}` : "—"}</p>
+                              {cat && <p style={{ fontSize: "0.75rem", color: cat.color, fontWeight: 600, margin: 0 }}>{cat.label}</p>}
+                            </div>
+                            <div style={s.statCard}>
+                              <p style={s.statLabel}>Total readings</p>
+                              <p style={s.statValue}>{bpReadings.length}</p>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Chart */}
+                      <div style={s.chartCard}>
+                        <p style={s.chartTitle}>Trend — last 30 readings</p>
+                        <BPChart readings={bpReadings}/>
+                      </div>
+
+                      {/* Recent readings */}
+                      <div>
+                        <p style={s.sectionLabel}>Recent readings</p>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                          {bpReadings.slice(0, 5).map(r => <BPReadingCard key={r.id} reading={r} onDelete={handleBpDelete}/>)}
+                          {bpReadings.length > 5 && <button onClick={() => setBpView("history")} style={s.viewAllBtn}>View all {bpReadings.length} readings →</button>}
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Reminders */}
+                  <div style={{ background: "#fff", borderRadius: "1.25rem", border: "1px solid rgba(0,0,0,0.07)", padding: "1.5rem" }} className="no-print">
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+                      <div>
+                        <p style={{ ...s.sectionLabel, marginBottom: "0.15rem" }}>Daily reminders</p>
+                        <p style={{ fontSize: "0.78rem", color: WARM_GRAY, margin: 0 }}>Get notified to take your BP at consistent times each day.</p>
+                      </div>
+                      <button onClick={() => setShowReminderForm(r => !r)} style={{ ...s.chartOptBtn, background: SAGE_DARK, color: "#fff", borderColor: SAGE_DARK, fontSize: "0.8rem" }}>+ Add time</button>
+                    </div>
+
+                    {showReminderForm && (
+                      <div style={{ background: SAGE_LIGHT, borderRadius: "0.875rem", padding: "1rem", marginBottom: "1rem", display: "flex", flexWrap: "wrap", gap: "0.75rem", alignItems: "flex-end" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+                          <label style={s.label}>Time</label>
+                          <input type="time" value={reminderTime} onChange={e => setReminderTime(e.target.value)} style={{ ...s.input, width: 130 }}/>
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem", flex: 1, minWidth: 160 }}>
+                          <label style={s.label}>Label <span style={s.optional}>(optional)</span></label>
+                          <input type="text" value={reminderLabel} onChange={e => setReminderLabel(e.target.value)} placeholder="e.g. Morning reading" style={s.input}/>
+                        </div>
+                        <div style={{ display: "flex", gap: "0.5rem" }}>
+                          <button onClick={handleAddReminder} style={s.saveBtn}>Save</button>
+                          <button onClick={() => setShowReminderForm(false)} style={s.cancelBtn}>Cancel</button>
+                        </div>
+                      </div>
+                    )}
+
+                    {bpReminders.length === 0 ? (
+                      <p style={{ fontSize: "0.82rem", color: "#aaa", fontStyle: "italic" }}>No reminders set yet.</p>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                        {bpReminders.map(r => (
+                          <div key={r.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.75rem 1rem", background: r.enabled ? SAGE_LIGHT : "#f5f5f5", borderRadius: "0.75rem" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                              <span style={{ fontSize: "1rem" }}>⏰</span>
+                              <div>
+                                <p style={{ fontSize: "0.9rem", fontWeight: 600, color: INK, margin: 0 }}>{r.time}</p>
+                                {r.label && <p style={{ fontSize: "0.75rem", color: WARM_GRAY, margin: 0 }}>{r.label}</p>}
+                              </div>
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                              <button onClick={() => toggleReminder(r.id)} style={{ background: r.enabled ? SAGE_DARK : "#ccc", color: "#fff", border: "none", borderRadius: "100px", padding: "0.25rem 0.75rem", fontSize: "0.75rem", fontWeight: 600, cursor: "pointer" }}>
+                                {r.enabled ? "On" : "Off"}
+                              </button>
+                              <button onClick={() => deleteReminder(r.id)} style={{ background: "none", border: "none", color: "#ddd", cursor: "pointer" }}>✕</button>
+                            </div>
+                          </div>
+                        ))}
+                        <p style={{ fontSize: "0.72rem", color: "#aaa", marginTop: "0.5rem", fontStyle: "italic" }}>
+                          Note: Reminders require push notifications to be enabled in your browser. Full push support coming when backend is ready.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ── History ── */}
+              {bpView === "history" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                  <p style={s.sectionLabel}>{bpReadings.length} readings total</p>
+                  {bpReadings.length === 0
+                    ? <p style={{ fontSize: "0.85rem", color: WARM_GRAY }}>No readings yet.</p>
+                    : bpReadings.map(r => <BPReadingCard key={r.id} reading={r} onDelete={handleBpDelete}/>)
+                  }
+                </div>
+              )}
+
+              {/* ── Doctor Report ── */}
+              {bpView === "report" && (
+                <div style={s.reportWrap}>
+                  <div style={s.reportTopBar} className="no-print">
+                    <p style={s.reportTopNote}>Formatted for your cardiologist. Print or save as PDF.</p>
+                    <button onClick={handleBpPrint} style={s.printBtn}>↓ Save as PDF</button>
+                  </div>
+                  <div style={s.reportCard}>
+                    <div style={s.reportHead}>
+                      <BotanicalMark size={44}/>
+                      <div>
+                        <p style={s.reportEyebrow}>Care Compass · Blood Pressure Report</p>
+                        <h2 style={s.reportTitle}>BP Tracking Summary</h2>
+                        <p style={s.reportMeta}>
+                          Generated {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })} · {bpReadings.length} readings
+                          {bpReadings.length > 0 && ` · ${new Date(bpReadings[bpReadings.length - 1].timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${new Date(bpReadings[0].timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Summary stats */}
+                    {bpReadings.length > 0 && (() => {
+                      const avg = bpAvgRecent();
+                      const cat = avg ? bpCategory(avg.systolic, avg.diastolic) : null;
+                      const highs = bpReadings.filter(r => r.systolic >= 140 || r.diastolic >= 90);
+                      return (
+                        <div style={s.reportSection}>
+                          <h3 style={s.reportSectionTitle}>Summary</h3>
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "1rem", marginBottom: "1rem" }}>
+                            <div style={s.statCard}><p style={s.statLabel}>10-reading average</p><p style={{ ...s.statValue, color: cat?.color }}>{avg ? `${avg.systolic}/${avg.diastolic}` : "—"} <span style={s.statUnit}>mmHg</span></p></div>
+                            <div style={s.statCard}><p style={s.statLabel}>Total readings</p><p style={s.statValue}>{bpReadings.length}</p></div>
+                            <div style={s.statCard}><p style={s.statLabel}>High readings (≥140/90)</p><p style={{ ...s.statValue, color: highs.length > 0 ? "#c0392b" : SAGE_DARK }}>{highs.length}</p></div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Chart */}
+                    {bpReadings.length >= 2 && (
+                      <div style={s.reportSection}>
+                        <h3 style={s.reportSectionTitle}>Trend Chart</h3>
+                        <BPChart readings={bpReadings}/>
+                      </div>
+                    )}
+
+                    {/* Full table */}
+                    <div style={s.reportSection}>
+                      <h3 style={s.reportSectionTitle}>Complete Reading Log</h3>
+                      <table style={s.reportTable}>
+                        <thead>
+                          <tr>{["Date & Time", "Systolic", "Diastolic", "Pulse (bpm)", "Category", "Arm", "Position", "Notes"].map(h => <th key={h} style={s.reportTh}>{h}</th>)}</tr>
+                        </thead>
+                        <tbody>
+                          {[...bpReadings].reverse().map((r, i) => {
+                            const cat = bpCategory(r.systolic, r.diastolic);
+                            return (
+                              <tr key={r.id} style={{ background: i % 2 === 0 ? "#fff" : OFF_WHITE }}>
+                                <td style={s.reportTd}>{new Date(r.timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}<br/><span style={{ fontSize: "0.72rem", color: "#aaa" }}>{new Date(r.timestamp).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</span></td>
+                                <td style={{ ...s.reportTd, textAlign: "center", fontWeight: 700, color: "#c0392b" }}>{r.systolic}</td>
+                                <td style={{ ...s.reportTd, textAlign: "center", fontWeight: 700, color: TEAL }}>{r.diastolic}</td>
+                                <td style={{ ...s.reportTd, textAlign: "center" }}>{r.pulse || "—"}</td>
+                                <td style={s.reportTd}><span style={{ background: cat.bg, color: cat.color, fontSize: "0.7rem", fontWeight: 700, padding: "0.15rem 0.6rem", borderRadius: "100px" }}>{cat.label}</span></td>
+                                <td style={s.reportTd}>{r.arm || "—"}</td>
+                                <td style={s.reportTd}>{r.position || "—"}</td>
+                                <td style={s.reportTd}>{r.notes || "—"}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div style={s.reportFooter}>
+                      <p style={s.reportFooterText}>Generated by Care Compass · joincarecompass.com · This is not a medical record. Please review with your healthcare provider.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Log Reading Modal ── */}
+              {showBpForm && (
+                <div style={s.modalOverlay} onClick={() => setShowBpForm(false)}>
+                  <div style={s.modal} onClick={e => e.stopPropagation()}>
+                    <div style={s.modalHeader}>
+                      <h2 style={s.modalTitle}>Log Blood Pressure Reading</h2>
+                      <button onClick={() => setShowBpForm(false)} style={s.modalClose}>✕</button>
+                    </div>
+                    <div style={s.modalBody}>
+                      {/* Systolic / Diastolic */}
+                      <div style={{ background: SAGE_LIGHT, borderRadius: "1rem", padding: "1.25rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+                        <p style={{ ...s.label, margin: 0, fontSize: "0.8rem", color: WARM_GRAY }}>Enter your reading from your BP monitor</p>
+                        <div style={{ display: "flex", gap: "1rem", alignItems: "flex-end", flexWrap: "wrap" }}>
+                          <div style={s.formGroup}>
+                            <label style={s.label}>Systolic <span style={{ fontSize: "0.75rem", fontWeight: 400, color: "#aaa" }}>(top number)</span></label>
+                            <input type="number" min="60" max="250" value={bpForm.systolic} onChange={e => setBpForm(f => ({ ...f, systolic: e.target.value }))} placeholder="e.g. 128" style={{ ...s.input, fontSize: "1.5rem", fontWeight: 700, textAlign: "center", color: "#c0392b" }} autoFocus/>
+                          </div>
+                          <div style={{ fontSize: "2rem", color: WARM_GRAY, paddingBottom: "0.6rem", fontWeight: 300 }}>/</div>
+                          <div style={s.formGroup}>
+                            <label style={s.label}>Diastolic <span style={{ fontSize: "0.75rem", fontWeight: 400, color: "#aaa" }}>(bottom number)</span></label>
+                            <input type="number" min="40" max="150" value={bpForm.diastolic} onChange={e => setBpForm(f => ({ ...f, diastolic: e.target.value }))} placeholder="e.g. 82" style={{ ...s.input, fontSize: "1.5rem", fontWeight: 700, textAlign: "center", color: TEAL }}/>
+                          </div>
+                          <div style={{ fontSize: "0.85rem", color: WARM_GRAY, paddingBottom: "0.85rem" }}>mmHg</div>
+                        </div>
+                        {bpForm.systolic && bpForm.diastolic && (() => {
+                          const cat = bpCategory(Number(bpForm.systolic), Number(bpForm.diastolic));
+                          return <div style={{ background: cat.bg, color: cat.color, borderRadius: "0.65rem", padding: "0.5rem 1rem", fontSize: "0.85rem", fontWeight: 700, textAlign: "center" }}>{cat.label}</div>;
+                        })()}
+                      </div>
+
+                      {/* Pulse */}
+                      <div style={s.formGroup}>
+                        <label style={s.label}>Pulse <span style={s.optional}>(optional)</span></label>
+                        <input type="number" min="30" max="200" value={bpForm.pulse} onChange={e => setBpForm(f => ({ ...f, pulse: e.target.value }))} placeholder="bpm" style={{ ...s.input, maxWidth: 140 }}/>
+                      </div>
+
+                      {/* Arm + Position */}
+                      <div style={s.formRow}>
+                        <div style={s.formGroup}>
+                          <label style={s.label}>Arm used</label>
+                          <select value={bpForm.arm} onChange={e => setBpForm(f => ({ ...f, arm: e.target.value }))} style={s.input}>
+                            <option value="left">Left arm</option>
+                            <option value="right">Right arm</option>
+                          </select>
+                        </div>
+                        <div style={s.formGroup}>
+                          <label style={s.label}>Position</label>
+                          <select value={bpForm.position} onChange={e => setBpForm(f => ({ ...f, position: e.target.value }))} style={s.input}>
+                            <option value="sitting">Sitting</option>
+                            <option value="standing">Standing</option>
+                            <option value="lying down">Lying down</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Notes */}
+                      <div style={s.formGroup}>
+                        <label style={s.label}>Notes <span style={s.optional}>(optional)</span></label>
+                        <textarea value={bpForm.notes} onChange={e => setBpForm(f => ({ ...f, notes: e.target.value }))} placeholder="e.g. After exercise, felt stressed, took medication this morning..." rows={3} style={s.textarea}/>
+                      </div>
+                    </div>
+                    <div style={s.modalFooter}>
+                      <button onClick={() => setShowBpForm(false)} style={s.cancelBtn}>Cancel</button>
+                      <button onClick={handleBpSubmit} disabled={!bpForm.systolic || !bpForm.diastolic} style={{ ...s.saveBtn, opacity: (!bpForm.systolic || !bpForm.diastolic) ? 0.5 : 1 }}>Save Reading</button>
+                    </div>
                   </div>
                 </div>
               )}
