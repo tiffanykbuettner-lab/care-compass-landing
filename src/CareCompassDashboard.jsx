@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 
 const SAGE       = "#7a9e87";
 const SAGE_LIGHT = "#e8f0eb";
@@ -37,6 +37,132 @@ const APPT_SPECIALTIES = [
   "Dermatologist", "Physical Therapist", "Pain Management",
   "Psychiatrist / Psychologist", "Gynecologist", "Orthopedist",
   "Pulmonologist", "Nephrologist", "Other",
+];
+
+
+/* ─── Appointment time picker ────────────────────────────────────────────── */
+function ApptTimePicker({ value, onChange, style: extraStyle = {} }) {
+  const parse = (val) => {
+    if (!val) return { h: 9, m: 0, period: "AM" };
+    const [hh, mm] = val.split(":").map(Number);
+    return { h: hh % 12 || 12, m: mm, period: hh >= 12 ? "PM" : "AM" };
+  };
+  const toValue = (h, m, period) => {
+    let h24 = h % 12;
+    if (period === "PM") h24 += 12;
+    return `${String(h24).padStart(2,"0")}:${String(m).padStart(2,"0")}`;
+  };
+  const { h, m, period } = parse(value);
+  const hours = [12,1,2,3,4,5,6,7,8,9,10,11];
+  const minutes = [0,5,10,15,20,25,30,35,40,45,50,55];
+  const sel = (w) => ({
+    border: "1.5px solid rgba(0,0,0,0.12)", borderRadius: "0.65rem",
+    padding: "0.65rem 0.4rem", fontSize: "0.9rem", color: INK,
+    background: OFF_WHITE, outline: "none", cursor: "pointer",
+    fontFamily: "inherit", appearance: "none", WebkitAppearance: "none",
+    textAlign: "center", width: w, boxSizing: "border-box", ...extraStyle,
+  });
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+      <select value={h} onChange={e => onChange(toValue(Number(e.target.value), m, period))} style={sel("54px")}>
+        {hours.map(hr => <option key={hr} value={hr}>{hr}</option>)}
+      </select>
+      <span style={{ color: WARM_GRAY, fontWeight: 600, fontSize: "1rem" }}>:</span>
+      <select value={m} onChange={e => onChange(toValue(h, Number(e.target.value), period))} style={sel("54px")}>
+        {minutes.map(min => <option key={min} value={min}>{String(min).padStart(2,"0")}</option>)}
+      </select>
+      <select value={period} onChange={e => onChange(toValue(h, m, e.target.value))} style={sel("58px")}>
+        <option>AM</option>
+        <option>PM</option>
+      </select>
+    </div>
+  );
+}
+
+/* ─── Google Places location autocomplete ────────────────────────────────── */
+function LocationInput({ value, onChange, style: inp }) {
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const debounceRef = React.useRef(null);
+
+  const fetchSuggestions = (query) => {
+    if (!query || query.length < 3) { setSuggestions([]); return; }
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      setLoading(true);
+      try {
+        // Google Places Autocomplete API via proxy-friendly approach
+        // Note: In production, proxy through a serverless function to protect the API key
+        // For now we use the Places Autocomplete widget pattern
+        const key = import.meta.env.VITE_GOOGLE_PLACES_KEY;
+        if (!key) { setSuggestions([]); setLoading(false); return; }
+        const res = await fetch(
+          `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&types=establishment|geocode&key=${key}`
+        );
+        const data = await res.json();
+        setSuggestions((data.predictions || []).slice(0, 5).map(p => ({
+          id: p.place_id,
+          label: p.description,
+          main: p.structured_formatting?.main_text || p.description,
+          secondary: p.structured_formatting?.secondary_text || "",
+        })));
+      } catch {
+        setSuggestions([]);
+      }
+      setLoading(false);
+    }, 350);
+  };
+
+  return (
+    <div style={{ position: "relative" }}>
+      <input
+        type="text"
+        value={value}
+        onChange={e => { onChange(e.target.value); fetchSuggestions(e.target.value); setShowSuggestions(true); }}
+        onFocus={() => value && setShowSuggestions(true)}
+        onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+        placeholder="e.g. Houston Methodist, 6565 Fannin St"
+        style={inp}
+        autoComplete="off"
+      />
+      {loading && (
+        <span style={{ position: "absolute", right: "0.75rem", top: "50%", transform: "translateY(-50%)", fontSize: "0.7rem", color: WARM_GRAY }}>...</span>
+      )}
+      {showSuggestions && suggestions.length > 0 && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 100,
+          background: "#fff", border: "1px solid rgba(0,0,0,0.1)", borderRadius: "0.75rem",
+          boxShadow: "0 4px 20px rgba(0,0,0,0.1)", overflow: "hidden",
+        }}>
+          {suggestions.map(s => (
+            <div
+              key={s.id}
+              onMouseDown={() => { onChange(s.label); setSuggestions([]); setShowSuggestions(false); }}
+              style={{ padding: "0.65rem 1rem", cursor: "pointer", borderBottom: "1px solid rgba(0,0,0,0.05)" }}
+              onMouseEnter={e => e.currentTarget.style.background = SAGE_LIGHT}
+              onMouseLeave={e => e.currentTarget.style.background = "#fff"}
+            >
+              <div style={{ fontSize: "0.875rem", color: INK, fontWeight: 500 }}>📍 {s.main}</div>
+              {s.secondary && <div style={{ fontSize: "0.75rem", color: WARM_GRAY, marginTop: "0.1rem" }}>{s.secondary}</div>}
+            </div>
+          ))}
+          <div style={{ padding: "0.4rem 1rem", fontSize: "0.65rem", color: "#bbb", textAlign: "right" }}>
+            Powered by Google
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const REMINDER_OPTIONS = [
+  { value: "2880", label: "2 days before" },
+  { value: "1440", label: "1 day before" },
+  { value: "240",  label: "4 hours before" },
+  { value: "120",  label: "2 hours before" },
+  { value: "60",   label: "1 hour before" },
+  { value: "30",   label: "30 minutes before" },
 ];
 
 function daysUntil(dateStr) {
@@ -95,7 +221,7 @@ function AppointmentCard({ appt, onEdit, onDelete }) {
         <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
           {appt.reminder && (
             <span style={{ fontSize: "0.7rem", background: SAGE_LIGHT, color: SAGE_DARK, borderRadius: "100px", padding: "0.2rem 0.65rem", fontWeight: 500 }}>
-              ⏰ Reminder set
+              {appt.reminder ? `⏰ ${(REMINDER_OPTIONS.find(o => o.value === appt.reminderAdvance) || REMINDER_OPTIONS[1]).label}` : ''}
             </span>
           )}
           {appt.prepReport && (
@@ -114,7 +240,7 @@ function AppointmentCard({ appt, onEdit, onDelete }) {
 }
 
 function AppointmentForm({ initial, onSave, onCancel }) {
-  const blank = { specialty: "", doctor: "", date: "", time: "", location: "", reason: "", reminder: true, prepReport: true };
+  const blank = { specialty: "", doctor: "", date: "", time: "", location: "", reason: "", reminder: true, reminderAdvance: "1440", prepReport: true };
   const [form, setForm] = useState(initial || blank);
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
   const toggle = (k) => setForm(f => ({ ...f, [k]: !f[k] }));
@@ -153,14 +279,14 @@ function AppointmentForm({ initial, onSave, onCancel }) {
         </div>
         <div>
           <label style={lbl}>Time <span style={{ fontWeight: 400, color: "#aaa" }}>(optional)</span></label>
-          <input type="time" value={form.time} onChange={set("time")} style={inp}/>
+          <ApptTimePicker value={form.time} onChange={val => setForm(f => ({ ...f, time: val }))}/>
         </div>
       </div>
 
       {/* Location */}
       <div>
         <label style={lbl}>Location <span style={{ fontWeight: 400, color: "#aaa" }}>(optional)</span></label>
-        <input type="text" value={form.location} onChange={set("location")} placeholder="e.g. Houston Methodist, 6565 Fannin St" style={inp}/>
+        <LocationInput value={form.location} onChange={val => setForm(f => ({ ...f, location: val }))} style={inp}/>
       </div>
 
       {/* Reason */}
@@ -170,11 +296,22 @@ function AppointmentForm({ initial, onSave, onCancel }) {
       </div>
 
       {/* Reminder + Report toggles */}
-      <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
-        <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", userSelect: "none" }}>
-          <input type="checkbox" checked={form.reminder} onChange={() => toggle("reminder")} style={{ accentColor: SAGE_DARK, width: 16, height: 16 }}/>
-          <span style={{ fontSize: "0.85rem", color: INK }}>Set reminder 24h before</span>
-        </label>
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", userSelect: "none" }}>
+            <input type="checkbox" checked={form.reminder} onChange={() => toggle("reminder")} style={{ accentColor: SAGE_DARK, width: 16, height: 16 }}/>
+            <span style={{ fontSize: "0.85rem", color: INK }}>Set reminder</span>
+          </label>
+          {form.reminder && (
+            <select
+              value={form.reminderAdvance}
+              onChange={e => setForm(f => ({ ...f, reminderAdvance: e.target.value }))}
+              style={{ border: "1.5px solid rgba(0,0,0,0.12)", borderRadius: "0.5rem", padding: "0.35rem 0.65rem", fontSize: "0.82rem", color: INK, background: OFF_WHITE, outline: "none", fontFamily: "inherit", cursor: "pointer", WebkitAppearance: "none" }}
+            >
+              {REMINDER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          )}
+        </div>
         <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", userSelect: "none" }}>
           <input type="checkbox" checked={form.prepReport} onChange={() => toggle("prepReport")} style={{ accentColor: TEAL, width: 16, height: 16 }}/>
           <span style={{ fontSize: "0.85rem", color: INK }}>Request report prep</span>
