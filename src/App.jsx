@@ -8,6 +8,7 @@ import CareCompassLogin from './CareCompassLogin'
 import CareCompassSignup from './CareCompassSignup'
 import CareCompassDashboard from './CareCompassDashboard'
 import CareCompassSettings from './CareCompassSettings'
+import CareCompassMigrate from './CareCompassMigrate'
 
 export default function App() {
   return (
@@ -22,6 +23,7 @@ export default function App() {
         <Route path="/signup" element={<CareCompassSignup />} />
         <Route path="/dashboard" element={<CareCompassDashboard />} />
         <Route path="/settings" element={<CareCompassSettings />} />
+        <Route path="/migrate" element={<CareCompassMigrate />} />
       </Routes>
     </BrowserRouter>
   )
