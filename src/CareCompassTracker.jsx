@@ -333,6 +333,134 @@ const FREQUENCIES = [
   "With meals", "At bedtime", "Other",
 ];
 
+
+/* ─── Report: Severity bar chart (daily avg) ─────────────────────────────── */
+function SeverityBarChart({ entries }) {
+  const last30 = (() => {
+    const byDay = {};
+    entries.forEach(e => {
+      const day = new Date(e.timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      if (!byDay[day]) byDay[day] = { total: 0, count: 0, date: new Date(e.timestamp) };
+      byDay[day].total += e.severity;
+      byDay[day].count += 1;
+    });
+    return Object.entries(byDay)
+      .sort((a, b) => a[1].date - b[1].date)
+      .slice(-30)
+      .map(([day, d]) => ({ day, avg: d.total / d.count }));
+  })();
+  if (last30.length < 2) return null;
+  const W = 560, H = 120, PAD = 20, barW = Math.min(18, (W - PAD * 2) / last30.length - 2);
+  const xStep = (W - PAD * 2) / last30.length;
+  return (
+    <svg width="100%" viewBox={`0 0 ${W} ${H + 24}`} style={{ overflow: "visible" }}>
+      {[2,4,6,8,10].map(v => {
+        const y = H - PAD - ((v / 10) * (H - PAD * 2));
+        return <g key={v}>
+          <line x1={PAD} y1={y} x2={W - PAD} y2={y} stroke="#e8e4e0" strokeWidth="0.5" strokeDasharray="3 3"/>
+          <text x={PAD - 4} y={y + 4} fontSize="9" fill="#bbb" textAnchor="end">{v}</text>
+        </g>;
+      })}
+      {last30.map((d, i) => {
+        const barH = Math.max(2, (d.avg / 10) * (H - PAD * 2));
+        const x = PAD + i * xStep + xStep / 2 - barW / 2;
+        const y = H - PAD - barH;
+        const col = d.avg <= 3 ? "#7a9e87" : d.avg <= 6 ? "#e8a838" : "#c0392b";
+        return <g key={i}>
+          <rect x={x} y={y} width={barW} height={barH} fill={col} rx="2" opacity="0.85"/>
+          {last30.length <= 14 && <text x={x + barW/2} y={H + 14} fontSize="8" fill="#aaa" textAnchor="middle">{d.day}</text>}
+        </g>;
+      })}
+      {last30.length > 14 && (
+        <>
+          <text x={PAD} y={H + 14} fontSize="8" fill="#aaa" textAnchor="start">{last30[0].day}</text>
+          <text x={W - PAD} y={H + 14} fontSize="8" fill="#aaa" textAnchor="end">{last30[last30.length - 1].day}</text>
+        </>
+      )}
+    </svg>
+  );
+}
+
+/* ─── Report: Symptom frequency horizontal bars ──────────────────────────── */
+function SymptomFrequencyChart({ entries }) {
+  const KEYWORDS = ["headache","migraine","fatigue","pain","dizziness","nausea","brain fog",
+    "palpitation","anxiety","insomnia","bloating","reflux","rash","swelling","stiffness",
+    "cramp","shortness of breath","numbness","tingling","joint","muscle","depression",
+    "diarrhea","constipation","fever","cough","chest pain","tachycardia","syncope"];
+  const days = new Set(entries.map(e => new Date(e.timestamp).toDateString())).size || 1;
+  const counts = {};
+  entries.forEach(e => {
+    if (!e.symptoms) return;
+    const text = e.symptoms.toLowerCase();
+    KEYWORDS.forEach(kw => { if (text.includes(kw)) counts[kw] = (counts[kw] || 0) + 1; });
+  });
+  const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 10);
+  if (!top.length) return <p style={{ fontSize: "0.8rem", color: "#aaa", fontStyle: "italic" }}>No recognizable symptom keywords found.</p>;
+  const max = top[0][1];
+  const W = 560, rowH = 22, PAD = 140;
+  return (
+    <svg width="100%" viewBox={`0 0 ${W} ${top.length * rowH + 8}`} style={{ overflow: "visible" }}>
+      {top.map(([kw, count], i) => {
+        const barW = Math.max(4, ((count / max) * (W - PAD - 60)));
+        const pct = Math.round((count / days) * 100);
+        const col = pct >= 60 ? "#c0392b" : pct >= 30 ? "#e8a838" : "#7a9e87";
+        return <g key={kw} transform={`translate(0, ${i * rowH + 4})`}>
+          <text x={PAD - 8} y={14} fontSize="11" fill="#4a4540" textAnchor="end" style={{ textTransform: "capitalize" }}>
+            {kw.charAt(0).toUpperCase() + kw.slice(1)}
+          </text>
+          <rect x={PAD} y={4} width={barW} height={14} fill={col} rx="2" opacity="0.75"/>
+          <text x={PAD + barW + 6} y={14} fontSize="10" fill="#888">{count}x · {pct}% of days</text>
+        </g>;
+      })}
+    </svg>
+  );
+}
+
+/* ─── Report: Sleep & stress trend lines ─────────────────────────────────── */
+function SleepStressChart({ entries }) {
+  const sleepEntries = [...entries].reverse().filter(e => e.sleep != null).slice(-30);
+  const stressEntries = [...entries].reverse().filter(e => e.stress != null).slice(-30);
+  if (sleepEntries.length < 2 && stressEntries.length < 2) return null;
+  const W = 560, H = 100, PAD = 20;
+  const makePath = (data, field) => {
+    if (data.length < 2) return null;
+    const xStep = (W - PAD * 2) / (data.length - 1);
+    return data.map((e, i) => `${i === 0 ? "M" : "L"} ${PAD + i * xStep} ${H - PAD - ((e[field] / 10) * (H - PAD * 2))}`).join(" ");
+  };
+  const sleepPath = makePath(sleepEntries, "sleep");
+  const stressPath = makePath(stressEntries, "stress");
+  return (
+    <svg width="100%" viewBox={`0 0 ${W} ${H + 20}`} style={{ overflow: "visible" }}>
+      {[2,4,6,8,10].map(v => {
+        const y = H - PAD - ((v / 10) * (H - PAD * 2));
+        return <g key={v}>
+          <line x1={PAD} y1={y} x2={W-PAD} y2={y} stroke="#e8e4e0" strokeWidth="0.5" strokeDasharray="3 3"/>
+          <text x={PAD-4} y={y+4} fontSize="9" fill="#bbb" textAnchor="end">{v}</text>
+        </g>;
+      })}
+      {sleepPath && <path d={sleepPath} fill="none" stroke={TEAL} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.8"/>}
+      {stressPath && <path d={stressPath} fill="none" stroke="#e8a838" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.8" strokeDasharray="5 3"/>}
+      <g transform={`translate(${PAD}, ${H + 14})`}>
+        <rect width="10" height="3" fill={TEAL} y="-1" rx="1"/>
+        <text x="13" y="3" fontSize="9" fill="#888">Sleep quality</text>
+        <rect x="90" width="10" height="3" fill="#e8a838" y="-1" rx="1"/>
+        <text x="103" y="3" fontSize="9" fill="#888">Stress level</text>
+      </g>
+    </svg>
+  );
+}
+
+/* ─── Report: Summary stat boxes ─────────────────────────────────────────── */
+function ReportStatBox({ label, value, sub, color = "#4a4540" }) {
+  return (
+    <div style={{ flex: 1, minWidth: 100, background: "#fafaf8", borderRadius: "0.75rem", border: "1px solid #ece8e3", padding: "0.875rem 1rem", textAlign: "center" }}>
+      <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.6rem", fontWeight: 700, color, lineHeight: 1 }}>{value}</div>
+      <div style={{ fontSize: "0.7rem", color: "#888", marginTop: "0.25rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</div>
+      {sub && <div style={{ fontSize: "0.7rem", color, marginTop: "0.2rem", fontWeight: 600 }}>{sub}</div>}
+    </div>
+  );
+}
+
 function TrendsTab({ entries, dateFilter }) {
   if (entries.length < 2) return <div style={s.emptyState}><p style={s.emptyDesc}>Add more entries to see symptom trends and frequency reports.</p></div>;
 
@@ -966,10 +1094,102 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
             <div style={s.tabContent}>
               {entries.length === 0 ? <div style={s.emptyState}><p style={s.emptyDesc}>No entries yet.</p></div> : (
                 <div style={s.reportWrap}>
-                  <div style={s.reportTopBar} className="no-print"><p style={s.reportTopNote}>Formatted for your doctor. Print or save as PDF.</p><button onClick={handlePrint} style={s.printBtn}>↓ Save as PDF</button></div>
+                  <div style={s.reportTopBar} className="no-print">
+                    <p style={s.reportTopNote}>Formatted for your doctor. Print or save as PDF.</p>
+                    <button onClick={handlePrint} style={s.printBtn}>↓ Save as PDF</button>
+                  </div>
                   <div style={s.reportCard}>
-                    <div style={s.reportHead}><BotanicalMark size={44}/><div><p style={s.reportEyebrow}>Care Compass Health Report</p><h2 style={s.reportTitle}>Symptom Tracking Summary</h2><p style={s.reportMeta}>Generated {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })} · {entries.length} entries over {new Set(entries.map(e => new Date(e.timestamp).toDateString())).size} days</p></div></div>
-                    <div style={s.reportSection}><h3 style={s.reportSectionTitle}>Severity Over Time</h3><LineChart entries={entries} field="severity" color={SAGE}/></div>
+
+                    {/* ── Header ── */}
+                    <div style={s.reportHead}>
+                      <BotanicalMark size={44}/>
+                      <div>
+                        <p style={s.reportEyebrow}>Care Compass Health Report</p>
+                        <h2 style={s.reportTitle}>Symptom Tracking Summary</h2>
+                        <p style={s.reportMeta}>
+                          Generated {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })} · {entries.length} entries over {new Set(entries.map(e => new Date(e.timestamp).toDateString())).size} days
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* ── Summary stats ── */}
+                    <div style={s.reportSection}>
+                      <h3 style={s.reportSectionTitle}>At a Glance</h3>
+                      <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+                        {(() => {
+                          const totalDays = new Set(entries.map(e => new Date(e.timestamp).toDateString())).size;
+                          const avgSev = (entries.reduce((s, e) => s + e.severity, 0) / entries.length).toFixed(1);
+                          const highDays = new Set(entries.filter(e => e.severity >= 7).map(e => new Date(e.timestamp).toDateString())).size;
+                          const sleepEntries = entries.filter(e => e.sleep != null);
+                          const avgSleep = sleepEntries.length ? (sleepEntries.reduce((s, e) => s + e.sleep, 0) / sleepEntries.length).toFixed(1) : null;
+                          const stressEntries = entries.filter(e => e.stress != null);
+                          const avgStress = stressEntries.length ? (stressEntries.reduce((s, e) => s + e.stress, 0) / stressEntries.length).toFixed(1) : null;
+                          const sevColor = avgSev <= 3 ? SAGE_DARK : avgSev <= 6 ? "#e8a838" : "#c0392b";
+                          return <>
+                            <ReportStatBox label="Days tracked" value={totalDays} sub={`${entries.length} total entries`}/>
+                            <ReportStatBox label="Avg severity" value={`${avgSev}/10`} color={sevColor} sub={avgSev <= 3 ? "Manageable" : avgSev <= 6 ? "Moderate" : "High"}/>
+                            <ReportStatBox label="High severity days" value={highDays} color={highDays > 0 ? "#c0392b" : SAGE_DARK} sub="≥7/10"/>
+                            {avgSleep && <ReportStatBox label="Avg sleep quality" value={`${avgSleep}/10`} color={TEAL}/>}
+                            {avgStress && <ReportStatBox label="Avg stress level" value={`${avgStress}/10`} color="#e8a838"/>}
+                          </>;
+                        })()}
+                      </div>
+                    </div>
+
+                    {/* ── Severity bar chart ── */}
+                    <div style={s.reportSection}>
+                      <h3 style={s.reportSectionTitle}>Daily Severity — Last 30 Days</h3>
+                      <p style={{ fontSize: "0.75rem", color: "#aaa", margin: "0 0 0.75rem", fontStyle: "italic" }}>
+                        Average severity per day · <span style={{ color: SAGE_DARK }}>■</span> Low (1–3) &nbsp;
+                        <span style={{ color: "#e8a838" }}>■</span> Moderate (4–6) &nbsp;
+                        <span style={{ color: "#c0392b" }}>■</span> High (7–10)
+                      </p>
+                      <SeverityBarChart entries={entries}/>
+                    </div>
+
+                    {/* ── Severity line chart ── */}
+                    <div style={s.reportSection}>
+                      <h3 style={s.reportSectionTitle}>Severity Trend</h3>
+                      <LineChart entries={entries} field="severity" color={SAGE}/>
+                    </div>
+
+                    {/* ── Symptom frequency ── */}
+                    <div style={s.reportSection}>
+                      <h3 style={s.reportSectionTitle}>Most Frequent Symptoms</h3>
+                      <p style={{ fontSize: "0.75rem", color: "#aaa", margin: "0 0 0.75rem", fontStyle: "italic" }}>
+                        Frequency shown as number of entries and % of days tracked
+                      </p>
+                      <SymptomFrequencyChart entries={entries}/>
+                    </div>
+
+                    {/* ── Sleep & stress ── */}
+                    {entries.some(e => e.sleep != null) && (
+                      <div style={s.reportSection}>
+                        <h3 style={s.reportSectionTitle}>Sleep Quality & Stress Levels</h3>
+                        <SleepStressChart entries={entries}/>
+                      </div>
+                    )}
+
+                    {/* ── Medications summary ── */}
+                    {(() => {
+                      const medSet = new Set();
+                      entries.forEach(e => { if (e.medications) e.medications.split(/,|
+/).forEach(m => { const t = m.trim(); if (t) medSet.add(t); }); });
+                      const meds = [...medSet].slice(0, 20);
+                      if (!meds.length) return null;
+                      return (
+                        <div style={s.reportSection}>
+                          <h3 style={s.reportSectionTitle}>Medications Logged</h3>
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+                            {meds.map(m => (
+                              <span key={m} style={{ background: SAGE_LIGHT, color: SAGE_DARK, fontSize: "0.75rem", fontWeight: 600, padding: "0.2rem 0.7rem", borderRadius: "100px" }}>{m}</span>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* ── Detailed log table ── */}
                     <div style={s.reportSection}>
                       <h3 style={s.reportSectionTitle}>Detailed Entry Log</h3>
                       <table style={s.reportTable}>
@@ -989,7 +1209,10 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
                         ))}</tbody>
                       </table>
                     </div>
-                    <div style={s.reportFooter}><p style={s.reportFooterText}>Generated by Care Compass · joincarecompass.com · Not medical advice.</p></div>
+
+                    <div style={s.reportFooter}>
+                      <p style={s.reportFooterText}>Generated by Care Compass · joincarecompass.com · This is not a medical record or medical advice. Please review with your healthcare provider.</p>
+                    </div>
                   </div>
                 </div>
               )}
