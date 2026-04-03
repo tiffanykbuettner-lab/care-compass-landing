@@ -125,32 +125,14 @@ function OnboardingFlow({ userName, onComplete }) {
 
 /* ─── Main Dashboard ─────────────────────────────────────────────────────── */
 export default function CareCompassDashboard() {
-  const [menuOpen, setMenuOpen] = useState(false);
-
   useEffect(() => {
     const style = document.createElement("style");
     style.id = "dashboard-responsive";
     style.innerHTML = `
       @media (max-width: 600px) {
-        .dash-nav-links { display: none !important; }
-        .dash-hamburger { display: flex !important; }
+        .dash-nav-links a { display: none !important; }
+        .dash-demo-bar { flex-wrap: wrap; }
       }
-      @media (min-width: 601px) {
-        .dash-hamburger { display: none !important; }
-      }
-      .dash-demo-bar { flex-wrap: wrap; }
-      .dash-drawer {
-        position: fixed; top: 0; right: 0; bottom: 0; width: 72vw; max-width: 280px;
-        background: #fff; z-index: 999; box-shadow: -4px 0 24px rgba(0,0,0,0.12);
-        display: flex; flex-direction: column; padding: 1.5rem 1.5rem 2rem;
-        transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
-      }
-      .dash-drawer.open { transform: translateX(0); }
-      .dash-overlay {
-        position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 998;
-        opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
-      }
-      .dash-overlay.open { opacity: 1; pointer-events: auto; }
     `;
     document.head.appendChild(style);
     return () => { const el = document.getElementById("dashboard-responsive"); if (el) el.remove(); };
@@ -194,45 +176,6 @@ export default function CareCompassDashboard() {
 
   return (
     <div style={s.root}>
-      {/* Mobile drawer overlay */}
-      <div className={`dash-overlay${menuOpen ? " open" : ""}`} onClick={() => setMenuOpen(false)} />
-
-      {/* Mobile slide-in drawer */}
-      <div className={`dash-drawer${menuOpen ? " open" : ""}`}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem" }}>
-          <a href="/" style={s.navLogo} onClick={() => setMenuOpen(false)}>
-            <BotanicalMark size={28}/>
-            <span style={s.navLogoText}>Care Compass</span>
-          </a>
-          <button onClick={() => setMenuOpen(false)} style={s.drawerClose} aria-label="Close menu">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path d="M4 4l12 12M16 4L4 16" stroke="#6b6560" strokeWidth="2" strokeLinecap="round"/>
-            </svg>
-          </button>
-        </div>
-        <nav style={{ display: "flex", flexDirection: "column", gap: "0.25rem", flex: 1 }}>
-          {[
-            { href: "/compass", label: "Assessment", icon: "🧭" },
-            { href: "/tracker", label: "Tracker", icon: "📋" },
-            { href: "/pricing", label: "Pricing", icon: "✦" },
-          ].map(({ href, label, icon }) => (
-            <a key={href} href={href} style={s.drawerLink} onClick={() => setMenuOpen(false)}>
-              <span style={s.drawerLinkIcon}>{icon}</span>
-              {label}
-            </a>
-          ))}
-        </nav>
-        <div style={{ borderTop: `1px solid rgba(0,0,0,0.07)`, paddingTop: "1.25rem" }}>
-          <a href="/account" style={s.drawerAccount} onClick={() => setMenuOpen(false)}>
-            <div style={s.navAvatar}>{user.name[0]}</div>
-            <div>
-              <div style={{ fontSize: "0.9rem", fontWeight: 600, color: "#2d2926" }}>{user.name}</div>
-              <div style={{ fontSize: "0.75rem", color: "#6b6560" }}>View account</div>
-            </div>
-          </a>
-        </div>
-      </div>
-
       {/* Nav */}
       <nav style={s.nav}>
         <div style={s.navInner}>
@@ -246,17 +189,6 @@ export default function CareCompassDashboard() {
             <a href="/pricing" style={s.navLink}>Pricing</a>
             <a href="/account" style={s.navAvatar}>{user.name[0]}</a>
           </div>
-          {/* Hamburger — mobile only */}
-          <button
-            className="dash-hamburger"
-            onClick={() => setMenuOpen(o => !o)}
-            style={s.hamburger}
-            aria-label="Open menu"
-          >
-            <span style={{ ...s.hamburgerBar, transform: menuOpen ? "rotate(45deg) translate(4px, 4px)" : "none" }}/>
-            <span style={{ ...s.hamburgerBar, opacity: menuOpen ? 0 : 1 }}/>
-            <span style={{ ...s.hamburgerBar, transform: menuOpen ? "rotate(-45deg) translate(4px, -4px)" : "none" }}/>
-          </button>
         </div>
       </nav>
 
@@ -373,7 +305,7 @@ export default function CareCompassDashboard() {
                     <div style={s.patternList}>
                       {assessment.topPatterns.map((p, i) => (
                         <div key={i} style={s.patternItem}>
-                          <BotanicalMark size={16}/>
+                          <span style={s.patternBullet}><BotanicalMark size={16}/></span>
                           <p style={s.patternText}>{p}</p>
                         </div>
                       ))}
@@ -494,14 +426,6 @@ const s = {
   navLink: { fontSize: "0.8rem", color: WARM_GRAY, textDecoration: "none", whiteSpace: "nowrap" },
   navAvatar: { width: 34, height: 34, borderRadius: "50%", background: SAGE_DARK, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.875rem", textDecoration: "none", fontFamily: "'Playfair Display', Georgia, serif" },
 
-  hamburger: { background: "none", border: "none", cursor: "pointer", padding: "0.4rem", display: "flex", flexDirection: "column", gap: "5px", alignItems: "flex-end" },
-  hamburgerBar: { display: "block", height: 2, background: SAGE_DARK, borderRadius: 2, transition: "all 0.25s ease", width: 22 },
-
-  drawerClose: { background: "none", border: "none", cursor: "pointer", padding: "0.4rem", display: "flex", alignItems: "center", justifyContent: "center" },
-  drawerLink: { display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.85rem 0.75rem", borderRadius: "0.75rem", textDecoration: "none", color: INK, fontSize: "1rem", fontWeight: 500, transition: "background 0.15s" },
-  drawerLinkIcon: { fontSize: "1.1rem", width: 24, textAlign: "center" },
-  drawerAccount: { display: "flex", alignItems: "center", gap: "0.85rem", textDecoration: "none", padding: "0.5rem 0" },
-
   main: { flex: 1, padding: "2rem 1.25rem", boxSizing: "border-box", width: "100%" },
   container: { maxWidth: 1100, margin: "0 auto", display: "flex", flexDirection: "column", gap: "2rem" },
 
@@ -541,11 +465,12 @@ const s = {
   sectionTitle: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.1rem", fontWeight: 700, color: INK, margin: 0 },
   sectionAction: { fontSize: "0.82rem", color: SAGE_DARK, fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap", marginTop: "0.25rem" },
 
-  assessmentContent: { display: "flex", flexDirection: "column", gap: "1rem" },
-  assessmentDate: { fontSize: "0.75rem", color: "#aaa", margin: 0, fontStyle: "italic" },
+  assessmentContent: { display: "flex", flexDirection: "column", gap: "1rem", textAlign: "left" },
+  assessmentDate: { fontSize: "0.75rem", color: "#aaa", margin: 0, fontStyle: "italic", textAlign: "left" },
   patternList: { display: "flex", flexDirection: "column", gap: "0.65rem" },
   patternItem: { display: "flex", alignItems: "flex-start", gap: "0.65rem" },
-  patternText: { fontSize: "0.875rem", color: INK_LIGHT, lineHeight: 1.65, margin: 0 },
+  patternBullet: { flexShrink: 0, marginTop: 2 },
+  patternText: { fontSize: "0.875rem", color: INK_LIGHT, lineHeight: 1.65, margin: 0, textAlign: "left" },
   specialistRow: { display: "flex", flexDirection: "column", gap: "0.5rem", paddingTop: "0.75rem", borderTop: `1px solid ${SAGE_LIGHT}` },
   specialistLabel: { fontSize: "0.75rem", fontWeight: 600, color: WARM_GRAY, margin: 0, textTransform: "uppercase", letterSpacing: "0.05em" },
   specialistTags: { display: "flex", flexWrap: "wrap", gap: "0.4rem" },
