@@ -1066,14 +1066,7 @@ function SubscriptionPanel() {
               Once Stripe is connected, your invoices and receipts will appear here. In the meantime, reach out to <a href="mailto:hello@joincarecompass.com" style={{ color: SAGE_DARK }}>hello@joincarecompass.com</a> for any billing questions.
             </div>
           </div>
-          {[{ placeholder: true }].map(({ placeholder }, i, arr) => (
-            <div key="placeholder" style={{ display: "none" }}>
-              {/* Stripe invoices will populate here */}
-            </div>
-                <OutlineBtn hoverColor={TEAL} hoverBorder={TEAL}>Receipt</OutlineBtn>
-              </div>
-            </div>
-          ))}
+
         </div>
       </SectionCard>
 
