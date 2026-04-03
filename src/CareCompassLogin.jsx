@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const SAGE       = "#7a9e87";
 const SAGE_LIGHT = "#e8f0eb";
@@ -54,6 +54,18 @@ const EyeIcon = ({ open }) => (
 );
 
 export default function CareCompassLogin() {
+  useEffect(() => {
+    const style = document.createElement("style");
+    style.id = "auth-responsive";
+    style.innerHTML = `
+      @media (max-width: 640px) {
+        .auth-left-panel { display: none !important; }
+        .auth-mobile-logo { display: flex !important; }
+      }
+    `;
+    document.head.appendChild(style);
+    return () => { const el = document.getElementById("auth-responsive"); if (el) el.remove(); };
+  }, []);
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw]     = useState(false);
@@ -87,7 +99,7 @@ export default function CareCompassLogin() {
   return (
     <div style={s.root}>
       {/* Left panel — brand */}
-      <div style={s.leftPanel}>
+      <div style={s.leftPanel} className="auth-left-panel">
         <div style={s.leftInner}>
           <a href="/" style={s.logoWrap}>
             <BotanicalMark size={48}/>
@@ -114,7 +126,7 @@ export default function CareCompassLogin() {
         <div style={s.formWrap}>
 
           {/* Mobile logo */}
-          <a href="/" style={s.mobileLogo}>
+          <a href="/" style={s.mobileLogo} className="auth-mobile-logo">
             <BotanicalMark size={32}/>
             <span style={s.mobileLogoText}>Care Compass</span>
           </a>
@@ -226,10 +238,10 @@ export default function CareCompassLogin() {
 }
 
 const s = {
-  root: { display: "flex", minHeight: "100vh", fontFamily: "'DM Sans', Helvetica, sans-serif", color: INK },
+  root: { display: "flex", minHeight: "100vh", fontFamily: "'DM Sans', Helvetica, sans-serif", color: INK, overflowX: "hidden", width: "100%" },
 
   // Left brand panel
-  leftPanel: { width: "42%", background: SAGE_DARK, display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" },
+  leftPanel: { width: "42%", background: SAGE_DARK, display: "flex", flexDirection: "column", position: "relative", overflow: "hidden", flexShrink: 0 },
   leftInner: { padding: "3rem", display: "flex", flexDirection: "column", flex: 1, position: "relative", zIndex: 1 },
   logoWrap: { display: "flex", alignItems: "center", gap: "0.65rem", textDecoration: "none", marginBottom: "auto" },
   logoText: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.15rem", fontWeight: 600, color: "#fff" },
@@ -244,11 +256,11 @@ const s = {
   leftFooterLink: { color: "rgba(255,255,255,0.5)", textDecoration: "none" },
 
   // Right form panel
-  rightPanel: { flex: 1, background: OFF_WHITE, display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1.5rem" },
+  rightPanel: { flex: 1, background: OFF_WHITE, display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1.5rem", minWidth: 0 },
   formWrap: { width: "100%", maxWidth: 420, display: "flex", flexDirection: "column", gap: "1.5rem" },
 
   // Mobile logo (hidden on desktop via width logic — shown when left panel not visible)
-  mobileLogo: { display: "none", alignItems: "center", gap: "0.55rem", textDecoration: "none", marginBottom: "0.5rem" },
+  mobileLogo: { display: "flex", alignItems: "center", gap: "0.55rem", textDecoration: "none", marginBottom: "0.5rem" },
   mobileLogoText: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.1rem", fontWeight: 600, color: SAGE_DARK },
 
   formTitle: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.85rem", fontWeight: 700, color: INK, margin: 0, letterSpacing: "-0.02em" },

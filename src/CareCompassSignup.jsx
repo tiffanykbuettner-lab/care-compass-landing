@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const SAGE       = "#7a9e87";
 const SAGE_LIGHT = "#e8f0eb";
@@ -71,6 +71,18 @@ const StrengthBar = ({ password }) => {
 };
 
 export default function CareCompassSignup() {
+  useEffect(() => {
+    const style = document.createElement("style");
+    style.id = "auth-responsive";
+    style.innerHTML = `
+      @media (max-width: 640px) {
+        .auth-left-panel { display: none !important; }
+        .auth-mobile-logo { display: flex !important; }
+      }
+    `;
+    document.head.appendChild(style);
+    return () => { const el = document.getElementById("auth-responsive"); if (el) el.remove(); };
+  }, []);
   const [step, setStep]         = useState("signup"); // signup | verify | 2fa-setup | 2fa-verify
   const [form, setForm]         = useState({ name: "", email: "", password: "" });
   const [showPw, setShowPw]     = useState(false);
@@ -116,7 +128,7 @@ export default function CareCompassSignup() {
   return (
     <div style={s.root}>
       {/* Left panel */}
-      <div style={s.leftPanel}>
+      <div style={s.leftPanel} className="auth-left-panel">
         <div style={s.leftInner}>
           <a href="/" style={s.logoWrap}>
             <BotanicalMark size={48}/>
@@ -126,17 +138,17 @@ export default function CareCompassSignup() {
             <h2 style={s.leftHeadline}>Take back control<br/>of your health story.</h2>
             <p style={s.leftSub}>Join thousands of people navigating chronic illness with more clarity, confidence, and data.</p>
             <div style={s.trustList}>
-             {[
-  		"Your data is encrypted and never sold",
-  		"Built by someone with lived experience",
-  		"Doctor-ready reports at your fingertips",
-  		"Cancel anytime, no questions asked",
-	     ].map(text => (
-  		<div key={text} style={s.trustItem}>
-    		  <BotanicalMark size={20}/>
-    		  <span style={s.trustText}>{text}</span>
-  		</div>
-	     ))}
+              {[
+                { icon: "🔒", text: "Your data is encrypted and never sold" },
+                { icon: "🌿", text: "Built by someone with lived experience" },
+                { icon: "📋", text: "Doctor-ready reports at your fingertips" },
+                { icon: "↩️", text: "Cancel anytime, no questions asked" },
+              ].map(({ icon, text }) => (
+                <div key={text} style={s.trustItem}>
+                  <span style={s.trustIcon}>{icon}</span>
+                  <span style={s.trustText}>{text}</span>
+                </div>
+              ))}
             </div>
           </div>
           <p style={s.leftFooter}>© {new Date().getFullYear()} Care Compass · <a href="/privacy" style={s.leftFooterLink}>Privacy Policy</a></p>
@@ -148,7 +160,7 @@ export default function CareCompassSignup() {
         <div style={s.formWrap}>
 
           {/* Mobile logo */}
-          <a href="/" style={s.mobileLogo}>
+          <a href="/" style={s.mobileLogo} className="auth-mobile-logo">
             <BotanicalMark size={32}/>
             <span style={s.mobileLogoText}>Care Compass</span>
           </a>
@@ -317,7 +329,7 @@ export default function CareCompassSignup() {
 }
 
 const s = {
-  root: { display: "flex", minHeight: "100vh", fontFamily: "'DM Sans', Helvetica, sans-serif", color: INK },
+  root: { display: "flex", minHeight: "100vh", fontFamily: "'DM Sans', Helvetica, sans-serif", color: INK, overflowX: "hidden", width: "100%" },
 
   leftPanel: { width: "42%", background: SAGE_DARK, display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" },
   leftInner: { padding: "3rem", display: "flex", flexDirection: "column", flex: 1, position: "relative", zIndex: 1 },
@@ -327,15 +339,16 @@ const s = {
   leftHeadline: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "clamp(1.6rem, 2.5vw, 2.2rem)", fontWeight: 700, color: "#fff", lineHeight: 1.25, margin: 0 },
   leftSub: { fontSize: "1rem", color: "rgba(255,255,255,0.7)", lineHeight: 1.75, margin: 0 },
   trustList: { display: "flex", flexDirection: "column", gap: "0.875rem" },
-  trustItem: { display: "flex", alignItems: "flex-start", gap: "0.75rem" },
+  trustItem: { display: "flex", alignItems: "flex-start", gap: "0.75rem", marginTop: "0.1rem" },
+  trustIcon: { fontSize: "1rem", flexShrink: 0, marginTop: "0.1rem" },
   trustText: { fontSize: "0.9rem", color: "rgba(255,255,255,0.8)", lineHeight: 1.6 },
   leftFooter: { fontSize: "0.75rem", color: "rgba(255,255,255,0.4)", marginTop: "auto", paddingTop: "1rem" },
   leftFooterLink: { color: "rgba(255,255,255,0.5)", textDecoration: "none" },
 
-  rightPanel: { flex: 1, background: OFF_WHITE, display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1.5rem" },
+  rightPanel: { flex: 1, background: OFF_WHITE, display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1.5rem", minWidth: 0 },
   formWrap: { width: "100%", maxWidth: 440, display: "flex", flexDirection: "column", gap: "1.5rem" },
 
-  mobileLogo: { display: "none", alignItems: "center", gap: "0.55rem", textDecoration: "none" },
+  mobileLogo: { display: "flex", alignItems: "center", gap: "0.55rem", textDecoration: "none" },
   mobileLogoText: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.1rem", fontWeight: 600, color: SAGE_DARK },
 
   progress: { display: "flex", alignItems: "center", gap: 0 },

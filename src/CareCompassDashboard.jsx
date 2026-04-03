@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const SAGE       = "#7a9e87";
 const SAGE_LIGHT = "#e8f0eb";
@@ -125,6 +125,18 @@ function OnboardingFlow({ userName, onComplete }) {
 
 /* ─── Main Dashboard ─────────────────────────────────────────────────────── */
 export default function CareCompassDashboard() {
+  useEffect(() => {
+    const style = document.createElement("style");
+    style.id = "dashboard-responsive";
+    style.innerHTML = `
+      @media (max-width: 600px) {
+        .dash-nav-links a { display: none !important; }
+        .dash-demo-bar { flex-wrap: wrap; }
+      }
+    `;
+    document.head.appendChild(style);
+    return () => { const el = document.getElementById("dashboard-responsive"); if (el) el.remove(); };
+  }, []);
   // UI demo states — in production these come from Supabase + Clerk
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [demoState, setDemoState] = useState("returning"); // new | empty | returning
@@ -171,7 +183,7 @@ export default function CareCompassDashboard() {
             <BotanicalMark size={28}/>
             <span style={s.navLogoText}>Care Compass</span>
           </a>
-          <div style={s.navLinks}>
+          <div style={s.navLinks} className="dash-nav-links">
             <a href="/compass" style={s.navLink}>Assessment</a>
             <a href="/tracker" style={s.navLink}>Tracker</a>
             <a href="/pricing" style={s.navLink}>Pricing</a>
@@ -184,7 +196,7 @@ export default function CareCompassDashboard() {
         <div style={s.container}>
 
           {/* ── Demo state switcher (remove in production) ── */}
-          <div style={s.demoBar}>
+          <div style={s.demoBar} className="dash-demo-bar">
             <span style={s.demoLabel}>Preview state:</span>
             {["new", "empty", "returning"].map(state => (
               <button key={state} onClick={() => { setDemoState(state); if (state === "new") setShowOnboarding(true); }} style={{ ...s.demoBtn, background: demoState === state ? SAGE_DARK : "transparent", color: demoState === state ? "#fff" : WARM_GRAY }}>
