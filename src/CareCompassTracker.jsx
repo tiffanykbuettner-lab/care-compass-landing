@@ -24,6 +24,7 @@ const INK_LIGHT  = "#4a4540";
 const STORAGE_KEY = "care-compass-tracker-v1";
 const BP_STORAGE_KEY = "care-compass-bp-v1";
 const BP_REMINDERS_KEY = "care-compass-bp-reminders-v1";
+const MED_STORAGE_KEY = "care-compass-medications-v1";
 
 const BotanicalMark = ({ size = 32 }) => (
   <svg width={size} height={size} viewBox="0 0 72 72" fill="none">
@@ -278,6 +279,59 @@ function BPReadingCard({ reading, onDelete }) {
   );
 }
 
+
+/* ─── Med picker in log modal ───────────────────────────────────────────── */
+function MedPicker({ medications, selectedIds, onToggle, onAddAll, manualText, onManualChange }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+      {medications.length > 0 && (
+        <div style={{ background: "#f5f9f6", borderRadius: "0.75rem", padding: "0.75rem 1rem", display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.25rem" }}>
+            <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "#4a4540", textTransform: "uppercase", letterSpacing: "0.05em" }}>Your medications</span>
+            <button onClick={onAddAll} style={{ background: "none", border: "1px solid rgba(74,112,88,0.3)", borderRadius: "100px", padding: "0.2rem 0.75rem", fontSize: "0.72rem", color: "#4a7058", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+              Add all
+            </button>
+          </div>
+          {medications.map(med => (
+            <label key={med.id} style={{ display: "flex", alignItems: "center", gap: "0.65rem", cursor: "pointer", padding: "0.35rem 0" }}>
+              <input
+                type="checkbox"
+                checked={selectedIds.includes(med.id)}
+                onChange={() => onToggle(med.id)}
+                style={{ accentColor: "#4a7058", width: 15, height: 15, flexShrink: 0 }}
+              />
+              <span style={{ fontSize: "0.875rem", color: "#2d2926" }}>
+                {med.name}
+                {med.dose && <span style={{ color: "#6b6560", marginLeft: "0.35rem" }}>{med.dose}</span>}
+                {med.frequency && <span style={{ color: "#aaa", marginLeft: "0.35rem", fontSize: "0.78rem" }}>· {med.frequency}</span>}
+              </span>
+            </label>
+          ))}
+        </div>
+      )}
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem" }}>
+        <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "#4a4540" }}>
+          {medications.length > 0 ? "Other / unlisted medications" : "Medications taken"}
+        </span>
+        <textarea
+          value={manualText}
+          onChange={e => onManualChange(e.target.value)}
+          placeholder={medications.length > 0 ? "Any other medications not in your list..." : "Any medications or supplements?"}
+          rows={2}
+          style={{ padding: "0.75rem 1rem", borderRadius: "0.65rem", border: "1.5px solid rgba(0,0,0,0.12)", fontSize: "0.92rem", color: "#2d2926", background: "#fafaf8", outline: "none", fontFamily: "inherit", resize: "vertical", lineHeight: 1.6, boxSizing: "border-box", width: "100%" }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/* ─── Frequency options ──────────────────────────────────────────────────── */
+const FREQUENCIES = [
+  "Once daily", "Twice daily", "Three times daily", "Every 4 hours",
+  "Every 6 hours", "Every 8 hours", "Weekly", "As needed (PRN)",
+  "With meals", "At bedtime", "Other",
+];
+
 function TrendsTab({ entries, dateFilter }) {
   if (entries.length < 2) return <div style={s.emptyState}><p style={s.emptyDesc}>Add more entries to see symptom trends and frequency reports.</p></div>;
 
@@ -361,7 +415,7 @@ export default function CareCompassTracker() {
   const [editTime, setEditTime]           = useState("08:00");
   const [editLabel, setEditLabel]         = useState("");
 
-  const blankForm = { symptoms: "", severity: 5, food: "", medications: "", activity: "", sleep: null, stress: 5, weather: "", notes: "", photos: [] };
+  const blankForm = { symptoms: "", severity: 5, food: "", medications: "", selectedMedIds: [], activity: "", sleep: null, stress: 5, weather: "", notes: "", photos: [] };
   const [form, setForm] = useState(blankForm);
 
   useEffect(() => { try { const stored = localStorage.getItem(STORAGE_KEY); if (stored) setEntries(JSON.parse(stored)); } catch {} }, []);
@@ -448,10 +502,14 @@ export default function CareCompassTracker() {
   const removePhoto = (idx) => setForm(f => ({ ...f, photos: f.photos.filter((_, i) => i !== idx) }));
 
   const handleSubmit = () => {
+    // Merge selected med ids into medications string
+    const selectedMedsStr = buildMedString(form.selectedMedIds || []);
+    const finalMeds = [selectedMedsStr, form.medications].filter(Boolean).join(", ");
+    const finalForm = { ...form, medications: finalMeds };
     if (editingEntry) {
-      saveEntries(entries.map(e => e.id === editingEntry.id ? { ...form, id: editingEntry.id, timestamp: editingEntry.timestamp } : e));
+      saveEntries(entries.map(e => e.id === editingEntry.id ? { ...finalForm, id: editingEntry.id, timestamp: editingEntry.timestamp } : e));
     } else {
-      saveEntries([{ ...form, id: Date.now(), timestamp: new Date().toISOString() }, ...entries]);
+      saveEntries([{ ...finalForm, id: Date.now(), timestamp: new Date().toISOString() }, ...entries]);
     }
     setShowForm(false); setEditingEntry(null); setForm(blankForm);
     setSaved(true); setTimeout(() => setSaved(false), 3000);
@@ -522,7 +580,68 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
 
   const handlePrint = () => { const style = document.createElement("style"); style.innerHTML = `@media print { .no-print { display: none !important; } @page { margin: 1.5cm; } }`; document.head.appendChild(style); window.print(); setTimeout(() => document.head.removeChild(style), 1000); };
 
-  const avgSeverity = entries.length ? (entries.reduce((sum, e) => sum + e.severity, 0) / entries.length).toFixed(1) : "—";
+  // ── Medication list state ────────────────────────────────────────────────
+  const [medications, setMedications]     = useState([]);
+  const [showMedForm, setShowMedForm]     = useState(false);
+  const [editingMed, setEditingMed]       = useState(null);
+  const [medSaved, setMedSaved]           = useState(false);
+  const blankMed = { name: "", dose: "", frequency: "", notes: "", reminder: false, reminderTime: "08:00" };
+  const [medForm, setMedForm]             = useState(blankMed);
+  const [medEditId, setMedEditId]         = useState(null);
+  const [bulkText, setBulkText]           = useState("");
+  const [showBulk, setShowBulk]           = useState(false);
+
+  useEffect(() => {
+    try { const s = localStorage.getItem(MED_STORAGE_KEY); if (s) setMedications(JSON.parse(s)); } catch {}
+  }, []);
+
+  const saveMedications = (updated) => {
+    setMedications(updated);
+    try { localStorage.setItem(MED_STORAGE_KEY, JSON.stringify(updated)); } catch {}
+  };
+
+  const handleSaveMed = () => {
+    if (!medForm.name.trim()) return;
+    if (medEditId) {
+      saveMedications(medications.map(m => m.id === medEditId ? { ...medForm, id: medEditId } : m));
+      setMedEditId(null);
+    } else {
+      saveMedications([...medications, { ...medForm, id: Date.now() }]);
+    }
+    setMedForm(blankMed); setShowMedForm(false);
+    setMedSaved(true); setTimeout(() => setMedSaved(false), 2500);
+  };
+
+  const handleDeleteMed = (id) => saveMedications(medications.filter(m => m.id !== id));
+
+  const handleEditMed = (med) => {
+    setMedForm({ ...med }); setMedEditId(med.id); setShowMedForm(true);
+  };
+
+  const handleBulkImport = () => {
+    const lines = bulkText.split(/[
+,;]+/).map(l => l.trim()).filter(Boolean);
+    const newMeds = lines.map(line => {
+      // Try to parse "MedName Dose Frequency" patterns
+      const parts = line.split(/\s+/);
+      const name = parts[0] || line;
+      const dose = parts.length > 1 ? parts.slice(1, 3).join(" ") : "";
+      return { name, dose, frequency: "", notes: "", reminder: false, reminderTime: "08:00", id: Date.now() + Math.random() };
+    });
+    saveMedications([...medications, ...newMeds]);
+    setBulkText(""); setShowBulk(false);
+    setMedSaved(true); setTimeout(() => setMedSaved(false), 2500);
+  };
+
+  // Build med string for log entry from selected med ids
+  const buildMedString = (selectedIds) => {
+    return medications
+      .filter(m => selectedIds.includes(m.id))
+      .map(m => `${m.name}${m.dose ? " " + m.dose : ""}`)
+      .join(", ");
+  };
+
+    const avgSeverity = entries.length ? (entries.reduce((sum, e) => sum + e.severity, 0) / entries.length).toFixed(1) : "—";
   const todayCount = entries.filter(e => new Date(e.timestamp).toDateString() === new Date().toDateString()).length;
   const filteredEntries = dateFilter === "all" ? entries : entries.filter(e => {
     const entryDate = new Date(e.timestamp);
@@ -534,7 +653,7 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
   });
 
   const CHART_OPTIONS = [{ field: "severity", label: "Overall severity", color: SAGE }, { field: "stress", label: "Stress level", color: "#e8a838" }, { field: "sleep", label: "Sleep quality", color: TEAL }];
-  const tabs = [{ id: "log", label: "Log" }, { id: "history", label: "History" }, { id: "trends", label: "Trends" }, { id: "insights", label: "AI Insights" }, { id: "report", label: "Doctor Report" }, { id: "bp", label: "Blood Pressure" }];
+  const tabs = [{ id: "log", label: "Log" }, { id: "history", label: "History" }, { id: "trends", label: "Trends" }, { id: "insights", label: "AI Insights" }, { id: "report", label: "Doctor Report" }, { id: "bp", label: "Blood Pressure" }, { id: "meds", label: "Medications" }];
 
   if (!hasSeenOnboarding) {
     return (
@@ -1157,6 +1276,157 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
               )}
             </div>
           )}
+
+          {view === "meds" && (
+            <div style={s.tabContent}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "1rem", marginBottom: "1.5rem" }}>
+                <div>
+                  <p style={s.eyebrow}>Medications</p>
+                  <h2 style={{ ...s.title, fontSize: "1.4rem", marginBottom: "0.25rem" }}>Your medication list</h2>
+                  <p style={{ fontSize: "0.85rem", color: WARM_GRAY, margin: 0 }}>Saved meds appear as quick-select options when logging entries.</p>
+                </div>
+                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                  <button onClick={() => setShowBulk(b => !b)} style={{ ...s.cancelBtn, fontSize: "0.82rem" }}>↑ Bulk import</button>
+                  <button onClick={() => { setMedForm({ name: "", dose: "", frequency: "", notes: "", reminder: false, reminderTime: "08:00" }); setMedEditId(null); setShowMedForm(true); }} style={s.addBtn}>+ Add medication</button>
+                </div>
+              </div>
+
+              {medSaved && <div style={s.savedBanner}>💊 Saved!</div>}
+
+              {/* Bulk import */}
+              {showBulk && (
+                <div style={{ background: SAGE_LIGHT, borderRadius: "1rem", padding: "1.25rem", marginBottom: "1.5rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                  <p style={{ ...s.sectionLabel, margin: 0 }}>Bulk import</p>
+                  <p style={{ fontSize: "0.78rem", color: WARM_GRAY, margin: 0 }}>Paste or type your medications — one per line, or separated by commas. Format: <em>Medication Name Dose</em> (e.g. "Metoprolol 25mg")</p>
+                  <textarea
+                    value={bulkText}
+                    onChange={e => setBulkText(e.target.value)}
+                    placeholder={"Metoprolol 25mg
+Levothyroxine 50mcg
+Cetirizine 10mg
+Omeprazole 20mg"}
+                    rows={5}
+                    style={s.textarea}
+                  />
+                  <div style={{ display: "flex", gap: "0.5rem" }}>
+                    <button onClick={handleBulkImport} disabled={!bulkText.trim()} style={{ ...s.saveBtn, opacity: bulkText.trim() ? 1 : 0.5 }}>Import</button>
+                    <button onClick={() => { setShowBulk(false); setBulkText(""); }} style={s.cancelBtn}>Cancel</button>
+                  </div>
+                  <div style={{ borderTop: "1px solid rgba(0,0,0,0.08)", paddingTop: "0.75rem" }}>
+                    <p style={{ fontSize: "0.75rem", color: WARM_GRAY, margin: "0 0 0.4rem", fontWeight: 600 }}>Or upload a file</p>
+                    <label style={{ cursor: "pointer", display: "inline-block" }}>
+                      <span style={{ ...s.uploadBtn, fontSize: "0.82rem" }}>📎 Upload .txt or .csv file</span>
+                      <input type="file" accept=".txt,.csv" style={{ display: "none" }} onChange={e => {
+                        const file = e.target.files[0];
+                        if (!file) return;
+                        const reader = new FileReader();
+                        reader.onload = evt => setBulkText(evt.target.result.slice(0, 5000));
+                        reader.readAsText(file);
+                        e.target.value = "";
+                      }}/>
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {/* Add / Edit form */}
+              {showMedForm && (
+                <div style={{ background: OFF_WHITE, borderRadius: "1rem", border: "1px solid rgba(0,0,0,0.07)", padding: "1.25rem", marginBottom: "1.5rem" }}>
+                  <p style={{ ...s.sectionLabel, marginBottom: "1rem" }}>{medEditId ? "Edit medication" : "New medication"}</p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                    {/* Name + Dose */}
+                    <div style={s.formRow}>
+                      <div style={s.formGroup}>
+                        <label style={s.label}>Medication name <span style={{ color: "#c0392b" }}>*</span></label>
+                        <input value={medForm.name} onChange={e => setMedForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Metoprolol" style={s.input}/>
+                      </div>
+                      <div style={s.formGroup}>
+                        <label style={s.label}>Dose <span style={s.optional}>(optional)</span></label>
+                        <input value={medForm.dose} onChange={e => setMedForm(f => ({ ...f, dose: e.target.value }))} placeholder="e.g. 25mg, 1 tablet" style={s.input}/>
+                      </div>
+                    </div>
+
+                    {/* Frequency */}
+                    <div style={s.formGroup}>
+                      <label style={s.label}>How often <span style={s.optional}>(optional)</span></label>
+                      <select value={medForm.frequency} onChange={e => setMedForm(f => ({ ...f, frequency: e.target.value }))} style={{ ...s.input, WebkitAppearance: "none" }}>
+                        <option value="">Select frequency...</option>
+                        {FREQUENCIES.map(f => <option key={f}>{f}</option>)}
+                      </select>
+                    </div>
+
+                    {/* Notes */}
+                    <div style={s.formGroup}>
+                      <label style={s.label}>Notes <span style={s.optional}>(optional)</span></label>
+                      <input value={medForm.notes} onChange={e => setMedForm(f => ({ ...f, notes: e.target.value }))} placeholder="e.g. Take on empty stomach, avoid grapefruit..." style={s.input}/>
+                    </div>
+
+                    {/* Reminder toggle */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                      <label style={{ display: "flex", alignItems: "center", gap: "0.6rem", cursor: "pointer" }}>
+                        <input type="checkbox" checked={medForm.reminder} onChange={() => setMedForm(f => ({ ...f, reminder: !f.reminder }))} style={{ accentColor: SAGE_DARK, width: 16, height: 16 }}/>
+                        <span style={{ fontSize: "0.875rem", color: INK }}>Set daily reminder</span>
+                      </label>
+                      {medForm.reminder && (
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", paddingLeft: "1.5rem" }}>
+                          <span style={{ fontSize: "0.8rem", color: WARM_GRAY }}>Remind me daily at</span>
+                          <BPTimePicker value={medForm.reminderTime} onChange={val => setMedForm(f => ({ ...f, reminderTime: val }))}/>
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
+                      <button onClick={() => { setShowMedForm(false); setMedEditId(null); setMedForm(blankMed); }} style={s.cancelBtn}>Cancel</button>
+                      <button onClick={handleSaveMed} disabled={!medForm.name.trim()} style={{ ...s.saveBtn, opacity: medForm.name.trim() ? 1 : 0.5 }}>
+                        {medEditId ? "Save changes" : "Add medication"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Medication list */}
+              {medications.length === 0 && !showMedForm && !showBulk ? (
+                <div style={s.emptyState}>
+                  <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>💊</div>
+                  <h2 style={s.emptyTitle}>No medications yet</h2>
+                  <p style={s.emptyDesc}>Add your medications once — then select them with one tap when logging daily entries.</p>
+                  <button onClick={() => setShowMedForm(true)} style={s.addBtn}>+ Add first medication</button>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
+                  {medications.map(med => (
+                    <div key={med.id} style={{ background: "#fff", borderRadius: "1rem", border: "1px solid rgba(0,0,0,0.07)", padding: "1rem 1.25rem", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem" }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "baseline", gap: "0.5rem", flexWrap: "wrap", marginBottom: "0.2rem" }}>
+                          <span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1rem", fontWeight: 700, color: INK }}>{med.name}</span>
+                          {med.dose && <span style={{ fontSize: "0.82rem", color: SAGE_DARK, fontWeight: 600 }}>{med.dose}</span>}
+                          {med.frequency && <span style={{ fontSize: "0.75rem", color: WARM_GRAY, background: CREAM, borderRadius: "100px", padding: "0.15rem 0.6rem" }}>{med.frequency}</span>}
+                        </div>
+                        {med.notes && <p style={{ fontSize: "0.78rem", color: WARM_GRAY, margin: "0 0 0.3rem", fontStyle: "italic" }}>{med.notes}</p>}
+                        {med.reminder && (
+                          <span style={{ fontSize: "0.7rem", background: SAGE_LIGHT, color: SAGE_DARK, borderRadius: "100px", padding: "0.15rem 0.6rem", fontWeight: 500 }}>
+                            ⏰ {(() => {
+                              const [hh, mm] = med.reminderTime.split(":").map(Number);
+                              const p = hh >= 12 ? "PM" : "AM";
+                              return `Daily ${hh % 12 || 12}:${String(mm).padStart(2,"0")} ${p}`;
+                            })()}
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ display: "flex", gap: "0.4rem", flexShrink: 0 }}>
+                        <button onClick={() => handleEditMed(med)} style={{ background: "none", border: "1px solid rgba(0,0,0,0.12)", borderRadius: "6px", padding: "0.25rem 0.65rem", fontSize: "0.72rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit" }}>Edit</button>
+                        <button onClick={() => handleDeleteMed(med.id)} style={{ background: "none", border: "none", color: "#ddd", cursor: "pointer", fontSize: "1rem" }}>✕</button>
+                      </div>
+                    </div>
+                  ))}
+                  <p style={{ fontSize: "0.72rem", color: "#aaa", textAlign: "center", marginTop: "0.5rem", fontStyle: "italic" }}>
+                    {medications.length} medication{medications.length !== 1 ? "s" : ""} saved · These appear as quick-select options when logging entries
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </main>
 
@@ -1171,17 +1441,19 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
                 <div style={s.formGroup}><label style={s.label}>Food & Drink</label><textarea value={form.food} onChange={e => setForm(f => ({ ...f, food: e.target.value }))} placeholder="Have you eaten or had anything to drink?" style={s.textarea} rows={2}/></div>
                 <div style={s.formGroup}>
                   <label style={s.label}>Medications taken</label>
-                  <textarea value={form.medications} onChange={e => setForm(f => ({ ...f, medications: e.target.value }))} placeholder="Any medications or supplements?" style={s.textarea} rows={2}/>
-                  <label style={s.uploadLabel}>
-                    <span style={s.uploadBtn}>📎 Upload medication list</span>
-                    <input type="file" accept=".txt,.pdf,.csv" style={{ display: "none" }} onChange={e => {
-                      const file = e.target.files[0];
-                      if (!file) return;
-                      const reader = new FileReader();
-                      reader.onload = evt => setForm(f => ({ ...f, medications: f.medications ? f.medications + "\n" + evt.target.result.slice(0, 500) : evt.target.result.slice(0, 500) }));
-                      reader.readAsText(file);
-                    }}/>
-                  </label>
+                  <MedPicker
+                    medications={medications}
+                    selectedIds={form.selectedMedIds || []}
+                    onToggle={id => setForm(f => ({
+                      ...f,
+                      selectedMedIds: f.selectedMedIds.includes(id)
+                        ? f.selectedMedIds.filter(i => i !== id)
+                        : [...f.selectedMedIds, id]
+                    }))}
+                    onAddAll={() => setForm(f => ({ ...f, selectedMedIds: medications.map(m => m.id) }))}
+                    manualText={form.medications}
+                    onManualChange={val => setForm(f => ({ ...f, medications: val }))}
+                  />
                 </div>
               </div>
               <div style={s.formRow}>
