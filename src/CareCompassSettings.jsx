@@ -931,10 +931,14 @@ const PLAN_FEATURES = [
   "Full symptom assessment",
   "Unlimited assessments",
   "Daily symptom tracker",
+  "Blood pressure tracker",
+  "Medication list & reminders",
+  "Appointment calendar",
   "AI pattern insights",
   "Trends & frequency reports",
   "Photo logging",
   "Doctor-ready PDF reports",
+  "BP & appointment reports",
   "Secure account with 2FA",
   "Data export",
 ];
@@ -980,7 +984,7 @@ function SubscriptionPanel() {
             </div>
             <div style={{ textAlign: "right" }}>
               <div style={{ fontSize: 28, fontWeight: 700, color: INK, fontFamily: "sans-serif", lineHeight: 1 }}>
-                ${billing === "annual" ? 79 : 9}
+                {billing === "annual" ? "$140.30" : "$12.59"}
                 <span style={{ fontSize: 13, fontWeight: 400, color: WARM_GRAY }}>{billing === "annual" ? " / year" : " / month"}</span>
               </div>
               <div style={{ fontSize: 12, color: WARM_GRAY, marginTop: 4, fontFamily: "sans-serif" }}>Next billing {nextDate}</div>
@@ -992,11 +996,11 @@ function SubscriptionPanel() {
             <div>
               <div style={{ fontSize: 13, fontWeight: 500, color: INK, fontFamily: "sans-serif", marginBottom: 2 }}>Billing cycle</div>
               <div style={{ fontSize: 12, color: WARM_GRAY, fontFamily: "sans-serif" }}>
-                {billing === "annual" ? "Annual — you're saving $29 vs monthly" : "Monthly — switch to annual and save $29/yr"}
+                {billing === "annual" ? "Annual — you're saving $10.78 vs monthly" : "Monthly — switch to annual and save $10.78"}
               </div>
             </div>
             <div style={{ display: "flex", background: "white", borderRadius: 8, border: `1px solid ${BORDER}`, overflow: "hidden" }}>
-              {[["monthly", "Monthly · $9"], ["annual", "Annual · $79"]].map(([opt, label]) => (
+              {[["monthly", "Monthly · $12.59"], ["annual", "Annual · $140.30"]].map(([opt, label]) => (
                 <button key={opt} onClick={() => setBilling(opt)} style={{
                   padding: "6px 14px", border: "none", cursor: "pointer", fontSize: 12.5,
                   fontFamily: "sans-serif", fontWeight: billing === opt ? 600 : 400,
@@ -1054,20 +1058,18 @@ function SubscriptionPanel() {
           title="Billing history"
           desc="Your past invoices"
         />
-        <div style={{ padding: "0 24px 20px" }}>
-          {[
-            { date: "May 3, 2025",  amount: "$79.00", desc: "Annual subscription" },
-            { date: "Apr 3, 2025",  amount: "$9.00",  desc: "Monthly subscription" },
-            { date: "Mar 3, 2025",  amount: "$9.00",  desc: "Monthly subscription" },
-          ].map(({ date, amount, desc }, i, arr) => (
-            <div key={date} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 0", borderBottom: i < arr.length - 1 ? `1px solid ${BORDER}` : "none", gap: 12, flexWrap: "wrap" }}>
-              <div>
-                <div style={{ fontSize: 13.5, color: INK, fontFamily: "sans-serif" }}>{desc}</div>
-                <div style={{ fontSize: 12, color: WARM_GRAY, marginTop: 2, fontFamily: "sans-serif" }}>{date}</div>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: INK, fontFamily: "sans-serif" }}>{amount}</span>
-                <span style={{ fontSize: 11, background: "#eafaf1", color: "#1e7e45", borderRadius: 20, padding: "2px 8px", fontFamily: "sans-serif", fontWeight: 500 }}>Paid</span>
+        <div style={{ padding: "20px 24px" }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "16px 0", textAlign: "center" }}>
+            <svg width="28" height="28" viewBox="0 0 16 16" fill="none"><path d="M3 2h10a1 1 0 011 1v10a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z" stroke={SAGE} strokeWidth="1.3"/><path d="M5 6h6M5 9h4" stroke={SAGE} strokeWidth="1.3" strokeLinecap="round"/></svg>
+            <div style={{ fontSize: 13.5, color: INK, fontFamily: "sans-serif", fontWeight: 500 }}>Billing history coming soon</div>
+            <div style={{ fontSize: 12.5, color: WARM_GRAY, fontFamily: "sans-serif", lineHeight: 1.6, maxWidth: 320 }}>
+              Once Stripe is connected, your invoices and receipts will appear here. In the meantime, reach out to <a href="mailto:hello@joincarecompass.com" style={{ color: SAGE_DARK }}>hello@joincarecompass.com</a> for any billing questions.
+            </div>
+          </div>
+          {[{ placeholder: true }].map(({ placeholder }, i, arr) => (
+            <div key="placeholder" style={{ display: "none" }}>
+              {/* Stripe invoices will populate here */}
+            </div>
                 <OutlineBtn hoverColor={TEAL} hoverBorder={TEAL}>Receipt</OutlineBtn>
               </div>
             </div>
