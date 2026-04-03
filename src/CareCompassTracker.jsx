@@ -163,6 +163,44 @@ const DR = ({ label, value }) => (
 );
 
 
+
+function BPTimePicker({ value, onChange, style = {} }) {
+  const parse = (val) => {
+    const [hh, mm] = (val || "08:00").split(":").map(Number);
+    return { h: hh % 12 || 12, m: mm, period: hh >= 12 ? "PM" : "AM" };
+  };
+  const toValue = (h, m, period) => {
+    let h24 = h % 12;
+    if (period === "PM") h24 += 12;
+    return `${String(h24).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  };
+  const { h, m, period } = parse(value);
+  const hours = [12,1,2,3,4,5,6,7,8,9,10,11];
+  const minutes = [0,5,10,15,20,25,30,35,40,45,50,55];
+  const sel = {
+    border: "1.5px solid rgba(0,0,0,0.12)", borderRadius: "0.5rem",
+    padding: "0.55rem 0.5rem", fontSize: "0.9rem", color: INK,
+    background: "#fff", outline: "none", cursor: "pointer",
+    fontFamily: "inherit", appearance: "none", WebkitAppearance: "none",
+    textAlign: "center", ...style,
+  };
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+      <select value={h} onChange={e => onChange(toValue(Number(e.target.value), m, period))} style={{ ...sel, width: 52 }}>
+        {hours.map(hr => <option key={hr} value={hr}>{hr}</option>)}
+      </select>
+      <span style={{ fontSize: "1.1rem", color: WARM_GRAY, fontWeight: 500 }}>:</span>
+      <select value={m} onChange={e => onChange(toValue(h, Number(e.target.value), period))} style={{ ...sel, width: 52 }}>
+        {minutes.map(min => <option key={min} value={min}>{String(min).padStart(2, "0")}</option>)}
+      </select>
+      <select value={period} onChange={e => onChange(toValue(h, m, e.target.value))} style={{ ...sel, width: 56 }}>
+        <option>AM</option>
+        <option>PM</option>
+      </select>
+    </div>
+  );
+}
+
 function BPChart({ readings }) {
   if (readings.length < 2) return <div style={s.chartEmpty}>Add at least 2 readings to see your trend</div>;
   const last30 = [...readings].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)).slice(-30);
@@ -319,6 +357,9 @@ export default function CareCompassTracker() {
   const [showReminderForm, setShowReminderForm] = useState(false);
   const [reminderTime, setReminderTime]   = useState("08:00");
   const [reminderLabel, setReminderLabel] = useState("Morning reading");
+  const [editingReminderId, setEditingReminderId] = useState(null);
+  const [editTime, setEditTime]           = useState("08:00");
+  const [editLabel, setEditLabel]         = useState("");
 
   const blankForm = { symptoms: "", severity: 5, food: "", medications: "", activity: "", sleep: null, stress: 5, weather: "", notes: "", photos: [] };
   const [form, setForm] = useState(blankForm);
@@ -357,6 +398,11 @@ export default function CareCompassTracker() {
   };
 
   const deleteReminder = (id) => saveBpReminders(bpReminders.filter(r => r.id !== id));
+  const startEditReminder = (r) => { setEditingReminderId(r.id); setEditTime(r.time); setEditLabel(r.label || ""); };
+  const saveEditReminder = () => {
+    saveBpReminders(bpReminders.map(r => r.id === editingReminderId ? { ...r, time: editTime, label: editLabel } : r));
+    setEditingReminderId(null);
+  };
 
   const handleBpPrint = () => {
     const style = document.createElement("style");
@@ -878,7 +924,7 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
                       <div style={{ background: SAGE_LIGHT, borderRadius: "0.875rem", padding: "1rem", marginBottom: "1rem", display: "flex", flexWrap: "wrap", gap: "0.75rem", alignItems: "flex-end" }}>
                         <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
                           <label style={s.label}>Time</label>
-                          <input type="time" value={reminderTime} onChange={e => setReminderTime(e.target.value)} style={{ ...s.input, width: 130 }}/>
+                          <BPTimePicker value={reminderTime} onChange={setReminderTime}/>
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem", flex: 1, minWidth: 160 }}>
                           <label style={s.label}>Label <span style={s.optional}>(optional)</span></label>
@@ -896,20 +942,50 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
                     ) : (
                       <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
                         {bpReminders.map(r => (
-                          <div key={r.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.75rem 1rem", background: r.enabled ? SAGE_LIGHT : "#f5f5f5", borderRadius: "0.75rem" }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                              <span style={{ fontSize: "1rem" }}>⏰</span>
-                              <div>
-                                <p style={{ fontSize: "0.9rem", fontWeight: 600, color: INK, margin: 0 }}>{r.time}</p>
-                                {r.label && <p style={{ fontSize: "0.75rem", color: WARM_GRAY, margin: 0 }}>{r.label}</p>}
+                          <div key={r.id} style={{ borderRadius: "0.75rem", overflow: "hidden", background: r.enabled ? SAGE_LIGHT : "#f5f5f5" }}>
+                            {/* View row */}
+                            {editingReminderId !== r.id && (
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.75rem 1rem" }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                                  <span style={{ fontSize: "1rem" }}>⏰</span>
+                                  <div>
+                                    <p style={{ fontSize: "0.9rem", fontWeight: 600, color: INK, margin: 0 }}>
+                                      {(() => {
+                                        const [hh, mm] = r.time.split(":").map(Number);
+                                        const p = hh >= 12 ? "PM" : "AM";
+                                        const h12 = hh % 12 || 12;
+                                        return `${h12}:${String(mm).padStart(2,"0")} ${p}`;
+                                      })()}
+                                    </p>
+                                    {r.label && <p style={{ fontSize: "0.75rem", color: WARM_GRAY, margin: 0 }}>{r.label}</p>}
+                                  </div>
+                                </div>
+                                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                  <button onClick={() => startEditReminder(r)} style={{ background: "none", border: "1px solid rgba(0,0,0,0.12)", borderRadius: "100px", padding: "0.2rem 0.65rem", fontSize: "0.72rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit" }}>Edit</button>
+                                  <button onClick={() => toggleReminder(r.id)} style={{ background: r.enabled ? SAGE_DARK : "#ccc", color: "#fff", border: "none", borderRadius: "100px", padding: "0.25rem 0.75rem", fontSize: "0.75rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+                                    {r.enabled ? "On" : "Off"}
+                                  </button>
+                                  <button onClick={() => deleteReminder(r.id)} style={{ background: "none", border: "none", color: "#ccc", cursor: "pointer", fontSize: "1rem", lineHeight: 1 }}>✕</button>
+                                </div>
                               </div>
-                            </div>
-                            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                              <button onClick={() => toggleReminder(r.id)} style={{ background: r.enabled ? SAGE_DARK : "#ccc", color: "#fff", border: "none", borderRadius: "100px", padding: "0.25rem 0.75rem", fontSize: "0.75rem", fontWeight: 600, cursor: "pointer" }}>
-                                {r.enabled ? "On" : "Off"}
-                              </button>
-                              <button onClick={() => deleteReminder(r.id)} style={{ background: "none", border: "none", color: "#ddd", cursor: "pointer" }}>✕</button>
-                            </div>
+                            )}
+                            {/* Inline edit row */}
+                            {editingReminderId === r.id && (
+                              <div style={{ padding: "0.875rem 1rem", display: "flex", flexWrap: "wrap", gap: "0.75rem", alignItems: "flex-end" }}>
+                                <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+                                  <span style={{ fontSize: "0.75rem", fontWeight: 600, color: INK_LIGHT }}>Time</span>
+                                  <BPTimePicker value={editTime} onChange={setEditTime}/>
+                                </div>
+                                <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem", flex: 1, minWidth: 140 }}>
+                                  <span style={{ fontSize: "0.75rem", fontWeight: 600, color: INK_LIGHT }}>Label <span style={{ fontWeight: 400, color: "#aaa" }}>(optional)</span></span>
+                                  <input value={editLabel} onChange={e => setEditLabel(e.target.value)} style={{ ...s.input }} placeholder="e.g. Morning reading"/>
+                                </div>
+                                <div style={{ display: "flex", gap: "0.5rem" }}>
+                                  <button onClick={saveEditReminder} style={s.saveBtn}>Save</button>
+                                  <button onClick={() => setEditingReminderId(null)} style={s.cancelBtn}>Cancel</button>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         ))}
                         <p style={{ fontSize: "0.72rem", color: "#aaa", marginTop: "0.5rem", fontStyle: "italic" }}>
