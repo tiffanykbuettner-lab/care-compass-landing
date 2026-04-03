@@ -329,9 +329,9 @@ export default function CareCompassSignup() {
 }
 
 const s = {
-  root: { display: "flex", minHeight: "100vh", fontFamily: "'DM Sans', Helvetica, sans-serif", color: INK, overflowX: "hidden", width: "100%" },
+  root: { display: "flex", minHeight: "100vh", fontFamily: "'DM Sans', Helvetica, sans-serif", color: INK, overflowX: "hidden", width: "100%", maxWidth: 1280, margin: "0 auto", boxShadow: "0 0 0 100vmax #fafaf8" },
 
-  leftPanel: { width: "42%", background: SAGE_DARK, display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" },
+  leftPanel: { width: "38%", minWidth: 280, maxWidth: 480, background: SAGE_DARK, display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" },
   leftInner: { padding: "3rem", display: "flex", flexDirection: "column", flex: 1, position: "relative", zIndex: 1 },
   logoWrap: { display: "flex", alignItems: "center", gap: "0.65rem", textDecoration: "none", marginBottom: "auto" },
   logoText: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.15rem", fontWeight: 600, color: "#fff" },
@@ -344,7 +344,7 @@ const s = {
   leftFooter: { fontSize: "0.75rem", color: "rgba(255,255,255,0.4)", marginTop: "auto", paddingTop: "1rem" },
   leftFooterLink: { color: "rgba(255,255,255,0.5)", textDecoration: "none" },
 
-  rightPanel: { flex: 1, background: OFF_WHITE, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "3rem 1.5rem", minWidth: 0, overflowY: "auto" },
+  rightPanel: { flex: 1, background: OFF_WHITE, display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1.5rem", minWidth: 0, overflowY: "auto" },
   formWrap: { width: "100%", maxWidth: 440, display: "flex", flexDirection: "column", gap: "1.5rem" },
 
   mobileLogo: { display: "flex", alignItems: "center", gap: "0.55rem", textDecoration: "none" },
