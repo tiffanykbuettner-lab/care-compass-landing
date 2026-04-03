@@ -21,7 +21,7 @@ export default function App() {
         <Route path="/login" element={<CareCompassLogin />} />
         <Route path="/signup" element={<CareCompassSignup />} />
         <Route path="/dashboard" element={<CareCompassDashboard />} />
-        <Route path="/account" element={<CareCompassSettings />} />
+        <Route path="/settings" element={<CareCompassSettings />} />
       </Routes>
     </BrowserRouter>
   )
