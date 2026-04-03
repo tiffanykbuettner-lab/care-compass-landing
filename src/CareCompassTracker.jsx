@@ -395,6 +395,7 @@ export default function CareCompassTracker() {
   const [showForm, setShowForm]         = useState(false);
   const [editingEntry, setEditingEntry] = useState(null);
   const [insights, setInsights]         = useState(null);
+  const [apptContext, setApptContext]    = useState(null);
   const [loadingInsights, setLoadingInsights] = useState(false);
   const [saved, setSaved]               = useState(false);
   const [chartField, setChartField]     = useState("severity");
@@ -419,6 +420,23 @@ export default function CareCompassTracker() {
   const [form, setForm] = useState(blankForm);
 
   useEffect(() => { try { const stored = localStorage.getItem(STORAGE_KEY); if (stored) setEntries(JSON.parse(stored)); } catch {} }, []);
+
+  // Read appointment context from URL and auto-trigger insights
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("insight") === "1") {
+      setView("insights");
+      const specialty = params.get("specialty") || "";
+      const doctor = params.get("doctor") || "";
+      const reason = params.get("reason") || "";
+      const date = params.get("date") || "";
+      if (specialty) {
+        setApptContext({ specialty, doctor, reason, date });
+      }
+      // Clean URL without reload
+      window.history.replaceState({}, "", "/tracker");
+    }
+  }, []);
   useEffect(() => { try { const stored = localStorage.getItem(BP_STORAGE_KEY); if (stored) setBpReadings(JSON.parse(stored)); } catch {} }, []);
   useEffect(() => { try { const stored = localStorage.getItem(BP_REMINDERS_KEY); if (stored) setBpReminders(JSON.parse(stored)); } catch {} }, []);
 
@@ -548,6 +566,12 @@ export default function CareCompassTracker() {
       styleEl.innerHTML = INSIGHTS_LOADING_STYLES;
       document.head.appendChild(styleEl);
 
+      const apptPromptContext = apptContext ? `
+
+APPOINTMENT CONTEXT: This report is being generated to prepare for an upcoming ${apptContext.specialty} appointment${apptContext.doctor ? ` with ${apptContext.doctor}` : ""}${apptContext.date ? ` on ${new Date(apptContext.date + "T12:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}` : ""}${apptContext.reason ? `. Reason for visit: ${apptContext.reason}` : ""}.
+
+Please tailor your analysis specifically for a ${apptContext.specialty} visit. Focus on symptoms, patterns, and findings most relevant to ${apptContext.specialty} conditions. Prioritize insights the ${apptContext.specialty} would find most actionable. Add a ## Questions to Raise with Your ${apptContext.specialty} section at the end with specific, targeted questions based on the data.` : "";
+
       const response = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" }, body: JSON.stringify({ model: "claude-opus-4-6", max_tokens: 2000, messages: [{ role: "user", content: `You are Care Compass, a compassionate health navigation assistant. Analyze these symptom tracker entries and identify patterns, triggers, and insights to discuss with a doctor.
 
 IMPORTANT CONTEXT: Users log entries MULTIPLE TIMES per day. Each day shows all entries chronologically with timestamps. Medications, food, and activity listed for a day represent the COMBINED picture across all that day's entries — not that each item was logged at every entry. Do NOT interpret partial fields in individual entries as missed doses or incomplete information. Look for TIME-BASED CORRELATIONS within days — e.g. a medication logged in the morning followed by symptom changes hours later, or food logged before a symptom spike.
@@ -562,7 +586,7 @@ Please provide a warm, specific analysis:
 ## What's Improving vs Worsening
 ## Questions to Bring to Your Doctor
 
-Never diagnose. Focus on patterns across days AND within-day timing. Be specific about which days or time patterns seem significant.` + (bpReadings.length > 0 ? `
+Never diagnose. Focus on patterns across days AND within-day timing. Be specific about which days or time patterns seem significant.` + apptPromptContext + (bpReadings.length > 0 ? `
 
 BLOOD PRESSURE READINGS (most recent first):
 ` + bpReadings.slice(0, 20).map(r => formatBPTime(r.timestamp) + ": " + r.systolic + "/" + r.diastolic + " mmHg" + (r.pulse ? " | Pulse: " + r.pulse + " bpm" : "") + (r.notes ? " | Notes: " + r.notes : "") + " — " + bpCategory(r.systolic, r.diastolic).label).join("\n") + `
@@ -849,10 +873,27 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
                 </div>
               ) : !insights ? (
                 <div style={s.emptyState}>
+                  {apptContext && (
+                    <div style={{ background: `linear-gradient(135deg, ${SAGE_LIGHT}, ${TEAL_LIGHT})`, borderRadius: "1rem", padding: "1rem 1.25rem", marginBottom: "1rem", width: "100%", boxSizing: "border-box", textAlign: "left" }}>
+                      <p style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: SAGE_DARK, margin: "0 0 0.35rem" }}>Preparing for your appointment</p>
+                      <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1rem", fontWeight: 700, color: INK, margin: "0 0 0.15rem" }}>
+                        {apptContext.specialty}{apptContext.doctor ? ` · ${apptContext.doctor}` : ""}
+                      </p>
+                      {apptContext.date && <p style={{ fontSize: "0.78rem", color: TEAL, margin: 0 }}>{new Date(apptContext.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</p>}
+                      {apptContext.reason && <p style={{ fontSize: "0.78rem", color: WARM_GRAY, margin: "0.25rem 0 0", fontStyle: "italic" }}>{apptContext.reason}</p>}
+                    </div>
+                  )}
                   <BotanicalMark size={48}/>
-                  <h2 style={s.emptyTitle}>Ready to find your patterns?</h2>
-                  <p style={s.emptyDesc}>Care Compass will analyze your {entries.length} entries across {uniqueDaysLogged} days — including time-of-day correlations between medications, food, activity, and symptoms.</p>
-                  <button onClick={handleInsights} disabled={loadingInsights} style={s.addBtn}>Analyze My Patterns →</button>
+                  <h2 style={s.emptyTitle}>{apptContext ? `Prepare your ${apptContext.specialty} report` : "Ready to find your patterns?"}</h2>
+                  <p style={s.emptyDesc}>
+                    {apptContext
+                      ? `Care Compass will analyze your ${entries.length} entries and tailor the insights specifically for your upcoming ${apptContext.specialty} appointment — highlighting what matters most for that visit.`
+                      : `Care Compass will analyze your ${entries.length} entries across ${uniqueDaysLogged} days — including time-of-day correlations between medications, food, activity, and symptoms.`
+                    }
+                  </p>
+                  <button onClick={handleInsights} disabled={loadingInsights} style={s.addBtn}>
+                    {apptContext ? `Generate ${apptContext.specialty} Report →` : "Analyze My Patterns →"}
+                  </button>
                 </div>
               ) : (
                 <div style={s.insightsWrap}>

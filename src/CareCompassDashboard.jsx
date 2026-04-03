@@ -777,7 +777,10 @@ export default function CareCompassDashboard() {
                     </p>
                   </div>
                   {nextAppt.prepReport && (
-                    <a href="/tracker" style={{ background: TEAL, color: "#fff", borderRadius: "100px", padding: "0.55rem 1.1rem", fontSize: "0.8rem", fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" }}>
+                    <a
+                      href={`/tracker?insight=1&specialty=${encodeURIComponent(nextAppt.specialty)}${nextAppt.doctor ? `&doctor=${encodeURIComponent(nextAppt.doctor)}` : ""}${nextAppt.reason ? `&reason=${encodeURIComponent(nextAppt.reason)}` : ""}&date=${encodeURIComponent(nextAppt.date)}`}
+                      style={{ background: TEAL, color: "#fff", borderRadius: "100px", padding: "0.55rem 1.1rem", fontSize: "0.8rem", fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" }}
+                    >
                       Generate report →
                     </a>
                   )}
