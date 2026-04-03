@@ -493,6 +493,64 @@ function ProfilePanel({ form, setForm, markDirty }) {
 }
 
 /* ─── Panel: Notifications ───────────────────────────────────────────────── */
+
+/* ─── Custom time picker ─────────────────────────────────────────────────── */
+function TimePicker({ value, onChange }) {
+  const [h, m, period] = (() => {
+    const [hh, mm] = (value || "08:00").split(":").map(Number);
+    const p = hh >= 12 ? "PM" : "AM";
+    const h12 = hh % 12 || 12;
+    return [h12, mm, p];
+  })();
+
+  const toValue = (hour, minute, per) => {
+    let h24 = hour % 12;
+    if (per === "PM") h24 += 12;
+    return `${String(h24).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+  };
+
+  const hours = [12,1,2,3,4,5,6,7,8,9,10,11];
+  const minutes = [0,5,10,15,20,25,30,35,40,45,50,55];
+
+  const selectStyle = {
+    border: `1px solid ${BORDER}`, borderRadius: 8, padding: "6px 8px",
+    fontSize: 14, color: INK, background: "white", outline: "none",
+    fontFamily: "sans-serif", cursor: "pointer", appearance: "none",
+    WebkitAppearance: "none", textAlign: "center",
+  };
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+      {/* Hour */}
+      <select
+        value={h}
+        onChange={e => onChange(toValue(Number(e.target.value), m, period))}
+        style={{ ...selectStyle, width: 54 }}
+      >
+        {hours.map(hr => <option key={hr} value={hr}>{hr}</option>)}
+      </select>
+      <span style={{ fontSize: 16, color: WARM_GRAY, fontWeight: 500, marginBottom: 1 }}>:</span>
+      {/* Minute */}
+      <select
+        value={m}
+        onChange={e => onChange(toValue(h, Number(e.target.value), period))}
+        style={{ ...selectStyle, width: 54 }}
+      >
+        {minutes.map(min => <option key={min} value={min}>{String(min).padStart(2, "0")}</option>)}
+      </select>
+      {/* AM/PM */}
+      <select
+        value={period}
+        onChange={e => onChange(toValue(h, m, e.target.value))}
+        style={{ ...selectStyle, width: 58 }}
+      >
+        <option>AM</option>
+        <option>PM</option>
+      </select>
+    </div>
+  );
+}
+
 function NotificationsPanel({ prefs, setPrefs, markDirty }) {
   const toggle = (key) => {
     setPrefs(p => ({ ...p, [key]: { ...p[key], on: !p[key].on } }));
@@ -559,7 +617,7 @@ function NotificationsPanel({ prefs, setPrefs, markDirty }) {
               {/* Schedule — only shown when enabled and relevant */}
               {pref.on && showTime && (
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
-                  <span style={{ fontSize: 12, color: WARM_GRAY, fontFamily: "sans-serif", whiteSpace: "nowrap" }}>
+                  <span style={{ fontSize: 12, color: WARM_GRAY, fontFamily: "sans-serif", whiteSpace: "nowrap", minWidth: 48 }}>
                     {cadenceLabel}
                   </span>
                   {showDay && (
@@ -573,12 +631,9 @@ function NotificationsPanel({ prefs, setPrefs, markDirty }) {
                       ))}
                     </select>
                   )}
-                  <span style={{ fontSize: 12, color: WARM_GRAY, fontFamily: "sans-serif" }}>at</span>
-                  <StyledInput
-                    type="time"
+                  <TimePicker
                     value={pref.time}
-                    onChange={e => setTime(key, e.target.value)}
-                    style={{ maxWidth: 130, fontSize: 13, padding: "5px 10px" }}
+                    onChange={val => setTime(key, val)}
                   />
                   <span style={{ fontSize: 11, color: "#b0a89e", fontFamily: "sans-serif" }}>your local time</span>
                 </div>
