@@ -57,7 +57,7 @@ function ApptTimePicker({ value, onChange, style: extraStyle = {} }) {
   const minutes = [0,5,10,15,20,25,30,35,40,45,50,55];
   const sel = (w) => ({
     border: "1.5px solid rgba(0,0,0,0.12)", borderRadius: "0.65rem",
-    padding: "0.65rem 0.4rem", fontSize: "0.9rem", color: INK,
+    padding: "0.65rem 0.3rem", fontSize: "0.85rem", color: INK,
     background: OFF_WHITE, outline: "none", cursor: "pointer",
     fontFamily: "inherit", appearance: "none", WebkitAppearance: "none",
     textAlign: "center", width: w, boxSizing: "border-box", ...extraStyle,
@@ -248,7 +248,7 @@ function AppointmentForm({ initial, onSave, onCancel }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
       {/* Specialty + Doctor */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.875rem" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "0.875rem" }}>
         <div>
           <label style={lbl}>Specialty <span style={{ color: "#c0392b" }}>*</span></label>
           <select value={form.specialty} onChange={set("specialty")} style={{ ...inp, WebkitAppearance: "none" }}>
@@ -263,7 +263,7 @@ function AppointmentForm({ initial, onSave, onCancel }) {
       </div>
 
       {/* Date + Time */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.875rem" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "0.875rem" }}>
         <div>
           <label style={lbl}>Date <span style={{ color: "#c0392b" }}>*</span></label>
           <input type="date" value={form.date} onChange={set("date")} style={inp}/>
