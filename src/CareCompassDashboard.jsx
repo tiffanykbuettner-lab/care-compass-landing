@@ -404,17 +404,17 @@ function severityLabel(n) {
 }
 
 const s = {
-  root: { fontFamily: "'DM Sans', Helvetica, sans-serif", color: INK, background: OFF_WHITE, minHeight: "100vh", display: "flex", flexDirection: "column" },
+  root: { fontFamily: "'DM Sans', Helvetica, sans-serif", color: INK, background: OFF_WHITE, minHeight: "100vh", display: "flex", flexDirection: "column", overflowX: "hidden", width: "100%" },
 
-  nav: { padding: "1rem 2rem", borderBottom: `1px solid rgba(0,0,0,0.07)`, background: "#fff", position: "sticky", top: 0, zIndex: 100 },
+  nav: { padding: "1rem 1.25rem", borderBottom: `1px solid rgba(0,0,0,0.07)`, background: "#fff", position: "sticky", top: 0, zIndex: 100, boxSizing: "border-box", width: "100%" },
   navInner: { maxWidth: 1100, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center" },
   navLogo: { display: "flex", alignItems: "center", gap: "0.55rem", textDecoration: "none" },
-  navLogoText: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.1rem", fontWeight: 600, color: SAGE_DARK },
-  navLinks: { display: "flex", alignItems: "center", gap: "1.5rem" },
-  navLink: { fontSize: "0.875rem", color: WARM_GRAY, textDecoration: "none" },
+  navLogoText: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1rem", fontWeight: 600, color: SAGE_DARK, whiteSpace: "nowrap" },
+  navLinks: { display: "flex", alignItems: "center", gap: "0.85rem", flexShrink: 0 },
+  navLink: { fontSize: "0.8rem", color: WARM_GRAY, textDecoration: "none", whiteSpace: "nowrap" },
   navAvatar: { width: 34, height: 34, borderRadius: "50%", background: SAGE_DARK, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.875rem", textDecoration: "none", fontFamily: "'Playfair Display', Georgia, serif" },
 
-  main: { flex: 1, padding: "2.5rem 1.5rem" },
+  main: { flex: 1, padding: "2rem 1.25rem", boxSizing: "border-box", width: "100%" },
   container: { maxWidth: 1100, margin: "0 auto", display: "flex", flexDirection: "column", gap: "2rem" },
 
   demoBar: { display: "flex", alignItems: "center", gap: "0.5rem", background: CREAM, borderRadius: "0.75rem", padding: "0.6rem 1rem", flexWrap: "wrap" },
