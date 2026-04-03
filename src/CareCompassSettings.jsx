@@ -219,6 +219,10 @@ const NAV_ITEMS = [
     id: "connected", label: "Connected Apps",
     icon: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="4" cy="8" r="2" stroke="currentColor" strokeWidth="1.4"/><circle cx="12" cy="4" r="2" stroke="currentColor" strokeWidth="1.4"/><circle cx="12" cy="12" r="2" stroke="currentColor" strokeWidth="1.4"/><path d="M6 7l4-2M6 9l4 2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>,
   },
+  {
+    id: "subscription", label: "Subscription",
+    icon: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="3.5" width="13" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M1.5 6.5h13" stroke="currentColor" strokeWidth="1.4"/><path d="M4 10h2M7 10h1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>,
+  },
 ];
 
 /* ─── Panel: Profile ─────────────────────────────────────────────────────── */
@@ -590,6 +594,222 @@ function ConnectedAppsPanel() {
   );
 }
 
+/* ─── Panel: Subscription ────────────────────────────────────────────────── */
+const PLAN_FEATURES = [
+  "Full symptom assessment",
+  "Unlimited assessments",
+  "Daily symptom tracker",
+  "AI pattern insights",
+  "Trends & frequency reports",
+  "Photo logging",
+  "Doctor-ready PDF reports",
+  "Secure account with 2FA",
+  "Data export",
+];
+
+function SubscriptionPanel() {
+  const [billing, setBilling] = useState("annual");
+  const [showCancel, setShowCancel] = useState(false);
+  const [cancelStep, setCancelStep] = useState(0);
+  const [cancelReason, setCancelReason] = useState("");
+
+  const nextDate = "May 3, 2026";
+
+  const CheckMark = () => (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, marginTop: 2 }}>
+      <circle cx="8" cy="8" r="7" fill={SAGE_LIGHT}/>
+      <path d="M5 8l2 2 4-4" stroke={SAGE_DARK} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+
+      {/* Current plan */}
+      <SectionCard>
+        <SectionHeader
+          icon={<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="3.5" width="13" height="9" rx="1.5" stroke={SAGE_DARK} strokeWidth="1.5"/><path d="M1.5 6.5h13" stroke={SAGE_DARK} strokeWidth="1.5"/><path d="M4 10h2M7 10h1" stroke={SAGE_DARK} strokeWidth="1.5" strokeLinecap="round"/></svg>}
+          title="Current plan"
+          desc="Your active subscription details"
+        />
+        <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 20 }}>
+
+          {/* Plan + price row */}
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <BotanicalMark size={44} />
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
+                  <span style={{ fontSize: 16, fontWeight: 600, color: INK, fontFamily: "sans-serif" }}>Care Compass</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, background: SAGE_LIGHT, color: SAGE_DARK, borderRadius: 20, padding: "2px 8px", fontFamily: "sans-serif" }}>Active</span>
+                </div>
+                <div style={{ fontSize: 13, color: WARM_GRAY, fontFamily: "sans-serif" }}>Member since March 2026</div>
+              </div>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 28, fontWeight: 700, color: INK, fontFamily: "sans-serif", lineHeight: 1 }}>
+                ${billing === "annual" ? 79 : 9}
+                <span style={{ fontSize: 13, fontWeight: 400, color: WARM_GRAY }}>{billing === "annual" ? " / year" : " / month"}</span>
+              </div>
+              <div style={{ fontSize: 12, color: WARM_GRAY, marginTop: 4, fontFamily: "sans-serif" }}>Next billing {nextDate}</div>
+            </div>
+          </div>
+
+          {/* Billing cycle switcher */}
+          <div style={{ background: CREAM, borderRadius: 10, padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 500, color: INK, fontFamily: "sans-serif", marginBottom: 2 }}>Billing cycle</div>
+              <div style={{ fontSize: 12, color: WARM_GRAY, fontFamily: "sans-serif" }}>
+                {billing === "annual" ? "Annual — you're saving $29 vs monthly" : "Monthly — switch to annual and save $29/yr"}
+              </div>
+            </div>
+            <div style={{ display: "flex", background: "white", borderRadius: 8, border: `1px solid ${BORDER}`, overflow: "hidden" }}>
+              {[["monthly", "Monthly · $9"], ["annual", "Annual · $79"]].map(([opt, label]) => (
+                <button key={opt} onClick={() => setBilling(opt)} style={{
+                  padding: "6px 14px", border: "none", cursor: "pointer", fontSize: 12.5,
+                  fontFamily: "sans-serif", fontWeight: billing === opt ? 600 : 400,
+                  background: billing === opt ? SAGE_DARK : "transparent",
+                  color: billing === opt ? "white" : WARM_GRAY, transition: "all 0.15s",
+                }}>{label}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* Payment method */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 500, color: WARM_GRAY, textTransform: "uppercase", letterSpacing: "0.04em", fontFamily: "sans-serif", marginBottom: 6 }}>Payment method</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 36, height: 24, borderRadius: 4, background: "#1a1f71", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <span style={{ fontSize: 9, fontWeight: 800, color: "white", letterSpacing: "0.05em", fontFamily: "sans-serif" }}>VISA</span>
+                </div>
+                <span style={{ fontSize: 14, color: INK, fontFamily: "sans-serif" }}>•••• •••• •••• 4242</span>
+              </div>
+            </div>
+            <OutlineBtn>Update card</OutlineBtn>
+          </div>
+
+        </div>
+      </SectionCard>
+
+      {/* What's included */}
+      <SectionCard>
+        <SectionHeader
+          icon={<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8l3 3 7-7" stroke={SAGE_DARK} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+          title="What's included"
+          desc="Everything in your Care Compass subscription"
+        />
+        <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 24px" }}>
+            {PLAN_FEATURES.map(f => (
+              <div key={f} style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                <CheckMark />
+                <span style={{ fontSize: 13.5, color: INK_LIGHT, fontFamily: "sans-serif", lineHeight: 1.5 }}>{f}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ padding: "12px 14px", background: "#e0f2f4", borderRadius: 8, display: "flex", alignItems: "flex-start", gap: 10 }}>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, marginTop: 1 }}><circle cx="8" cy="8" r="7" stroke={TEAL} strokeWidth="1.3"/><path d="M8 7v4" stroke={TEAL} strokeWidth="1.4" strokeLinecap="round"/><circle cx="8" cy="5.5" r="0.7" fill={TEAL}/></svg>
+            <span style={{ fontSize: 12.5, color: "#2a7a80", fontFamily: "sans-serif", lineHeight: 1.55 }}>New features — lab results, AI photo analysis, specialist matching — are included as they launch.</span>
+          </div>
+        </div>
+      </SectionCard>
+
+      {/* Billing history */}
+      <SectionCard>
+        <SectionHeader
+          icon={<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 2h10a1 1 0 011 1v10a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z" stroke={SAGE_DARK} strokeWidth="1.5"/><path d="M5 6h6M5 9h4" stroke={SAGE_DARK} strokeWidth="1.4" strokeLinecap="round"/></svg>}
+          title="Billing history"
+          desc="Your past invoices"
+        />
+        <div style={{ padding: "0 24px 20px" }}>
+          {[
+            { date: "May 3, 2025",  amount: "$79.00", desc: "Annual subscription" },
+            { date: "Apr 3, 2025",  amount: "$9.00",  desc: "Monthly subscription" },
+            { date: "Mar 3, 2025",  amount: "$9.00",  desc: "Monthly subscription" },
+          ].map(({ date, amount, desc }, i, arr) => (
+            <div key={date} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 0", borderBottom: i < arr.length - 1 ? `1px solid ${BORDER}` : "none", gap: 12, flexWrap: "wrap" }}>
+              <div>
+                <div style={{ fontSize: 13.5, color: INK, fontFamily: "sans-serif" }}>{desc}</div>
+                <div style={{ fontSize: 12, color: WARM_GRAY, marginTop: 2, fontFamily: "sans-serif" }}>{date}</div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: INK, fontFamily: "sans-serif" }}>{amount}</span>
+                <span style={{ fontSize: 11, background: "#eafaf1", color: "#1e7e45", borderRadius: 20, padding: "2px 8px", fontFamily: "sans-serif", fontWeight: 500 }}>Paid</span>
+                <OutlineBtn hoverColor={TEAL} hoverBorder={TEAL}>Receipt</OutlineBtn>
+              </div>
+            </div>
+          ))}
+        </div>
+      </SectionCard>
+
+      {/* Cancel zone */}
+      <SectionCard danger>
+        <SectionHeader
+          danger
+          icon={<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 6v4M8 12h.01" stroke={DANGER} strokeWidth="1.5" strokeLinecap="round"/><path d="M7.1 2.5L1.5 12.5a1 1 0 00.9 1.5h11.2a1 1 0 00.9-1.5L8.9 2.5a1 1 0 00-1.8 0z" stroke={DANGER} strokeWidth="1.5" strokeLinejoin="round"/></svg>}
+          title="Cancel subscription"
+          desc="You'll keep access until the end of your billing period"
+        />
+        <div style={{ padding: "20px 24px" }}>
+
+          {!showCancel && (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+              <div style={{ fontSize: 13.5, color: WARM_GRAY, fontFamily: "sans-serif", maxWidth: 420, lineHeight: 1.6 }}>
+                If you cancel, your subscription stays active until <strong style={{ color: INK }}>{nextDate}</strong>. Your data is preserved and you can resubscribe any time.
+              </div>
+              <DangerBtn onClick={() => { setShowCancel(true); setCancelStep(0); }}>Cancel subscription</DangerBtn>
+            </div>
+          )}
+
+          {showCancel && cancelStep === 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div style={{ fontSize: 14, fontWeight: 500, color: INK, fontFamily: "sans-serif" }}>Before you go — are you sure?</div>
+              <div style={{ fontSize: 13.5, color: WARM_GRAY, fontFamily: "sans-serif", lineHeight: 1.6 }}>
+                You'll lose access to AI pattern insights, PDF reports, and unlimited tracking on <strong style={{ color: INK }}>{nextDate}</strong>.
+              </div>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <DangerBtn onClick={() => setCancelStep(1)}>Yes, continue cancelling</DangerBtn>
+                <OutlineBtn onClick={() => setShowCancel(false)}>Keep my subscription</OutlineBtn>
+              </div>
+            </div>
+          )}
+
+          {showCancel && cancelStep === 1 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div style={{ fontSize: 14, fontWeight: 500, color: INK, fontFamily: "sans-serif" }}>Help us improve — why are you cancelling?</div>
+              {["Too expensive", "Not using it enough", "Missing a feature I need", "Switching to another tool", "Taking a break", "Other"].map(reason => (
+                <label key={reason} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+                  <input type="radio" name="cancel-reason" value={reason} onChange={() => setCancelReason(reason)} style={{ accentColor: SAGE_DARK, width: 15, height: 15 }} />
+                  <span style={{ fontSize: 13.5, color: INK_LIGHT, fontFamily: "sans-serif" }}>{reason}</span>
+                </label>
+              ))}
+              <div style={{ display: "flex", gap: 10, marginTop: 4, flexWrap: "wrap" }}>
+                <DangerBtn onClick={() => setCancelStep(2)}>Confirm cancellation</DangerBtn>
+                <OutlineBtn onClick={() => setShowCancel(false)}>Never mind</OutlineBtn>
+              </div>
+            </div>
+          )}
+
+          {showCancel && cancelStep === 2 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ fontSize: 14, fontWeight: 500, color: INK, fontFamily: "sans-serif" }}>Subscription cancelled.</div>
+              <div style={{ fontSize: 13.5, color: WARM_GRAY, fontFamily: "sans-serif", lineHeight: 1.6 }}>
+                You have full access until <strong style={{ color: INK }}>{nextDate}</strong>. We've emailed you a confirmation. We're sorry to see you go 🌿
+              </div>
+              <OutlineBtn hoverColor={SAGE_DARK} hoverBorder={SAGE} style={{ alignSelf: "flex-start" }} onClick={() => { setShowCancel(false); setCancelStep(0); }}>
+                Resubscribe
+              </OutlineBtn>
+            </div>
+          )}
+
+        </div>
+      </SectionCard>
+
+    </div>
+  );
+}
+
 /* ─── Saved toast ────────────────────────────────────────────────────────── */
 function Toast({ visible }) {
   return (
@@ -760,6 +980,7 @@ export default function CareCompassSettings() {
           {activePanel === "security"      && <SecurityPanel />}
           {activePanel === "privacy"       && <PrivacyPanel       prefs={privacyPrefs} setPrefs={setPrivacyPrefs} markDirty={markDirty} />}
           {activePanel === "connected"     && <ConnectedAppsPanel />}
+          {activePanel === "subscription"  && <SubscriptionPanel />}
         </div>
       </div>
 
