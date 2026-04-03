@@ -1173,8 +1173,7 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
                     {/* ── Medications summary ── */}
                     {(() => {
                       const medSet = new Set();
-                      entries.forEach(e => { if (e.medications) e.medications.split(/,|
-/).forEach(m => { const t = m.trim(); if (t) medSet.add(t); }); });
+                      entries.forEach(e => { if (e.medications) e.medications.replace(/\n/g, ",").split(",").forEach(m => { const t = m.trim(); if (t) medSet.add(t); }); });
                       const meds = [...medSet].slice(0, 20);
                       if (!meds.length) return null;
                       return (
