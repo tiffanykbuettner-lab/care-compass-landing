@@ -340,7 +340,7 @@ export default function CareCompassPricing() {
 }
 
 const s = {
-  root: { fontFamily: "'DM Sans', Helvetica, sans-serif", color: INK, background: OFF_WHITE, minHeight: "100vh" },
+  root: { fontFamily: "'DM Sans', Helvetica, sans-serif", color: INK, background: OFF_WHITE, minHeight: "100vh", overflowX: "hidden", width: "100%", boxSizing: "border-box" },
 
   nav: { position: "fixed", top: 0, left: 0, right: 0, zIndex: 100, padding: "1.1rem 2rem", transition: "background 0.3s, box-shadow 0.3s" },
   navScrolled: { background: "rgba(250,250,248,0.94)", backdropFilter: "blur(12px)", boxShadow: "0 1px 0 rgba(0,0,0,0.07)" },
