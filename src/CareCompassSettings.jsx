@@ -1637,6 +1637,7 @@ export default function CareCompassSettings() {
   const [activePanel, setActivePanel] = useState("profile");
   const [dirty, setDirty] = useState(false);
   const [toastVisible, setToastVisible] = useState(false);
+  const [showAssessmentPrompt, setShowAssessmentPrompt] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   // Profile form state
@@ -1665,6 +1666,10 @@ export default function CareCompassSettings() {
     setDirty(false);
     setToastVisible(true);
     setTimeout(() => setToastVisible(false), 2800);
+    // Prompt new users to take assessment after saving
+    if (!localStorage.getItem("cc-assessment-complete") && activePanel === "profile") {
+      setTimeout(() => setShowAssessmentPrompt(true), 1000);
+    }
     // Persist display name for dashboard greeting
     try {
       const displayName = profileForm.preferredName?.trim() || profileForm.firstName?.trim() || "";
@@ -1831,6 +1836,42 @@ export default function CareCompassSettings() {
       </div>
 
       <Toast visible={toastVisible} />
+
+      {/* Assessment prompt — shown after first save if no assessment yet */}
+      {showAssessmentPrompt && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
+          zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: "1.5rem"
+        }} onClick={() => setShowAssessmentPrompt(false)}>
+          <div style={{
+            background: "#fff", borderRadius: "1.25rem", padding: "2rem",
+            maxWidth: 400, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.2)",
+            textAlign: "center", display: "flex", flexDirection: "column", gap: "1rem"
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: "2.5rem" }}>🧭</div>
+            <h3 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.2rem", fontWeight: 700, color: INK, margin: 0 }}>
+              Ready for your assessment?
+            </h3>
+            <p style={{ fontSize: "0.875rem", color: WARM_GRAY, lineHeight: 1.6, margin: 0 }}>
+              Your account is set up. The assessment will use your medications, conditions, and care team to give you more relevant insights.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
+              <a
+                href="/compass"
+                style={{ background: SAGE_DARK, color: "#fff", textDecoration: "none", padding: "0.875rem", borderRadius: "100px", fontSize: "0.95rem", fontWeight: 600 }}
+              >
+                Begin the Assessment →
+              </a>
+              <button
+                onClick={() => setShowAssessmentPrompt(false)}
+                style={{ background: "none", border: "none", color: WARM_GRAY, fontSize: "0.85rem", cursor: "pointer", fontFamily: "inherit", textDecoration: "underline", textDecorationColor: "rgba(0,0,0,0.2)" }}
+              >
+                I'll do it later
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

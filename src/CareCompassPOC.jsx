@@ -468,9 +468,10 @@ export default function CareCompassPOC() {
   const [name, setName]               = useState("");
   const [retryCount, setRetryCount]   = useState(0);
 
-  // Restore saved form state from sessionStorage on mount
+  // Restore saved form state — priority: sessionStorage > localStorage/account settings > URL params
   useState(() => {
     try {
+      // 1. Try sessionStorage first (in-progress assessment)
       const saved = sessionStorage.getItem("cc-assessment-form");
       if (saved) {
         const f = JSON.parse(saved);
@@ -488,7 +489,48 @@ export default function CareCompassPOC() {
         if (f.stress) setStress(f.stress);
         if (f.recentChanges) setRecentChanges(f.recentChanges);
         if (f.step) { setStep(f.step); setMaxVisited(f.step); }
+        return; // session data takes priority — stop here
       }
+    } catch {}
+
+    // 2. Pre-fill from account settings (localStorage)
+    try {
+      // Name — prefer display name from settings
+      const displayName = localStorage.getItem("cc-display-name") || "";
+      if (displayName) setName(displayName);
+
+      // Profile data
+      const profile = localStorage.getItem("cc-profile");
+      if (profile) {
+        const p = JSON.parse(profile);
+        if (p.ageRange) setAgeRange(p.ageRange);
+        if (p.conditions?.length) setDiagnoses(p.conditions.join(", "));
+      }
+
+      // Conditions tag list
+      const conditions = localStorage.getItem("cc-conditions");
+      if (conditions) {
+        const c = JSON.parse(conditions);
+        if (Array.isArray(c) && c.length) setDiagnoses(c.join(", "));
+      }
+
+      // Medications list
+      const meds = localStorage.getItem("care-compass-medications-v1");
+      if (meds) {
+        const medList = JSON.parse(meds);
+        if (medList.length) {
+          setMedications(medList.map(m => `${m.name}${m.dose ? " " + m.dose : ""}${m.frequency ? " (" + m.frequency + ")" : ""}`).join(", "));
+        }
+      }
+    } catch {}
+
+    // 3. URL params (passed from dashboard "Begin Assessment" button)
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("name") && !localStorage.getItem("cc-display-name")) setName(params.get("name"));
+      if (params.get("age")) setAgeRange(params.get("age"));
+      if (params.get("conditions")) setDiagnoses(params.get("conditions"));
+      if (params.get("meds")) setMedications(params.get("meds"));
     } catch {}
   });
 
@@ -510,6 +552,8 @@ export default function CareCompassPOC() {
     setLoading(true);
     setError(null);
     setRetryCount(attempt - 1);
+    // Mark assessment as completed for new user flow
+    try { localStorage.setItem("cc-assessment-complete", new Date().toISOString()); } catch {}
 
     const styleEl = document.getElementById("loading-styles") || document.createElement("style");
     styleEl.id = "loading-styles";

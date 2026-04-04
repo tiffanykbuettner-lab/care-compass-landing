@@ -497,18 +497,18 @@ function NewUserWelcome({ userName, onComplete }) {
   const STEPS = [
     {
       num: 1,
+      title: "Set up your account",
+      desc: "Add your medications, care team, and health context. This pre-fills your assessment and makes every insight more accurate.",
+    },
+    {
+      num: 2,
       title: "Take your full health assessment",
       desc: "Map your symptoms across every area of your health. AI surfaces patterns and questions to bring to your doctor.",
     },
     {
-      num: 2,
-      title: "Log your symptoms every day",
-      desc: "Track how you're feeling in real time — with food, medications, sleep, activity, and photos.",
-    },
-    {
       num: 3,
-      title: "Bring data to your appointments",
-      desc: "Generate doctor-ready reports from your tracker data and assessment. You show up prepared.",
+      title: "Track daily and bring reports to appointments",
+      desc: "Log how you're feeling in real time. Generate doctor-ready reports that change the conversation at every visit.",
     },
   ];
 
@@ -539,10 +539,10 @@ function NewUserWelcome({ userName, onComplete }) {
 
           <div>
             <h1 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "clamp(1.75rem, 4vw, 2.4rem)", fontWeight: 700, color: INK, margin: "0 0 0.75rem", letterSpacing: "-0.02em", lineHeight: 1.2 }}>
-              You're all set up.<br/>Here's what to do next.
+              Welcome to Care Compass.<br/>Here's how to get started.
             </h1>
             <p style={{ fontSize: "1rem", color: WARM_GRAY, lineHeight: 1.75, margin: 0, maxWidth: 440 }}>
-              Care Compass works best when you start with your assessment — it gives AI the full picture so every log entry and insight is more meaningful.
+              Start by setting up your account — add your medications and care team so your assessment and AI insights are personalised from the start.
             </p>
           </div>
 
@@ -572,14 +572,20 @@ function NewUserWelcome({ userName, onComplete }) {
           {/* CTAs */}
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem", width: "100%" }}>
             <a
-              href={assessmentUrl}
+              href="/account"
               style={{ background: SAGE_DARK, color: "#fff", textDecoration: "none", padding: "0.95rem 2.5rem", borderRadius: "100px", fontSize: "1rem", fontWeight: 600, width: "100%", textAlign: "center", boxSizing: "border-box" }}
             >
-              Begin the Assessment →
+              Set up my account →
+            </a>
+            <a
+              href={assessmentUrl}
+              style={{ display: "block", background: "#fff", color: SAGE_DARK, textDecoration: "none", padding: "0.85rem 2.5rem", borderRadius: "100px", fontSize: "0.9rem", fontWeight: 600, width: "100%", textAlign: "center", boxSizing: "border-box", border: `1.5px solid ${SAGE}` }}
+            >
+              Skip to assessment
             </a>
             <a
               href="/tracker"
-              style={{ fontSize: "0.875rem", color: WARM_GRAY, textDecoration: "underline", textDecorationColor: "rgba(0,0,0,0.2)" }}
+              style={{ fontSize: "0.82rem", color: WARM_GRAY, textDecoration: "underline", textDecorationColor: "rgba(0,0,0,0.2)" }}
             >
               Start tracking instead
             </a>
