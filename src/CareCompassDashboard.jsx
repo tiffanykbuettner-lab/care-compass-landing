@@ -716,7 +716,7 @@ export default function CareCompassDashboard() {
 
   // Show full-page welcome for new users
   if (showOnboarding) {
-    return <NewUserWelcome userName={userName} onComplete={() => setShowOnboarding(false)}/>;
+    return <NewUserWelcome userName={user.name} onComplete={() => setShowOnboarding(false)}/>;
   }
 
   return (
