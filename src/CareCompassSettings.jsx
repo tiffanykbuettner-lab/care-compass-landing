@@ -624,8 +624,6 @@ function MedicationsPanel() {
 
   const handleBulkImport = () => {
     const lines = bulkText.replace(/,|;/g, "\n").split("\n").map(l => l.trim()).filter(Boolean);
-").split("
-").map(l => l.trim()).filter(Boolean);
     const newMeds = lines.map(line => {
       const parts = line.split(" ");
       return { ...blankMed(), name: parts[0] || line, dose: parts.slice(1, 3).join(" ") };
