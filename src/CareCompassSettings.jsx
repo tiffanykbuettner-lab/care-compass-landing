@@ -739,10 +739,10 @@ function ProfilePanel({ form, setForm, markDirty }) {
           {/* Name row */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14, boxSizing: "border-box" }}>
             <Field label="First name">
-              <StyledInput type="text" value={form.firstName} onChange={set("firstName")} />
+              <StyledInput type="text" value={form.firstName} onChange={set("firstName")} placeholder="e.g. Tiffany" />
             </Field>
             <Field label="Last name">
-              <StyledInput type="text" value={form.lastName} onChange={set("lastName")} />
+              <StyledInput type="text" value={form.lastName} onChange={set("lastName")} placeholder="e.g. Rodriguez" />
             </Field>
           </div>
 
@@ -756,6 +756,7 @@ function ProfilePanel({ form, setForm, markDirty }) {
               type="text"
               value={form.preferredName || ""}
               onChange={set("preferredName")}
+              placeholder="e.g. Tiff"
               placeholder={form.firstName || "e.g. Tiff, Mia, Alex..."}
             />
           </Field>
@@ -763,7 +764,7 @@ function ProfilePanel({ form, setForm, markDirty }) {
           {/* Email */}
           <Field label="Email address">
             <div style={{ position: "relative" }}>
-              <StyledInput type="email" value={form.email} onChange={set("email")} style={{ paddingRight: 88 }} />
+              <StyledInput type="email" value={form.email} onChange={set("email")} placeholder="you@example.com" style={{ paddingRight: 88 }} />
               <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 11, padding: "2px 8px", borderRadius: 20, fontFamily: "sans-serif", fontWeight: 500, background: "#eafaf1", color: "#1e7e45" }}>
                 ✓ Verified
               </span>
@@ -1924,10 +1925,10 @@ export default function CareCompassSettings() {
 
   // Profile form state
   const [profileForm, setProfileForm] = useState({
-    firstName: "Maya", lastName: "Rodriguez", preferredName: "Maya", email: "maya@example.com",
-    dob: "1988-04-14", sex: "Female", pronouns: "She / Her",
-    timezone: "America/Chicago (CDT, UTC−5)",
-    condition: "POTS / Dysautonomia", conditions: ["POTS / Dysautonomia"], diagnosisStatus: "Formally diagnosed", careTeam: "", careProviders: [{ id: 1, name: "", specialty: "" }, { id: 2, name: "", specialty: "" }],
+    firstName: "", lastName: "", preferredName: "", email: "",
+    dob: "", sex: "", pronouns: "",
+    timezone: "",
+    condition: "", conditions: [], diagnosisStatus: "Formally diagnosed", careTeam: "", careProviders: [{ id: 1, name: "", specialty: "" }, { id: 2, name: "", specialty: "" }],
   });
 
   // Notification prefs state
@@ -2035,9 +2036,7 @@ export default function CareCompassSettings() {
               <span style={{ opacity: 0.75, flexShrink: 0, display: "flex" }}>{icon}</span>
             )}
             <span style={{ flex: 1 }}>{label}</span>
-            {completedPanels.has(id) && activePanel !== id && (
-              <span style={{ fontSize: 10, color: SAGE_DARK, background: SAGE_LIGHT, borderRadius: "100px", padding: "1px 6px", fontWeight: 700, flexShrink: 0 }}>✓</span>
-            )}
+
           </div>
         ))}
 
