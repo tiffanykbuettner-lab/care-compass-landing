@@ -619,6 +619,15 @@ export default function CareCompassDashboard() {
     return () => { const el = document.getElementById("dashboard-responsive"); if (el) el.remove(); };
   }, []);
   // UI demo states — in production these come from Supabase + Clerk
+  // Check onboarding step — redirect new users to welcome splash
+  useEffect(() => {
+    try {
+      const step = localStorage.getItem("cc-onboarding-step");
+      if (step === "1" || step === "2") {
+        window.location.href = `/welcome?step=${step}`;
+      }
+    } catch {}
+  }, []);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   // ── Appointments state ────────────────────────────────────────────────────
@@ -715,11 +724,6 @@ export default function CareCompassDashboard() {
   const hasAssessment = !!assessment;
   const hasTrackerData = tracker && tracker.entries > 0;
   const isNew = demoState === "new";
-
-  // Show full-page welcome for new users
-  if (showOnboarding) {
-    return <NewUserWelcome userName={user.name} onComplete={() => setShowOnboarding(false)}/>;
-  }
 
   return (
     <div style={s.root}>

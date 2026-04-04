@@ -418,13 +418,30 @@ function GuidanceOutput({ guidance, onReset, onEdit, userName }) {
         </div>
       </div>
 
-      {/* Tracker prompt */}
-      <div style={s.trackerPrompt} className="no-print">
-        <div style={s.trackerPromptLeft}>
-          <p style={s.trackerPromptTitle}>Build on these insights with daily tracking</p>
-          <p style={s.trackerPromptDesc}>Log your symptoms, food, sleep, and stress every day to uncover patterns over time — and generate reports to bring to your doctor.</p>
+      {/* Post-assessment CTAs */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }} className="no-print">
+        <div style={s.trackerPrompt}>
+          <div style={s.trackerPromptLeft}>
+            <p style={s.trackerPromptTitle}>Build on these insights with daily tracking</p>
+            <p style={s.trackerPromptDesc}>Log your symptoms, food, sleep, and stress every day to uncover patterns over time — and generate reports to bring to every appointment.</p>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.5rem", flexShrink: 0 }}>
+            <a
+              href="/tracker"
+              style={s.trackerPromptBtn}
+              onClick={() => { try { localStorage.setItem("cc-onboarding-step", "complete"); } catch {} }}
+            >
+              Start Tracking →
+            </a>
+            <a
+              href="/dashboard"
+              style={{ fontSize: "0.78rem", color: WARM_GRAY, textDecoration: "underline", textDecorationColor: "rgba(0,0,0,0.2)", whiteSpace: "nowrap" }}
+              onClick={() => { try { localStorage.setItem("cc-onboarding-step", "complete"); } catch {} }}
+            >
+              Go to my dashboard
+            </a>
+          </div>
         </div>
-        <a href="/tracker" style={s.trackerPromptBtn}>Start Tracking →</a>
       </div>
 
       {/* Print-only footer */}

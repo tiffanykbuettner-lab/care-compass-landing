@@ -124,7 +124,7 @@ export default function CareCompassSignup() {
     try {
       // Clerk integration point: user.verifyTOTP({ code: twoFaCode })
       await signUp({ email: form.email, password: form.password, firstName: form.name });
-      navigate("/dashboard", { replace: true });
+      navigate("/welcome", { replace: true });
     } catch (err) {
       console.error(err);
     }
@@ -290,7 +290,7 @@ export default function CareCompassSignup() {
               <button onClick={handle2FASetup} disabled={loading} style={s.submitBtn}>
                 {loading ? "Setting up…" : "Set Up Authenticator →"}
               </button>
-              <button onClick={async () => { await signUp({ email: form.email, password: form.password, firstName: form.name }); navigate("/dashboard", { replace: true }); }} style={s.skipBtn}>
+              <button onClick={async () => { await signUp({ email: form.email, password: form.password, firstName: form.name }); navigate("/welcome", { replace: true }); }} style={s.skipBtn}>
                 Skip for now — I'll set this up later
               </button>
               <p style={s.twoFaNote}>We strongly recommend enabling 2FA. Your account contains sensitive health information.</p>

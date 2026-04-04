@@ -11,6 +11,7 @@ import CareCompassDashboard from './CareCompassDashboard';
 import CareCompassTracker  from './CareCompassTracker';
 import CareCompassPOC      from './CareCompassPOC';
 import PrivacyPolicy       from './PrivacyPolicy';
+import WelcomeSplash      from './WelcomeSplash';
 
 /**
  * Route structure:
@@ -67,6 +68,12 @@ export default function App() {
             </ProtectedRoute>
           }/>
 
+          <Route path="/welcome" element={
+            <ProtectedRoute>
+              <WelcomeSplash />
+            </ProtectedRoute>
+          }/>
+
           <Route path="/account" element={
             <ProtectedRoute>
               <CareCompassSettings />
@@ -75,7 +82,7 @@ export default function App() {
 
           {/* ── Redirects ── */}
           {/* Signup used to send users to /onboarding — redirect to dashboard now */}
-          <Route path="/onboarding" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/onboarding" element={<Navigate to="/welcome" replace />} />
 
           {/* Catch-all → home */}
           <Route path="*" element={<Navigate to="/" replace />} />

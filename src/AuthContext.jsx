@@ -86,6 +86,7 @@ export function AuthProvider({ children }) {
     localStorage.setItem("cc-full-name", firstName || "");
     // Mark as new user — dismisses after first dashboard visit
     localStorage.removeItem("cc-onboarded");
+    localStorage.setItem("cc-onboarding-step", "1"); // Start at step 1
     setUser(profile);
     return profile;
   };
