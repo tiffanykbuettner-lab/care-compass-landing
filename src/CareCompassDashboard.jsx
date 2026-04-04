@@ -469,70 +469,129 @@ function SparkLine({ data, color = SAGE }) {
   );
 }
 
-/* ─── Onboarding flow ────────────────────────────────────────────────────── */
-const ONBOARDING_STEPS = [
-  {
-    icon: "🧭",
-    title: "Start with your full assessment",
-    desc: "The Care Compass assessment maps your symptoms across every area of your health — joints, energy, digestion, mood, and more — and uses AI to surface patterns, specialist recommendations, and questions to bring to your doctor.",
-    cta: "Take the Assessment →",
-    href: "/compass",
-    secondary: "I'll do this later",
-  },
-  {
-    icon: "📋",
-    title: "Track your symptoms every day",
-    desc: "Log how you're feeling as it happens — including food, medications, sleep, activity, and photos. The more you track, the sharper your insights become.",
-    cta: "Open the Tracker →",
-    href: "/tracker",
-    secondary: "I'll do this later",
-  },
-  {
-    icon: "🩺",
-    title: "Bring it to your doctor",
-    desc: "Care Compass generates doctor-ready PDF reports from your tracker data and assessment results. You show up with data — that changes the conversation.",
-    cta: "See an Example Report",
-    href: "/tracker",
-    secondary: "Got it — let's go",
-  },
-];
+/* ─── New user welcome screen (full-page, matches tracker onboarding style) ─ */
+function NewUserWelcome({ userName, onComplete }) {
+  // Build assessment URL pre-filled with account settings data
+  const assessmentUrl = (() => {
+    try {
+      const params = new URLSearchParams();
+      const fullName = localStorage.getItem("cc-display-name") || "";
+      if (fullName) params.set("name", fullName);
+      const profile = localStorage.getItem("cc-profile");
+      if (profile) {
+        const p = JSON.parse(profile);
+        if (p.ageRange) params.set("age", p.ageRange);
+        if (p.conditions?.length) params.set("conditions", p.conditions.join(","));
+      }
+      const meds = localStorage.getItem("care-compass-medications-v1");
+      if (meds) {
+        const medList = JSON.parse(meds);
+        if (medList.length) params.set("meds", medList.map(m => m.name + (m.dose ? " " + m.dose : "")).join(","));
+      }
+      const query = params.toString();
+      return `/compass${query ? "?" + query : ""}`;
+    } catch { return "/compass"; }
+  })();
 
-function OnboardingFlow({ userName, onComplete }) {
-  const [step, setStep] = useState(0);
-  const current = ONBOARDING_STEPS[step];
-  const isLast = step === ONBOARDING_STEPS.length - 1;
+  const STEPS = [
+    {
+      num: 1,
+      title: "Take your full health assessment",
+      desc: "Map your symptoms across every area of your health. AI surfaces patterns and questions to bring to your doctor.",
+    },
+    {
+      num: 2,
+      title: "Log your symptoms every day",
+      desc: "Track how you're feeling in real time — with food, medications, sleep, activity, and photos.",
+    },
+    {
+      num: 3,
+      title: "Bring data to your appointments",
+      desc: "Generate doctor-ready reports from your tracker data and assessment. You show up prepared.",
+    },
+  ];
 
   return (
-    <div style={s.onboardingOverlay}>
-      <div style={s.onboardingCard}>
-        {/* Progress dots */}
-        <div style={s.onboardingDots}>
-          {ONBOARDING_STEPS.map((_, i) => (
-            <div key={i} style={{ ...s.onboardingDot, background: i === step ? SAGE_DARK : i < step ? SAGE : "#e0dbd5", width: i === step ? 24 : 8 }}/>
-          ))}
+    <div style={{ minHeight: "100vh", background: OFF_WHITE, display: "flex", flexDirection: "column" }}>
+      {/* Nav */}
+      <nav style={{ padding: "1rem 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(0,0,0,0.06)", background: "#fff" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
+          <BotanicalMark size={30}/>
+          <span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.1rem", fontWeight: 700, color: INK }}>Care Compass</span>
         </div>
+        <button onClick={onComplete} style={{ background: "none", border: "none", fontSize: "0.82rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit", textDecoration: "underline", textDecorationColor: "rgba(0,0,0,0.2)" }}>
+          Go to dashboard
+        </button>
+      </nav>
 
-        <div style={s.onboardingIcon}>{current.icon}</div>
+      {/* Content */}
+      <main style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1rem" }}>
+        <div style={{ maxWidth: 560, width: "100%", display: "flex", flexDirection: "column", alignItems: "center", gap: "1.75rem", textAlign: "center" }}>
 
-        {step === 0 && (
-          <p style={s.onboardingWelcome}>Welcome{userName ? `, ${userName}` : ""}! 🌿</p>
-        )}
+          <BotanicalMark size={56}/>
 
-        <h2 style={s.onboardingTitle}>{current.title}</h2>
-        <p style={s.onboardingDesc}>{current.desc}</p>
+          {userName && (
+            <div style={{ background: SAGE_LIGHT, color: SAGE_DARK, borderRadius: "100px", padding: "0.35rem 1.25rem", fontSize: "0.9rem", fontWeight: 600 }}>
+              Welcome, {userName}! 🌿
+            </div>
+          )}
 
-        <div style={s.onboardingActions}>
-          <a href={current.href} style={s.onboardingCta}>{current.cta}</a>
-          <button
-            onClick={() => isLast ? onComplete() : setStep(s => s + 1)}
-            style={s.onboardingSkip}
-          >
-            {current.secondary}
-          </button>
+          <div>
+            <h1 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "clamp(1.75rem, 4vw, 2.4rem)", fontWeight: 700, color: INK, margin: "0 0 0.75rem", letterSpacing: "-0.02em", lineHeight: 1.2 }}>
+              You're all set up.<br/>Here's what to do next.
+            </h1>
+            <p style={{ fontSize: "1rem", color: WARM_GRAY, lineHeight: 1.75, margin: 0, maxWidth: 440 }}>
+              Care Compass works best when you start with your assessment — it gives AI the full picture so every log entry and insight is more meaningful.
+            </p>
+          </div>
+
+          {/* Step cards */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.875rem", width: "100%", textAlign: "left" }}>
+            {STEPS.map(step => (
+              <div key={step.num} style={{ display: "flex", gap: "1rem", alignItems: "flex-start", background: "#fff", borderRadius: "0.875rem", padding: "1rem 1.25rem", border: "1px solid rgba(0,0,0,0.07)", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
+                <span style={{ width: 28, height: 28, borderRadius: "50%", background: SAGE_DARK, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.8rem", fontWeight: 700, flexShrink: 0, marginTop: "0.1rem" }}>
+                  {step.num}
+                </span>
+                <div>
+                  <p style={{ fontSize: "0.9rem", fontWeight: 600, color: INK, margin: "0 0 0.2rem" }}>{step.title}</p>
+                  <p style={{ fontSize: "0.82rem", color: WARM_GRAY, lineHeight: 1.6, margin: 0 }}>{step.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Privacy note */}
+          <div style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", background: SAGE_LIGHT, borderRadius: "0.75rem", padding: "0.875rem 1.25rem", width: "100%", textAlign: "left" }}>
+            <span>🔒</span>
+            <p style={{ fontSize: "0.82rem", color: SAGE_DARK, lineHeight: 1.6, margin: 0 }}>
+              Your data is stored privately on this device only. It is never uploaded, sold, or shared.
+            </p>
+          </div>
+
+          {/* CTAs */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem", width: "100%" }}>
+            <a
+              href={assessmentUrl}
+              style={{ background: SAGE_DARK, color: "#fff", textDecoration: "none", padding: "0.95rem 2.5rem", borderRadius: "100px", fontSize: "1rem", fontWeight: 600, width: "100%", textAlign: "center", boxSizing: "border-box" }}
+            >
+              Begin the Assessment →
+            </a>
+            <a
+              href="/tracker"
+              style={{ fontSize: "0.875rem", color: WARM_GRAY, textDecoration: "underline", textDecorationColor: "rgba(0,0,0,0.2)" }}
+            >
+              Start tracking instead
+            </a>
+            <button
+              onClick={onComplete}
+              style={{ background: "none", border: "none", fontSize: "0.82rem", color: "#bbb", cursor: "pointer", fontFamily: "inherit" }}
+            >
+              I'll explore the dashboard first
+            </button>
+          </div>
+
         </div>
-
-        <p style={s.onboardingStep}>{step + 1} of {ONBOARDING_STEPS.length}</p>
-      </div>
+      </main>
     </div>
   );
 }
@@ -654,6 +713,11 @@ export default function CareCompassDashboard() {
   const hasAssessment = !!assessment;
   const hasTrackerData = tracker && tracker.entries > 0;
   const isNew = demoState === "new";
+
+  // Show full-page welcome for new users
+  if (showOnboarding) {
+    return <NewUserWelcome userName={userName} onComplete={() => setShowOnboarding(false)}/>;
+  }
 
   return (
     <div style={s.root}>
@@ -1029,7 +1093,6 @@ export default function CareCompassDashboard() {
         <p style={s.footerDisclaimer}>Care Compass is not a medical service and does not provide medical advice, diagnosis, or treatment.</p>
       </footer>
 
-      {showOnboarding && <OnboardingFlow userName={user.name} onComplete={() => setShowOnboarding(false)}/>}
     </div>
   );
 }
