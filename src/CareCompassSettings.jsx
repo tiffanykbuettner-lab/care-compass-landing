@@ -475,7 +475,7 @@ function ProfilePanel({ form, setForm, markDirty }) {
           </div>
 
           {/* Name row */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, boxSizing: "border-box" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14, boxSizing: "border-box" }}>
             <Field label="First name">
               <StyledInput type="text" value={form.firstName} onChange={set("firstName")} />
             </Field>
@@ -509,7 +509,7 @@ function ProfilePanel({ form, setForm, markDirty }) {
           </Field>
 
           {/* DOB + sex */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, boxSizing: "border-box" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14, boxSizing: "border-box" }}>
             <Field label="Date of birth" optional hint="Used to personalize health insights">
               <StyledInput type="date" value={form.dob} onChange={set("dob")} />
             </Field>
@@ -606,6 +606,7 @@ function MedicationsPanel() {
   const [scanError, setScanError] = useState("");
   const [scanPreview, setScanPreview] = useState(null);
   const scanInputRef = React.useRef(null);
+  const [duplicateWarning, setDuplicateWarning] = useState(null); // {name} if duplicate detected
 
   const saveMeds = (updated) => {
     setMedications(updated);
@@ -613,14 +614,24 @@ function MedicationsPanel() {
     setSaved(true); setTimeout(() => setSaved(false), 2500);
   };
 
-  const handleSave = () => {
+  const handleSave = (forceAdd = false) => {
     if (!form.name.trim()) return;
     if (editingId) {
       saveMeds(medications.map(m => m.id === editingId ? { ...form, id: editingId } : m));
-    } else {
-      saveMeds([...medications, { ...form, id: Date.now() }]);
+      setForm(blankMed()); setShowForm(false); setEditingId(null);
+      return;
     }
+    // Check for duplicate (case-insensitive name match)
+    const duplicate = !forceAdd && medications.find(
+      m => m.name.trim().toLowerCase() === form.name.trim().toLowerCase()
+    );
+    if (duplicate) {
+      setDuplicateWarning(duplicate.name);
+      return;
+    }
+    saveMeds([...medications, { ...form, id: Date.now() }]);
     setForm(blankMed()); setShowForm(false); setEditingId(null);
+    setDuplicateWarning(null);
   };
 
   const handleScan = async (e) => {
@@ -825,7 +836,7 @@ If you cannot read the label clearly, return: {"name":"","dose":"","frequency":"
               <div style={{ fontSize: 13, fontWeight: 600, color: INK, fontFamily: "sans-serif" }}>{editingId ? "Edit medication" : "New medication"}</div>
 
               {/* Name + Dose */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>
                 <div>
                   <label style={lbl}>Medication name *</label>
                   <StyledInput value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Metoprolol"/>
@@ -837,7 +848,7 @@ If you cannot read the label clearly, return: {"name":"","dose":"","frequency":"
               </div>
 
               {/* Frequency + Duration */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>
                 <div>
                   <label style={lbl}>How often <span style={{ textTransform: "none", fontWeight: 400, color: "#aaa" }}>(optional)</span></label>
                   <StyledSelect value={form.frequency} onChange={e => setForm(f => ({ ...f, frequency: e.target.value }))}>
@@ -878,10 +889,29 @@ If you cannot read the label clearly, return: {"name":"","dose":"","frequency":"
                 )}
               </div>
 
+              {/* Duplicate warning */}
+              {duplicateWarning && (
+                <div style={{ background: "#fef3da", border: "1px solid #e8a838", borderRadius: 8, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                    <span style={{ fontSize: 16, flexShrink: 0 }}>⚠️</span>
+                    <div style={{ fontSize: 13, color: "#8a5a00", fontFamily: "sans-serif", lineHeight: 1.5 }}>
+                      <strong>{duplicateWarning}</strong> is already in your medication list. Would you like to add it again anyway?
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, paddingLeft: 24 }}>
+                    <button
+                      onClick={() => { setDuplicateWarning(null); handleSave(true); }}
+                      style={{ background: "#e8a838", color: "#fff", border: "none", borderRadius: 6, padding: "5px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer", fontFamily: "sans-serif" }}
+                    >Add anyway</button>
+                    <OutlineBtn onClick={() => setDuplicateWarning(null)}>Cancel</OutlineBtn>
+                  </div>
+                </div>
+              )}
+
               <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                <OutlineBtn onClick={() => { setShowForm(false); setEditingId(null); setForm(blankMed()); }}>Cancel</OutlineBtn>
+                <OutlineBtn onClick={() => { setShowForm(false); setEditingId(null); setForm(blankMed()); setDuplicateWarning(null); }}>Cancel</OutlineBtn>
                 <button
-                  onClick={handleSave}
+                  onClick={() => handleSave()}
                   disabled={!form.name.trim()}
                   style={{ background: form.name.trim() ? SAGE_DARK : "#bbb", color: "#fff", border: "none", borderRadius: 8, padding: "6px 16px", fontSize: 13, fontWeight: 600, cursor: form.name.trim() ? "pointer" : "default", fontFamily: "sans-serif" }}
                 >
@@ -1482,7 +1512,7 @@ function SubscriptionPanel() {
           desc="Everything in your Care Compass subscription"
         />
         <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 24px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "10px 16px" }}>
             {PLAN_FEATURES.map(f => (
               <div key={f} style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
                 <CheckMark />
