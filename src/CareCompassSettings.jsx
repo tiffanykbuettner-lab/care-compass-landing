@@ -233,6 +233,10 @@ const NAV_ITEMS = [
     id: "medications", label: "Medications",
     icon: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="6" y="1" width="4" height="14" rx="1" stroke="currentColor" strokeWidth="1.4"/><rect x="1" y="6" width="14" height="4" rx="1" stroke="currentColor" strokeWidth="1.4"/></svg>,
   },
+  {
+    id: "family", label: "Family History",
+    icon: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="4" cy="5" r="2" stroke="currentColor" strokeWidth="1.3"/><circle cx="12" cy="5" r="2" stroke="currentColor" strokeWidth="1.3"/><circle cx="8" cy="13" r="2" stroke="currentColor" strokeWidth="1.3"/><path d="M4 7v2c0 1 1 2 4 2s4-1 4-2V7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
+  },
 ];
 
 
@@ -438,6 +442,253 @@ function CareTeamInput({ providers, onChange }) {
       >
         + Add another provider
       </button>
+    </div>
+  );
+}
+
+
+/* ─── Family history ─────────────────────────────────────────────────────── */
+const FAMILY_STORAGE_KEY = "cc-family-history";
+
+const FAMILY_MEMBERS = [
+  { value: "mother",              label: "Mother",           side: "maternal" },
+  { value: "father",              label: "Father",           side: "paternal" },
+  { value: "maternal_grandmother",label: "Maternal grandmother", side: "maternal" },
+  { value: "maternal_grandfather",label: "Maternal grandfather", side: "maternal" },
+  { value: "paternal_grandmother",label: "Paternal grandmother", side: "paternal" },
+  { value: "paternal_grandfather",label: "Paternal grandfather", side: "paternal" },
+  { value: "sister",              label: "Sister",           side: "both" },
+  { value: "brother",             label: "Brother",          side: "both" },
+  { value: "maternal_aunt",       label: "Maternal aunt",    side: "maternal" },
+  { value: "maternal_uncle",      label: "Maternal uncle",   side: "maternal" },
+  { value: "paternal_aunt",       label: "Paternal aunt",    side: "paternal" },
+  { value: "paternal_uncle",      label: "Paternal uncle",   side: "paternal" },
+  { value: "daughter",            label: "Daughter",         side: "both" },
+  { value: "son",                 label: "Son",              side: "both" },
+];
+
+const FAMILY_CONDITIONS = [
+  "Heart disease", "Hypertension", "Stroke", "Diabetes (Type 1)", "Diabetes (Type 2)",
+  "Cancer", "Breast cancer", "Colon cancer", "Autoimmune disease", "Lupus",
+  "Rheumatoid arthritis", "Psoriatic arthritis", "Multiple sclerosis", "Thyroid disease",
+  "Hashimoto's", "Graves' disease", "Celiac disease", "IBD / Crohn's", "Ulcerative colitis",
+  "POTS", "hEDS / EDS", "Hypermobility", "Fibromyalgia", "ME/CFS", "MCAS",
+  "Dysautonomia", "Raynaud's", "Endometriosis", "PCOS", "Osteoporosis",
+  "Anxiety", "Depression", "Bipolar disorder", "Schizophrenia", "ADHD", "Autism",
+  "Alzheimer's / Dementia", "Parkinson's", "Epilepsy", "Migraines",
+  "Asthma", "COPD", "Kidney disease", "Liver disease", "Mental health condition",
+];
+
+const blankFamilyMember = () => ({
+  id: Date.now() + Math.random(),
+  member: "",
+  conditions: [],
+  notes: "",
+});
+
+function FamilyHistoryPanel() {
+  const [entries, setEntries] = useState(() => {
+    try { const s = localStorage.getItem(FAMILY_STORAGE_KEY); return s ? JSON.parse(s) : []; } catch { return []; }
+  });
+  const [saved, setSaved] = useState(false);
+
+  const saveEntries = (updated) => {
+    setEntries(updated);
+    try { localStorage.setItem(FAMILY_STORAGE_KEY, JSON.stringify(updated)); } catch {}
+    setSaved(true); setTimeout(() => setSaved(false), 2500);
+  };
+
+  const addMember = () => saveEntries([...entries, blankFamilyMember()]);
+  const removeMember = (id) => saveEntries(entries.filter(e => e.id !== id));
+  const updateMember = (id, field, value) =>
+    saveEntries(entries.map(e => e.id === id ? { ...e, [field]: value } : e));
+
+  // Group by side for display
+  const maternal = entries.filter(e => {
+    const m = FAMILY_MEMBERS.find(f => f.value === e.member);
+    return m?.side === "maternal";
+  });
+  const paternal = entries.filter(e => {
+    const m = FAMILY_MEMBERS.find(f => f.value === e.member);
+    return m?.side === "paternal";
+  });
+  const both = entries.filter(e => {
+    const m = FAMILY_MEMBERS.find(f => f.value === e.member);
+    return m?.side === "both" || !m;
+  });
+
+  const lbl = { fontSize: 11, fontWeight: 600, color: WARM_GRAY, textTransform: "uppercase", letterSpacing: "0.04em", fontFamily: "sans-serif", display: "block", marginBottom: 4 };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <SectionCard>
+        <SectionHeader
+          icon={<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="4" cy="5" r="2" stroke={SAGE_DARK} strokeWidth="1.3"/><circle cx="12" cy="5" r="2" stroke={SAGE_DARK} strokeWidth="1.3"/><circle cx="8" cy="13" r="2" stroke={SAGE_DARK} strokeWidth="1.3"/><path d="M4 7v2c0 1 1 2 4 2s4-1 4-2V7" stroke={SAGE_DARK} strokeWidth="1.3" strokeLinecap="round"/></svg>}
+          title="Family history"
+          desc="Biological family medical history — used to add context to your pattern analysis and AI insights"
+        />
+        <div style={{ padding: "16px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
+
+          {saved && <div style={{ background: SAGE_LIGHT, color: SAGE_DARK, borderRadius: 8, padding: "8px 14px", fontSize: 13, fontFamily: "sans-serif", fontWeight: 500 }}>✓ Saved!</div>}
+
+          <div style={{ fontSize: 12.5, color: WARM_GRAY, fontFamily: "sans-serif", lineHeight: 1.6, background: "#fafaf8", borderRadius: 8, padding: "10px 14px", border: `1px solid ${BORDER}` }}>
+            <strong style={{ color: INK }}>Why this matters:</strong> Conditions like hEDS, POTS, autoimmune disease, and connective tissue disorders run in families. Your family history helps Care Compass identify patterns that might otherwise go unrecognised.
+          </div>
+
+          {entries.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "24px 0", color: WARM_GRAY, fontFamily: "sans-serif" }}>
+              <div style={{ fontSize: 28, marginBottom: 8 }}>🧬</div>
+              <div style={{ fontSize: 13.5, fontWeight: 500, color: INK, marginBottom: 4 }}>No family history added yet</div>
+              <div style={{ fontSize: 12.5, lineHeight: 1.6 }}>Add a family member to begin. Only include what you know — incomplete information is fine.</div>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {entries.map((entry, idx) => (
+                <div key={entry.id} style={{ background: "#fff", borderRadius: 10, border: `1px solid ${BORDER}`, overflow: "hidden" }}>
+                  {/* Header row */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: "#fafaf8", borderBottom: entry.conditions.length || entry.notes ? `1px solid ${BORDER}` : "none" }}>
+                    <div style={{ flex: 1 }}>
+                      <StyledSelect
+                        value={entry.member}
+                        onChange={e => updateMember(entry.id, "member", e.target.value)}
+                      >
+                        <option value="">Select family member...</option>
+                        <optgroup label="Maternal side">
+                          {FAMILY_MEMBERS.filter(m => m.side === "maternal").map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                        </optgroup>
+                        <optgroup label="Paternal side">
+                          {FAMILY_MEMBERS.filter(m => m.side === "paternal").map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                        </optgroup>
+                        <optgroup label="Siblings / Children">
+                          {FAMILY_MEMBERS.filter(m => m.side === "both").map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                        </optgroup>
+                      </StyledSelect>
+                    </div>
+                    {/* Side badge */}
+                    {entry.member && (() => {
+                      const m = FAMILY_MEMBERS.find(f => f.value === entry.member);
+                      const sideColor = m?.side === "maternal" ? { bg: "#fce8f3", color: "#9b2c6e" } : m?.side === "paternal" ? { bg: "#e8f0fc", color: "#2c4e9b" } : { bg: SAGE_LIGHT, color: SAGE_DARK };
+                      return m?.side !== "both" ? (
+                        <span style={{ fontSize: 11, fontWeight: 600, background: sideColor.bg, color: sideColor.color, borderRadius: 100, padding: "2px 10px", whiteSpace: "nowrap", fontFamily: "sans-serif" }}>
+                          {m?.side === "maternal" ? "Maternal" : "Paternal"}
+                        </span>
+                      ) : null;
+                    })()}
+                    <button onClick={() => removeMember(entry.id)} style={{ background: "none", border: "none", color: "#ccc", cursor: "pointer", fontSize: 18, padding: "0 4px", lineHeight: 1, flexShrink: 0 }}>×</button>
+                  </div>
+
+                  {/* Conditions + notes */}
+                  <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
+                    <div>
+                      <label style={lbl}>Medical conditions</label>
+                      <FamilyConditionInput
+                        conditions={entry.conditions}
+                        onChange={vals => updateMember(entry.id, "conditions", vals)}
+                      />
+                    </div>
+                    <div>
+                      <label style={lbl}>Notes <span style={{ textTransform: "none", fontWeight: 400, color: "#aaa" }}>(optional)</span></label>
+                      <StyledInput
+                        value={entry.notes}
+                        onChange={e => updateMember(entry.id, "notes", e.target.value)}
+                        placeholder="e.g. diagnosed at 40, mild case, suspected but undiagnosed..."
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <button
+            onClick={addMember}
+            style={{
+              background: "none", border: `1px dashed ${BORDER}`,
+              borderRadius: 8, padding: "8px 16px", fontSize: 13,
+              color: SAGE_DARK, cursor: "pointer", fontFamily: "sans-serif",
+              textAlign: "left", transition: "all 0.15s",
+            }}
+            onMouseEnter={e => { e.target.style.background = SAGE_LIGHT; }}
+            onMouseLeave={e => { e.target.style.background = "none"; }}
+          >
+            + Add family member
+          </button>
+
+          <div style={{ display: "flex", justifyContent: "flex-end", paddingTop: 4 }}>
+            <button
+              onClick={() => saveEntries(entries)}
+              style={{ background: SAGE_DARK, color: "#fff", border: "none", borderRadius: 8, padding: "8px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "sans-serif" }}
+            >
+              Save family history
+            </button>
+          </div>
+
+          <p style={{ fontSize: 11.5, color: "#aaa", fontFamily: "sans-serif", margin: 0, fontStyle: "italic" }}>
+            Only include information you know and are comfortable sharing. This is stored privately on your device.
+          </p>
+        </div>
+      </SectionCard>
+    </div>
+  );
+}
+
+/* ─── Family condition tag input (extended suggestions) ─────────────────── */
+function FamilyConditionInput({ conditions, onChange }) {
+  const [inputVal, setInputVal] = useState("");
+  const [focused, setFocused] = useState(false);
+  const inputRef = React.useRef(null);
+
+  const addCondition = (val) => {
+    const trimmed = val.trim().replace(/,+$/, "");
+    if (!trimmed || conditions.includes(trimmed)) return;
+    onChange([...conditions, trimmed]);
+    setInputVal("");
+  };
+
+  const removeCondition = (idx) => onChange(conditions.filter((_, i) => i !== idx));
+
+  const handleKey = (e) => {
+    if (e.key === "Enter" || e.key === ",") { e.preventDefault(); addCondition(inputVal); }
+    else if (e.key === "Backspace" && !inputVal && conditions.length) removeCondition(conditions.length - 1);
+  };
+
+  const suggestions = FAMILY_CONDITIONS.filter(s =>
+    inputVal.length > 0 && s.toLowerCase().includes(inputVal.toLowerCase()) && !conditions.includes(s)
+  ).slice(0, 6);
+
+  return (
+    <div style={{ position: "relative" }}>
+      <div
+        onClick={() => inputRef.current?.focus()}
+        style={{ ...inputStyle, minHeight: 42, height: "auto", display: "flex", flexWrap: "wrap", gap: 5, alignItems: "center", cursor: "text", padding: "6px 10px", ...(focused ? { borderColor: SAGE, background: "white" } : {}) }}
+      >
+        {conditions.map((c, i) => (
+          <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "#e8f0fc", color: "#2c4e9b", borderRadius: 100, padding: "3px 10px", fontSize: 12.5, fontFamily: "sans-serif", fontWeight: 500 }}>
+            {c}
+            <button onClick={() => removeCondition(i)} style={{ background: "none", border: "none", cursor: "pointer", color: "#2c4e9b", padding: 0, fontSize: 14, lineHeight: 1, display: "flex" }}>×</button>
+          </span>
+        ))}
+        <input
+          ref={inputRef}
+          value={inputVal}
+          onChange={e => setInputVal(e.target.value)}
+          onKeyDown={handleKey}
+          onFocus={() => setFocused(true)}
+          onBlur={() => { setTimeout(() => setFocused(false), 150); addCondition(inputVal); }}
+          placeholder={conditions.length === 0 ? "Type a condition, press Enter..." : "Add another..."}
+          style={{ border: "none", outline: "none", background: "transparent", fontSize: 13, fontFamily: "sans-serif", color: INK, flex: 1, minWidth: 120 }}
+        />
+      </div>
+      {suggestions.length > 0 && focused && (
+        <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 50, background: "#fff", border: `1px solid ${BORDER}`, borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.1)", overflow: "hidden" }}>
+          {suggestions.map(s => (
+            <div key={s} onMouseDown={() => addCondition(s)} style={{ padding: "8px 14px", fontSize: 13, cursor: "pointer", color: INK, fontFamily: "sans-serif" }}
+              onMouseEnter={e => e.target.style.background = SAGE_LIGHT}
+              onMouseLeave={e => e.target.style.background = "#fff"}
+            >{s}</div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -1675,8 +1926,8 @@ export default function CareCompassSettings() {
     setCompletedPanels(newCompleted);
     try { localStorage.setItem("cc-completed-panels", JSON.stringify([...newCompleted])); } catch {}
 
-    // Show welcome prompt only after Medications (last panel) is saved
-    if (activePanel === "medications") {
+    // Show welcome prompt only after Family History (last panel) is saved
+    if (activePanel === "family" || activePanel === "medications") {
       setTimeout(() => setShowAssessmentPrompt(true), 600);
     }
     // Persist display name for dashboard greeting
@@ -1814,6 +2065,7 @@ export default function CareCompassSettings() {
           {activePanel === "connected"     && <ConnectedAppsPanel />}
           {activePanel === "subscription"  && <SubscriptionPanel />}
           {activePanel === "medications"  && <MedicationsPanel />}
+          {activePanel === "family"       && <FamilyHistoryPanel />}
         </div>
 
         {/* ── Sticky save bar — travels with user on mobile ── */}

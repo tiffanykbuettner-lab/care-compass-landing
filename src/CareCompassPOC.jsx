@@ -560,6 +560,15 @@ export default function CareCompassPOC() {
     styleEl.innerHTML = LOADING_STYLES;
     if (!document.getElementById("loading-styles")) document.head.appendChild(styleEl);
 
+    // Read family history from account settings
+    const familyHistoryEntries = (() => {
+      try { const s = localStorage.getItem("cc-family-history"); return s ? JSON.parse(s) : []; } catch { return []; }
+    })();
+    const MLABELS = { mother:"Mother", father:"Father", maternal_grandmother:"Maternal grandmother", maternal_grandfather:"Maternal grandfather", paternal_grandmother:"Paternal grandmother", paternal_grandfather:"Paternal grandfather", sister:"Sister", brother:"Brother", maternal_aunt:"Maternal aunt", maternal_uncle:"Maternal uncle", paternal_aunt:"Paternal aunt", paternal_uncle:"Paternal uncle", daughter:"Daughter", son:"Son" };
+    const familyHistoryStr = familyHistoryEntries.filter(e => e.member && e.conditions.length > 0)
+      .map(e => `- ${MLABELS[e.member] || e.member}: ${e.conditions.join(", ")}${e.notes ? " (" + e.notes + ")" : ""}`)
+      .join("\n");
+
     const prompt = `You are a compassionate, knowledgeable health navigation assistant for Care Compass — a platform that helps people with chronic illness understand their symptoms and advocate for themselves.
 
 A user has shared the following health information. Your role is to:
@@ -595,6 +604,7 @@ Activity level: ${activity || "None provided"}
 Sleep quality: ${sleep || "None provided"}
 Stress levels: ${stress || "None provided"}
 Recent changes (new meds, foods, activities): ${recentChanges || "None provided"}
+${familyHistoryStr ? `\nFAMILY HISTORY:\n${familyHistoryStr}\n\nNote: Use family history to add hereditary context. Flag if any reported symptoms align with known familial patterns (e.g. connective tissue disorders, autoimmune conditions, cardiovascular disease). Mention potential genetic factors relevant to specialist referrals.` : ""}
 
 Please provide a Care Compass Insight Report with these sections:
 ## What We Notice

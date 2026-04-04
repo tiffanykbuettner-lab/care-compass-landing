@@ -804,7 +804,7 @@ Please tailor your analysis specifically for a ${apptContext.specialty} visit. F
 
       const response = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" }, body: JSON.stringify({ model: "claude-opus-4-6", max_tokens: 4000, messages: [{ role: "user", content: `You are Care Compass, a compassionate health navigation assistant. Analyze these symptom tracker entries and identify patterns, triggers, and insights to discuss with a doctor.
 
-${careTeamStr ? `CARE TEAM: ${careTeamStr}\n\n` : ""}${(() => {
+${careTeamStr ? `CARE TEAM: ${careTeamStr}\n\n` : ""}${familyHistoryStr ? `FAMILY HISTORY (use this to add genetic/hereditary context to pattern analysis — flag if logged symptoms may have familial patterns):\n${familyHistoryStr}\n\n` : ""}${(() => {
         const medsWithDuration = medications.filter(m => m.name && m.duration);
         if (!medsWithDuration.length) return "";
         const DURATION_LABELS = {
@@ -864,6 +864,15 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
     try { const s = localStorage.getItem("cc-care-team"); return s ? JSON.parse(s) : []; } catch { return []; }
   })();
   const careTeamStr = careTeam.filter(p => p.name).map(p => `${p.name}${p.specialty ? " (" + p.specialty + ")" : ""}`).join(", ");
+
+  // Read family history from settings
+  const familyHistory = (() => {
+    try { const s = localStorage.getItem("cc-family-history"); return s ? JSON.parse(s) : []; } catch { return []; }
+  })();
+  const familyHistoryStr = familyHistory.filter(e => e.member && e.conditions.length > 0).map(e => {
+    const MEMBERS = { mother:"Mother", father:"Father", maternal_grandmother:"Maternal grandmother", maternal_grandfather:"Maternal grandfather", paternal_grandmother:"Paternal grandmother", paternal_grandfather:"Paternal grandfather", sister:"Sister", brother:"Brother", maternal_aunt:"Maternal aunt", maternal_uncle:"Maternal uncle", paternal_aunt:"Paternal aunt", paternal_uncle:"Paternal uncle", daughter:"Daughter", son:"Son" };
+    return `${MEMBERS[e.member] || e.member}: ${e.conditions.join(", ")}${e.notes ? " (" + e.notes + ")" : ""}`;
+  }).join("\n");
 
   const saveMedications = (updated) => {
     setMedications(updated);
