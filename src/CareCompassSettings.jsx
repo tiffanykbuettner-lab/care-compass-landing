@@ -229,6 +229,10 @@ const NAV_ITEMS = [
     id: "subscription", label: "Subscription",
     icon: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="3.5" width="13" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M1.5 6.5h13" stroke="currentColor" strokeWidth="1.4"/><path d="M4 10h2M7 10h1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>,
   },
+  {
+    id: "medications", label: "Medications",
+    icon: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="6" y="1" width="4" height="14" rx="1" stroke="currentColor" strokeWidth="1.4"/><rect x="1" y="6" width="14" height="4" rx="1" stroke="currentColor" strokeWidth="1.4"/></svg>,
+  },
 ];
 
 
@@ -342,6 +346,31 @@ function ConditionTagInput({ conditions, onChange }) {
   );
 }
 
+
+
+/* ─── Medications ────────────────────────────────────────────────────────── */
+const MED_STORAGE_KEY = "care-compass-medications-v1";
+
+const FREQUENCIES = [
+  "Once daily", "Twice daily", "Three times daily", "Every 4 hours",
+  "Every 6 hours", "Every 8 hours", "Weekly", "As needed (PRN)",
+  "With meals", "At bedtime", "Other",
+];
+
+const DURATION_OPTIONS = [
+  { value: "", label: "Select duration..." },
+  { value: "less_than_1_month", label: "Less than 1 month" },
+  { value: "1_3_months", label: "1–3 months" },
+  { value: "3_6_months", label: "3–6 months" },
+  { value: "6_12_months", label: "6–12 months" },
+  { value: "1_2_years", label: "1–2 years" },
+  { value: "2_5_years", label: "2–5 years" },
+  { value: "5_10_years", label: "5–10 years" },
+  { value: "10_plus_years", label: "10+ years" },
+  { value: "lifelong", label: "Lifelong / since childhood" },
+];
+
+const blankMed = () => ({ id: Date.now() + Math.random(), name: "", dose: "", frequency: "", duration: "", notes: "", reminder: false, reminderTime: "08:00" });
 
 /* ─── Care team structured input ────────────────────────────────────────── */
 const CARE_SPECIALTIES = [
@@ -555,6 +584,214 @@ function ProfilePanel({ form, setForm, markDirty }) {
             />
           </Field>
 
+        </div>
+      </SectionCard>
+    </div>
+  );
+}
+
+
+/* ─── Panel: Medications ─────────────────────────────────────────────────── */
+function MedicationsPanel() {
+  const [medications, setMedications] = useState(() => {
+    try { const s = localStorage.getItem(MED_STORAGE_KEY); return s ? JSON.parse(s) : []; } catch { return []; }
+  });
+  const [showForm, setShowForm]   = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [form, setForm]           = useState(blankMed());
+  const [bulkText, setBulkText]   = useState("");
+  const [showBulk, setShowBulk]   = useState(false);
+  const [saved, setSaved]         = useState(false);
+
+  const saveMeds = (updated) => {
+    setMedications(updated);
+    try { localStorage.setItem(MED_STORAGE_KEY, JSON.stringify(updated)); } catch {}
+    setSaved(true); setTimeout(() => setSaved(false), 2500);
+  };
+
+  const handleSave = () => {
+    if (!form.name.trim()) return;
+    if (editingId) {
+      saveMeds(medications.map(m => m.id === editingId ? { ...form, id: editingId } : m));
+    } else {
+      saveMeds([...medications, { ...form, id: Date.now() }]);
+    }
+    setForm(blankMed()); setShowForm(false); setEditingId(null);
+  };
+
+  const handleEdit = (med) => { setForm({ ...med }); setEditingId(med.id); setShowForm(true); };
+  const handleDelete = (id) => saveMeds(medications.filter(m => m.id !== id));
+
+  const handleBulkImport = () => {
+    const lines = bulkText.replace(/,|;/g, "
+").split("
+").map(l => l.trim()).filter(Boolean);
+    const newMeds = lines.map(line => {
+      const parts = line.split(" ");
+      return { ...blankMed(), name: parts[0] || line, dose: parts.slice(1, 3).join(" ") };
+    });
+    saveMeds([...medications, ...newMeds]);
+    setBulkText(""); setShowBulk(false);
+  };
+
+  const inp = { ...inputStyle };
+  const lbl = { fontSize: 12, fontWeight: 500, color: WARM_GRAY, textTransform: "uppercase", letterSpacing: "0.04em", fontFamily: "sans-serif", display: "block", marginBottom: 4 };
+
+  const durationLabel = (val) => DURATION_OPTIONS.find(o => o.value === val)?.label || "";
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      {/* Header */}
+      <SectionCard>
+        <SectionHeader
+          icon={<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="6" y="1" width="4" height="14" rx="1" stroke={SAGE_DARK} strokeWidth="1.4"/><rect x="1" y="6" width="14" height="4" rx="1" stroke={SAGE_DARK} strokeWidth="1.4"/></svg>}
+          title="Medication list"
+          desc="Your saved medications — used in tracker logs and AI insights"
+        />
+        <div style={{ padding: "16px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
+          {saved && <div style={{ background: SAGE_LIGHT, color: SAGE_DARK, borderRadius: 8, padding: "8px 14px", fontSize: 13, fontFamily: "sans-serif", fontWeight: 500 }}>💊 Saved!</div>}
+
+          {/* Action buttons */}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }} className="no-print">
+            <OutlineBtn onClick={() => setShowBulk(b => !b)}>↑ Bulk import</OutlineBtn>
+            <button
+              onClick={() => { setForm(blankMed()); setEditingId(null); setShowForm(true); }}
+              style={{ background: SAGE_DARK, color: "#fff", border: "none", borderRadius: 8, padding: "6px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "sans-serif" }}
+            >+ Add medication</button>
+          </div>
+
+          {/* Bulk import */}
+          {showBulk && (
+            <div style={{ background: SAGE_LIGHT, borderRadius: 10, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ fontSize: 12.5, color: WARM_GRAY, fontFamily: "sans-serif" }}>One per line — format: <em>Medication Dose</em> e.g. "Metoprolol 25mg"</div>
+              <textarea value={bulkText} onChange={e => setBulkText(e.target.value)} placeholder={"Metoprolol 25mg
+Levothyroxine 50mcg
+Cetirizine 10mg"} rows={4} style={{ ...inp, resize: "vertical", lineHeight: 1.5 }}/>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={handleBulkImport} disabled={!bulkText.trim()} style={{ background: SAGE_DARK, color: "#fff", border: "none", borderRadius: 8, padding: "6px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "sans-serif", opacity: bulkText.trim() ? 1 : 0.5 }}>Import</button>
+                <OutlineBtn onClick={() => { setShowBulk(false); setBulkText(""); }}>Cancel</OutlineBtn>
+              </div>
+              <div style={{ borderTop: `1px solid ${BORDER}`, paddingTop: 10 }}>
+                <label style={{ cursor: "pointer" }}>
+                  <span style={{ fontSize: 12, color: WARM_GRAY, fontFamily: "sans-serif" }}>📎 Or upload .txt / .csv — </span>
+                  <input type="file" accept=".txt,.csv" style={{ display: "none" }} onChange={e => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = evt => setBulkText(evt.target.result.slice(0, 5000));
+                    reader.readAsText(file);
+                    e.target.value = "";
+                  }}/>
+                  <span style={{ fontSize: 12, color: SAGE_DARK, fontWeight: 600, cursor: "pointer", fontFamily: "sans-serif" }}>Browse</span>
+                </label>
+              </div>
+            </div>
+          )}
+
+          {/* Add / Edit form */}
+          {showForm && (
+            <div style={{ background: CREAM, borderRadius: 10, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: INK, fontFamily: "sans-serif" }}>{editingId ? "Edit medication" : "New medication"}</div>
+
+              {/* Name + Dose */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div>
+                  <label style={lbl}>Medication name *</label>
+                  <StyledInput value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Metoprolol"/>
+                </div>
+                <div>
+                  <label style={lbl}>Dose <span style={{ textTransform: "none", fontWeight: 400, color: "#aaa" }}>(optional)</span></label>
+                  <StyledInput value={form.dose} onChange={e => setForm(f => ({ ...f, dose: e.target.value }))} placeholder="e.g. 25mg, 1 tablet"/>
+                </div>
+              </div>
+
+              {/* Frequency + Duration */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div>
+                  <label style={lbl}>How often <span style={{ textTransform: "none", fontWeight: 400, color: "#aaa" }}>(optional)</span></label>
+                  <StyledSelect value={form.frequency} onChange={e => setForm(f => ({ ...f, frequency: e.target.value }))}>
+                    <option value="">Select frequency...</option>
+                    {FREQUENCIES.map(f => <option key={f}>{f}</option>)}
+                  </StyledSelect>
+                </div>
+                <div>
+                  <label style={lbl}>How long taking it <span style={{ textTransform: "none", fontWeight: 400, color: "#aaa" }}>(optional)</span></label>
+                  <StyledSelect value={form.duration} onChange={e => setForm(f => ({ ...f, duration: e.target.value }))}>
+                    {DURATION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </StyledSelect>
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label style={lbl}>Notes <span style={{ textTransform: "none", fontWeight: 400, color: "#aaa" }}>(optional)</span></label>
+                <StyledInput value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="e.g. Take on empty stomach, avoid grapefruit..."/>
+              </div>
+
+              {/* Reminder */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontFamily: "sans-serif", fontSize: 13.5, color: INK }}>
+                  <input type="checkbox" checked={form.reminder} onChange={() => setForm(f => ({ ...f, reminder: !f.reminder }))} style={{ accentColor: SAGE_DARK, width: 15, height: 15 }}/>
+                  Set daily reminder
+                </label>
+                {form.reminder && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, paddingLeft: 24 }}>
+                    <span style={{ fontSize: 12.5, color: WARM_GRAY, fontFamily: "sans-serif" }}>Remind me daily at</span>
+                    <input
+                      type="time"
+                      value={form.reminderTime}
+                      onChange={e => setForm(f => ({ ...f, reminderTime: e.target.value }))}
+                      style={{ ...inp, maxWidth: 130 }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                <OutlineBtn onClick={() => { setShowForm(false); setEditingId(null); setForm(blankMed()); }}>Cancel</OutlineBtn>
+                <button
+                  onClick={handleSave}
+                  disabled={!form.name.trim()}
+                  style={{ background: form.name.trim() ? SAGE_DARK : "#bbb", color: "#fff", border: "none", borderRadius: 8, padding: "6px 16px", fontSize: 13, fontWeight: 600, cursor: form.name.trim() ? "pointer" : "default", fontFamily: "sans-serif" }}
+                >
+                  {editingId ? "Save changes" : "Add medication"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Medication list */}
+          {medications.length === 0 && !showForm && !showBulk ? (
+            <div style={{ textAlign: "center", padding: "24px 0", color: WARM_GRAY, fontFamily: "sans-serif" }}>
+              <div style={{ fontSize: 24, marginBottom: 8 }}>💊</div>
+              <div style={{ fontSize: 13.5, fontWeight: 500, color: INK, marginBottom: 4 }}>No medications saved yet</div>
+              <div style={{ fontSize: 12.5, lineHeight: 1.6 }}>Add your medications once — they appear as quick-select options when logging daily tracker entries.</div>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {medications.map(med => (
+                <div key={med.id} style={{ background: "#fff", borderRadius: 10, border: `1px solid ${BORDER}`, padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
+                      <span style={{ fontSize: 14, fontWeight: 600, color: INK, fontFamily: "sans-serif" }}>{med.name}</span>
+                      {med.dose && <span style={{ fontSize: 12.5, color: SAGE_DARK, fontWeight: 600, fontFamily: "sans-serif" }}>{med.dose}</span>}
+                      {med.frequency && <span style={{ fontSize: 11.5, color: WARM_GRAY, background: CREAM, borderRadius: 100, padding: "2px 8px", fontFamily: "sans-serif" }}>{med.frequency}</span>}
+                      {med.duration && <span style={{ fontSize: 11.5, color: TEAL, background: "#e0f2f4", borderRadius: 100, padding: "2px 8px", fontFamily: "sans-serif" }}>⏱ {durationLabel(med.duration)}</span>}
+                    </div>
+                    {med.notes && <div style={{ fontSize: 12, color: WARM_GRAY, fontStyle: "italic", fontFamily: "sans-serif" }}>{med.notes}</div>}
+                    {med.reminder && <div style={{ fontSize: 11.5, color: SAGE_DARK, background: SAGE_LIGHT, display: "inline-block", borderRadius: 100, padding: "2px 8px", marginTop: 4, fontFamily: "sans-serif" }}>⏰ Daily {med.reminderTime}</div>}
+                  </div>
+                  <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+                    <OutlineBtn onClick={() => handleEdit(med)}>Edit</OutlineBtn>
+                    <DangerBtn onClick={() => handleDelete(med.id)}>✕</DangerBtn>
+                  </div>
+                </div>
+              ))}
+              <div style={{ fontSize: 11.5, color: "#aaa", textAlign: "center", fontFamily: "sans-serif", fontStyle: "italic", paddingTop: 4 }}>
+                {medications.length} medication{medications.length !== 1 ? "s" : ""} saved · Available as quick-select in your daily tracker
+              </div>
+            </div>
+          )}
         </div>
       </SectionCard>
     </div>
@@ -1387,6 +1624,7 @@ export default function CareCompassSettings() {
           {activePanel === "privacy"       && <PrivacyPanel       prefs={privacyPrefs} setPrefs={setPrivacyPrefs} markDirty={markDirty} />}
           {activePanel === "connected"     && <ConnectedAppsPanel />}
           {activePanel === "subscription"  && <SubscriptionPanel />}
+          {activePanel === "medications"  && <MedicationsPanel />}
         </div>
       </div>
 

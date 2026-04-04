@@ -706,7 +706,17 @@ Please tailor your analysis specifically for a ${apptContext.specialty} visit. F
 
       const response = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" }, body: JSON.stringify({ model: "claude-opus-4-6", max_tokens: 4000, messages: [{ role: "user", content: `You are Care Compass, a compassionate health navigation assistant. Analyze these symptom tracker entries and identify patterns, triggers, and insights to discuss with a doctor.
 
-${careTeamStr ? `CARE TEAM: ${careTeamStr}\n\n` : ""}IMPORTANT CONTEXT: Users log entries MULTIPLE TIMES per day. Each day shows all entries chronologically with timestamps. Medications, food, and activity listed for a day represent the COMBINED picture across all that day's entries — not that each item was logged at every entry. Do NOT interpret partial fields in individual entries as missed doses or incomplete information. Look for TIME-BASED CORRELATIONS within days — e.g. a medication logged in the morning followed by symptom changes hours later, or food logged before a symptom spike.
+${careTeamStr ? `CARE TEAM: ${careTeamStr}\n\n` : ""}${(() => {
+        const medsWithDuration = medications.filter(m => m.name && m.duration);
+        if (!medsWithDuration.length) return "";
+        const DURATION_LABELS = {
+          less_than_1_month: "< 1 month", "1_3_months": "1–3 months", "3_6_months": "3–6 months",
+          "6_12_months": "6–12 months", "1_2_years": "1–2 years", "2_5_years": "2–5 years",
+          "5_10_years": "5–10 years", "10_plus_years": "10+ years", "lifelong": "lifelong/since childhood"
+        };
+        return "MEDICATION DURATION CONTEXT (IMPORTANT for pattern analysis — a long-standing medication is less likely to be causing a NEW symptom than a recently started one):\n" +
+          medsWithDuration.map(m => `- ${m.name}${m.dose ? " " + m.dose : ""}: taking for ${DURATION_LABELS[m.duration] || m.duration}`).join("\n") + "\n\n";
+      })()}IMPORTANT CONTEXT: Users log entries MULTIPLE TIMES per day. Each day shows all entries chronologically with timestamps. Medications, food, and activity listed for a day represent the COMBINED picture across all that day's entries — not that each item was logged at every entry. Do NOT interpret partial fields in individual entries as missed doses or incomplete information. Look for TIME-BASED CORRELATIONS within days — e.g. a medication logged in the morning followed by symptom changes hours later, or food logged before a symptom spike.
 
 ENTRIES (grouped by day, chronological within each day):
 ${summary}
@@ -797,7 +807,7 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
   const buildMedString = (selectedIds) => {
     return medications
       .filter(m => selectedIds.includes(m.id))
-      .map(m => `${m.name}${m.dose ? " " + m.dose : ""}`)
+      .map(m => `${m.name}${m.dose ? " " + m.dose : ""}${m.frequency ? " (" + m.frequency + ")" : ""}`)
       .join(", ");
   };
 
@@ -813,7 +823,7 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
   });
 
   const CHART_OPTIONS = [{ field: "severity", label: "Overall severity", color: SAGE }, { field: "stress", label: "Stress level", color: "#e8a838" }, { field: "sleep", label: "Sleep quality", color: TEAL }];
-  const tabs = [{ id: "log", label: "Log" }, { id: "history", label: "History" }, { id: "trends", label: "Trends" }, { id: "insights", label: "AI Insights" }, { id: "report", label: "Doctor Report" }, { id: "bp", label: "Blood Pressure" }, { id: "meds", label: "Medications" }];
+  const tabs = [{ id: "log", label: "Log" }, { id: "history", label: "History" }, { id: "trends", label: "Trends" }, { id: "insights", label: "AI Insights" }, { id: "report", label: "Doctor Report" }, { id: "bp", label: "Blood Pressure" }];
 
   if (!hasSeenOnboarding) {
     return (
