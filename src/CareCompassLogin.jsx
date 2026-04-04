@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { useAuth } from "./AuthContext";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const SAGE       = "#7a9e87";
 const SAGE_LIGHT = "#e8f0eb";
@@ -19,8 +21,8 @@ const BotanicalMark = ({ size = 32 }) => (
     <ellipse cx="17" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.45"/>
     <ellipse cx="36" cy="36" rx="4.5" ry="11" fill="#4a7058" opacity="0.4" transform="rotate(42 36 36) translate(0 -14)"/>
     <ellipse cx="36" cy="36" rx="4.5" ry="11" fill="#4a7058" opacity="0.4" transform="rotate(-42 36 36) translate(0 -14)"/>
-    <ellipse cx="36" cy="36" rx="3.5" ry="9" fill="#4a9fa5" opacity="0.6" transform="rotate(135 36 36) translate(0 -14)"/>
-    <ellipse cx="36" cy="36" rx="3.5" ry="9" fill="#4a9fa5" opacity="0.6" transform="rotate(-135 36 36) translate(0 -14)"/>
+    <ellipse cx="36" cy="36" rx="3.5" ry="9" fill="#7a9e87" opacity="0.3" transform="rotate(135 36 36) translate(0 -14)"/>
+    <ellipse cx="36" cy="36" rx="3.5" ry="9" fill="#7a9e87" opacity="0.3" transform="rotate(-135 36 36) translate(0 -14)"/>
     <circle cx="36" cy="36" r="7" fill="#4a7058"/>
     <circle cx="36" cy="36" r="3" fill="#e8f0eb"/>
   </svg>
@@ -82,11 +84,17 @@ export default function CareCompassLogin() {
     setTimeout(() => { setLoading(false); setStep("2fa"); }, 800);
   };
 
-  const handle2FA = (e) => {
+  const handle2FA = async (e) => {
     e.preventDefault();
     setLoading(true);
-    // Clerk integration point: SignIn.attemptSecondFactor({ strategy: "totp", code: twoFaCode })
-    setTimeout(() => { setLoading(false); window.location.href = "/dashboard"; }, 800);
+    try {
+      // Clerk integration point: SignIn.attemptSecondFactor({ strategy: "totp", code: twoFaCode })
+      await signIn({ email: form.email, password: form.password });
+      navigate(from, { replace: true });
+    } catch (err) {
+      console.error(err);
+    }
+    setLoading(false);
   };
 
   const handleForgot = (e) => {
@@ -238,10 +246,10 @@ export default function CareCompassLogin() {
 }
 
 const s = {
-  root: { display: "flex", minHeight: "100vh", fontFamily: "'DM Sans', Helvetica, sans-serif", color: INK, overflowX: "hidden", width: "100%", maxWidth: 1280, margin: "0 auto", boxShadow: "0 0 0 100vmax #fafaf8" },
+  root: { display: "flex", minHeight: "100vh", fontFamily: "'DM Sans', Helvetica, sans-serif", color: INK, overflowX: "hidden", width: "100%" },
 
   // Left brand panel
-  leftPanel: { width: "38%", minWidth: 280, maxWidth: 480, background: SAGE_DARK, display: "flex", flexDirection: "column", position: "relative", overflow: "hidden", flexShrink: 0 },
+  leftPanel: { width: "42%", background: SAGE_DARK, display: "flex", flexDirection: "column", position: "relative", overflow: "hidden", flexShrink: 0 },
   leftInner: { padding: "3rem", display: "flex", flexDirection: "column", flex: 1, position: "relative", zIndex: 1 },
   logoWrap: { display: "flex", alignItems: "center", gap: "0.65rem", textDecoration: "none", marginBottom: "auto" },
   logoText: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.15rem", fontWeight: 600, color: "#fff" },
@@ -256,7 +264,7 @@ const s = {
   leftFooterLink: { color: "rgba(255,255,255,0.5)", textDecoration: "none" },
 
   // Right form panel
-  rightPanel: { flex: 1, background: OFF_WHITE, display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1.5rem", minWidth: 0, overflowY: "auto" },
+  rightPanel: { flex: 1, background: OFF_WHITE, display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1.5rem", minWidth: 0 },
   formWrap: { width: "100%", maxWidth: 420, display: "flex", flexDirection: "column", gap: "1.5rem" },
 
   // Mobile logo (hidden on desktop via width logic — shown when left panel not visible)

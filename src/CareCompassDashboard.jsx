@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useAuth } from "./AuthContext";
 
 const SAGE       = "#7a9e87";
 const SAGE_LIGHT = "#e8f0eb";
@@ -673,14 +674,14 @@ export default function CareCompassDashboard() {
   const nextAppt = upcomingAppts[0] || null;
   const [demoState, setDemoState] = useState("returning"); // new | empty | returning
 
-  // Mock user data — replace with Clerk user object
-  // preferredName reads from localStorage (set in Account Settings)
+  // Auth context — replace with Clerk's useUser() when integrated
+  const { user: authUser, signOut } = useAuth();
   const storedDisplayName = (() => { try { return localStorage.getItem("cc-display-name"); } catch { return null; } })();
   const user = {
-    name: storedDisplayName || "Tiffany",
-    fullName: (() => { try { return localStorage.getItem("cc-full-name"); } catch { return null; } })() || "Tiffany",
-    subscriptionTier: "pro",
-    memberSince: "March 2026",
+    name: storedDisplayName || authUser?.displayName || authUser?.firstName || "Friend",
+    fullName: (() => { try { return localStorage.getItem("cc-full-name"); } catch { return null; } })() || authUser?.firstName || "",
+    subscriptionTier: authUser?.subscriptionTier || "pro",
+    memberSince: authUser?.createdAt ? new Date(authUser.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" }) : "Recently",
   };
 
   // Mock assessment data — replace with Supabase query

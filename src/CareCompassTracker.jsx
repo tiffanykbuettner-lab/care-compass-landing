@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useAuth } from "./AuthContext";
 
 const INSIGHTS_LOADING_STYLES = `
 @keyframes insightProgress {
@@ -576,6 +577,7 @@ function TrendsTab({ entries, dateFilter }) {
 }
 
 export default function CareCompassTracker() {
+  const { signOut } = useAuth();
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState(() => { try { return localStorage.getItem('cc-tracker-onboarded') === 'true'; } catch { return false; } });
   const [entries, setEntries]           = useState([]);
   const [view, setView]                 = useState("log");
@@ -926,7 +928,7 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
       <div style={s.root}>
         <nav style={s.nav}>
           <a href="/" style={s.navLogo}><BotanicalMark size={30}/><span style={s.navLogoText}>Care Compass</span></a>
-          <div style={s.navLinks}><a href="/compass" style={s.navLink}>Assessment</a><span style={s.navActive}>Tracker</span></div>
+          <div style={s.navLinks}><a href="/compass" style={s.navLink}>Assessment</a><span style={s.navActive}>Tracker</span><button onClick={signOut} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "0.875rem", color: WARM_GRAY, fontFamily: "inherit", padding: "0.25rem 0.5rem" }}>Sign out</button></div>
         </nav>
         <main style={{ ...s.main, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={s.onboardingWrap}>

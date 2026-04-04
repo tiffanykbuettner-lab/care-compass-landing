@@ -1,30 +1,87 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import CareCompassLanding from './CareCompassLanding'
-import PrivacyPolicy from './PrivacyPolicy'
-import CareCompassPOC from './CareCompassPOC'
-import CareCompassTracker from './CareCompassTracker'
-import CareCompassPricing from './CareCompassPricing'
-import CareCompassLogin from './CareCompassLogin'
-import CareCompassSignup from './CareCompassSignup'
-import CareCompassDashboard from './CareCompassDashboard'
-import CareCompassSettings from './CareCompassSettings'
-import CareCompassMigrate from './CareCompassMigrate'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './AuthContext';
+import ProtectedRoute from './ProtectedRoute';
+
+import CareCompassLanding  from './CareCompassLanding';
+import CareCompassPricing  from './CareCompassPricing';
+import CareCompassSignup   from './CareCompassSignup';
+import CareCompassLogin    from './CareCompassLogin';
+import CareCompassSettings from './CareCompassSettings';
+import CareCompassDashboard from './CareCompassDashboard';
+import CareCompassTracker  from './CareCompassTracker';
+import CareCompassPOC      from './CareCompassPOC';
+import PrivacyPolicy       from './PrivacyPolicy';
+
+/**
+ * Route structure:
+ * 
+ * PUBLIC (no auth required)
+ *   /                → Landing page
+ *   /pricing         → Pricing
+ *   /signup          → Create account
+ *   /login           → Log in
+ *   /compass         → Assessment (public — works as demo too)
+ *   /privacy         → Privacy policy
+ * 
+ * PROTECTED (auth required → redirects to /login)
+ *   /dashboard       → Main dashboard
+ *   /tracker         → Symptom tracker
+ *   /account         → Account settings
+ * 
+ * REDIRECTS
+ *   /onboarding      → /dashboard (signup used to send here)
+ *   anything else    → /
+ * 
+ * CLERK INTEGRATION NOTE:
+ * When Clerk is added, wrap this file's AuthProvider with ClerkProvider
+ * and replace AuthProvider / ProtectedRoute with Clerk equivalents.
+ * The route structure stays identical.
+ */
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<CareCompassLanding />} />
-        <Route path="/privacy" element={<PrivacyPolicy />} />
-        <Route path="/compass" element={<CareCompassPOC />} />
-        <Route path="/tracker" element={<CareCompassTracker />} />
-        <Route path="/pricing" element={<CareCompassPricing />} />
-        <Route path="/login" element={<CareCompassLogin />} />
-        <Route path="/signup" element={<CareCompassSignup />} />
-        <Route path="/dashboard" element={<CareCompassDashboard />} />
-        <Route path="/settings" element={<CareCompassSettings />} />
-        <Route path="/migrate" element={<CareCompassMigrate />} />
-      </Routes>
-    </BrowserRouter>
-  )
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+
+          {/* ── Public routes ── */}
+          <Route path="/"        element={<CareCompassLanding />} />
+          <Route path="/pricing" element={<CareCompassPricing />} />
+          <Route path="/signup"  element={<CareCompassSignup />} />
+          <Route path="/login"   element={<CareCompassLogin />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+
+          {/* Assessment — public so it works as a demo and for returning users */}
+          <Route path="/compass" element={<CareCompassPOC />} />
+
+          {/* ── Protected routes ── */}
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <CareCompassDashboard />
+            </ProtectedRoute>
+          }/>
+
+          <Route path="/tracker" element={
+            <ProtectedRoute>
+              <CareCompassTracker />
+            </ProtectedRoute>
+          }/>
+
+          <Route path="/account" element={
+            <ProtectedRoute>
+              <CareCompassSettings />
+            </ProtectedRoute>
+          }/>
+
+          {/* ── Redirects ── */}
+          {/* Signup used to send users to /onboarding — redirect to dashboard now */}
+          <Route path="/onboarding" element={<Navigate to="/dashboard" replace />} />
+
+          {/* Catch-all → home */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
+  );
 }
