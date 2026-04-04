@@ -1775,6 +1775,7 @@ export default function CareCompassSettings() {
             <button
               onClick={handleSave}
               disabled={!dirty}
+              className="desktop-save-btn"
               style={{
                 background: dirty ? SAGE_DARK : "#bbb", color: "white", border: "none",
                 borderRadius: 8, padding: "9px 20px", fontSize: 13.5, cursor: dirty ? "pointer" : "default",
@@ -1784,10 +1785,11 @@ export default function CareCompassSettings() {
               Save changes
             </button>
           )}
+          <style>{`@media (max-width: 600px) { .desktop-save-btn { display: none !important; } }`}</style>
         </div>
 
         {/* Content */}
-        <div style={{ padding: "32px 36px", maxWidth: 740 }}>
+        <div style={{ padding: "32px 36px", maxWidth: 740, paddingBottom: SAVEABLE_PANELS.has(activePanel) ? "100px" : "32px" }}>
           {activePanel === "profile"       && <ProfilePanel       form={profileForm}   setForm={setProfileForm}   markDirty={markDirty} />}
           {activePanel === "notifications" && <NotificationsPanel prefs={notifPrefs}   setPrefs={setNotifPrefs}   markDirty={markDirty} />}
           {activePanel === "security"      && <SecurityPanel />}
@@ -1796,6 +1798,36 @@ export default function CareCompassSettings() {
           {activePanel === "subscription"  && <SubscriptionPanel />}
           {activePanel === "medications"  && <MedicationsPanel />}
         </div>
+
+        {/* ── Sticky save bar — travels with user on mobile ── */}
+        {SAVEABLE_PANELS.has(activePanel) && (
+          <div style={{
+            position: "sticky", bottom: 0,
+            background: "rgba(255,255,255,0.96)",
+            backdropFilter: "blur(8px)",
+            borderTop: `1px solid ${BORDER}`,
+            padding: "12px 24px",
+            display: "flex", alignItems: "center",
+            justifyContent: "space-between", gap: 12,
+            zIndex: 50,
+          }}>
+            <span style={{ fontSize: 12.5, color: dirty ? SAGE_DARK : WARM_GRAY, fontFamily: "sans-serif", fontStyle: dirty ? "normal" : "italic" }}>
+              {dirty ? "You have unsaved changes" : "All changes saved"}
+            </span>
+            <button
+              onClick={handleSave}
+              disabled={!dirty}
+              style={{
+                background: dirty ? SAGE_DARK : "#bbb", color: "white", border: "none",
+                borderRadius: 8, padding: "10px 24px", fontSize: 13.5,
+                cursor: dirty ? "pointer" : "default", fontWeight: 600,
+                transition: "all 0.15s", minWidth: 130, fontFamily: "sans-serif",
+              }}
+            >
+              {dirty ? "Save changes" : "Saved ✓"}
+            </button>
+          </div>
+        )}
       </div>
 
       <Toast visible={toastVisible} />
