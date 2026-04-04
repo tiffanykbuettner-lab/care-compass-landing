@@ -232,6 +232,9 @@ function AppointmentCard({ appt, onEdit, onDelete }) {
 
 function AppointmentForm({ initial, onSave, onCancel }) {
   const blank = { specialty: "", doctor: "", date: "", time: "", location: "", reason: "", reminder: true, reminderAdvance: "1440", prepReport: true };
+  const careTeamProviders = (() => {
+    try { const s = localStorage.getItem("cc-care-team"); return s ? JSON.parse(s) : []; } catch { return []; }
+  })();
   const [form, setForm] = useState(initial || blank);
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
   const toggle = (k) => setForm(f => ({ ...f, [k]: !f[k] }));
@@ -256,9 +259,27 @@ function AppointmentForm({ initial, onSave, onCancel }) {
             {APPT_SPECIALTIES.map(s => <option key={s}>{s}</option>)}
           </select>
         </div>
-        <div>
+        <div style={{ position: "relative" }}>
           <label style={lbl}>Doctor <span style={{ fontWeight: 400, color: "#aaa" }}>(optional)</span></label>
-          <input type="text" value={form.doctor} onChange={set("doctor")} placeholder="e.g. Dr. Patel" style={inp}/>
+          <input
+            type="text"
+            value={form.doctor}
+            onChange={e => {
+              setForm(f => ({ ...f, doctor: e.target.value }));
+              // Auto-fill specialty if a care team provider is selected
+              const match = careTeamProviders.find(p => p.name === e.target.value);
+              if (match?.specialty) setForm(f => ({ ...f, doctor: e.target.value, specialty: match.specialty }));
+            }}
+            placeholder="e.g. Dr. Patel"
+            style={inp}
+            list="care-team-list"
+          />
+          {/* Suggest from saved care team */}
+          <datalist id="care-team-list">
+            {careTeamProviders.filter(p => p.name).map((p, i) => (
+              <option key={i} value={p.name}>{p.specialty ? `${p.name} — ${p.specialty}` : p.name}</option>
+            ))}
+          </datalist>
         </div>
       </div>
 

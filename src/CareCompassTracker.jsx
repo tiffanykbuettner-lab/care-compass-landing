@@ -706,7 +706,7 @@ Please tailor your analysis specifically for a ${apptContext.specialty} visit. F
 
       const response = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" }, body: JSON.stringify({ model: "claude-opus-4-6", max_tokens: 4000, messages: [{ role: "user", content: `You are Care Compass, a compassionate health navigation assistant. Analyze these symptom tracker entries and identify patterns, triggers, and insights to discuss with a doctor.
 
-IMPORTANT CONTEXT: Users log entries MULTIPLE TIMES per day. Each day shows all entries chronologically with timestamps. Medications, food, and activity listed for a day represent the COMBINED picture across all that day's entries — not that each item was logged at every entry. Do NOT interpret partial fields in individual entries as missed doses or incomplete information. Look for TIME-BASED CORRELATIONS within days — e.g. a medication logged in the morning followed by symptom changes hours later, or food logged before a symptom spike.
+${careTeamStr ? `CARE TEAM: ${careTeamStr}\n\n` : ""}IMPORTANT CONTEXT: Users log entries MULTIPLE TIMES per day. Each day shows all entries chronologically with timestamps. Medications, food, and activity listed for a day represent the COMBINED picture across all that day's entries — not that each item was logged at every entry. Do NOT interpret partial fields in individual entries as missed doses or incomplete information. Look for TIME-BASED CORRELATIONS within days — e.g. a medication logged in the morning followed by symptom changes hours later, or food logged before a symptom spike.
 
 ENTRIES (grouped by day, chronological within each day):
 ${summary}
@@ -750,6 +750,12 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
   useEffect(() => {
     try { const s = localStorage.getItem(MED_STORAGE_KEY); if (s) setMedications(JSON.parse(s)); } catch {}
   }, []);
+
+  // Read care team from settings
+  const careTeam = (() => {
+    try { const s = localStorage.getItem("cc-care-team"); return s ? JSON.parse(s) : []; } catch { return []; }
+  })();
+  const careTeamStr = careTeam.filter(p => p.name).map(p => `${p.name}${p.specialty ? " (" + p.specialty + ")" : ""}`).join(", ");
 
   const saveMedications = (updated) => {
     setMedications(updated);
@@ -1160,12 +1166,24 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
                     {/* ── Header ── */}
                     <div style={s.reportHead}>
                       <BotanicalMark size={44}/>
-                      <div>
+                      <div style={{ flex: 1 }}>
                         <p style={s.reportEyebrow}>Care Compass Health Report</p>
                         <h2 style={s.reportTitle}>Symptom Tracking Summary</h2>
                         <p style={s.reportMeta}>
                           Generated {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })} · {entries.length} entries over {new Set(entries.map(e => new Date(e.timestamp).toDateString())).size} days
                         </p>
+                        {careTeam.length > 0 && (
+                          <div style={{ marginTop: "0.75rem", paddingTop: "0.75rem", borderTop: "1px solid rgba(0,0,0,0.06)" }}>
+                            <p style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: "0 0 0.4rem" }}>Care team</p>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+                              {careTeam.filter(p => p.name).map((p, i) => (
+                                <span key={i} style={{ background: SAGE_LIGHT, color: SAGE_DARK, fontSize: "0.75rem", fontWeight: 600, padding: "0.2rem 0.7rem", borderRadius: "100px" }}>
+                                  {p.name}{p.specialty ? ` · ${p.specialty}` : ""}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
 

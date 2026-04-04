@@ -342,6 +342,77 @@ function ConditionTagInput({ conditions, onChange }) {
   );
 }
 
+
+/* ─── Care team structured input ────────────────────────────────────────── */
+const CARE_SPECIALTIES = [
+  "Primary Care", "Cardiologist", "Rheumatologist", "Neurologist",
+  "Gastroenterologist", "Immunologist / Allergist", "Endocrinologist",
+  "Dermatologist", "Physical Therapist", "Pain Management",
+  "Psychiatrist / Psychologist", "Gynecologist", "Orthopedist",
+  "Pulmonologist", "Nephrologist", "Hematologist", "Oncologist",
+  "Ophthalmologist", "ENT", "Urologist", "Geneticist", "Other",
+];
+
+const blankProvider = () => ({ id: Date.now() + Math.random(), name: "", specialty: "" });
+
+function CareTeamInput({ providers, onChange }) {
+  const addProvider = () => onChange([...providers, blankProvider()]);
+  const removeProvider = (id) => onChange(providers.filter(p => p.id !== id));
+  const updateProvider = (id, field, value) =>
+    onChange(providers.map(p => p.id === id ? { ...p, [field]: value } : p));
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {providers.map((provider, idx) => (
+        <div key={provider.id} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+          {/* Provider name */}
+          <div style={{ flex: 1.2 }}>
+            {idx === 0 && <label style={{ display: "block", fontSize: 11, fontWeight: 500, color: WARM_GRAY, marginBottom: 4, fontFamily: "sans-serif", textTransform: "uppercase", letterSpacing: "0.04em" }}>Provider name</label>}
+            <StyledInput
+              type="text"
+              value={provider.name}
+              onChange={e => updateProvider(provider.id, "name", e.target.value)}
+              placeholder="e.g. Dr. Patel"
+            />
+          </div>
+          {/* Specialty */}
+          <div style={{ flex: 1 }}>
+            {idx === 0 && <label style={{ display: "block", fontSize: 11, fontWeight: 500, color: WARM_GRAY, marginBottom: 4, fontFamily: "sans-serif", textTransform: "uppercase", letterSpacing: "0.04em" }}>Specialty</label>}
+            <StyledSelect
+              value={provider.specialty}
+              onChange={e => updateProvider(provider.id, "specialty", e.target.value)}
+            >
+              <option value="">Select...</option>
+              {CARE_SPECIALTIES.map(s => <option key={s}>{s}</option>)}
+            </StyledSelect>
+          </div>
+          {/* Remove button */}
+          <div style={{ paddingTop: idx === 0 ? 24 : 0, flexShrink: 0 }}>
+            <button
+              onClick={() => removeProvider(provider.id)}
+              style={{ background: "none", border: "none", color: "#ccc", cursor: "pointer", fontSize: 16, padding: "8px 4px", lineHeight: 1 }}
+              title="Remove"
+            >×</button>
+          </div>
+        </div>
+      ))}
+      <button
+        onClick={addProvider}
+        style={{
+          background: "none", border: `1px dashed ${BORDER}`,
+          borderRadius: 8, padding: "7px 14px", fontSize: 12.5,
+          color: SAGE_DARK, cursor: "pointer", fontFamily: "sans-serif",
+          textAlign: "left", transition: "all 0.15s", marginTop: 2,
+        }}
+        onMouseEnter={e => { e.target.style.background = SAGE_LIGHT; e.target.style.borderColor = SAGE; }}
+        onMouseLeave={e => { e.target.style.background = "none"; e.target.style.borderColor = BORDER; }}
+      >
+        + Add another provider
+      </button>
+    </div>
+  );
+}
+
 /* ─── Panel: Profile ─────────────────────────────────────────────────────── */
 function ProfilePanel({ form, setForm, markDirty }) {
   const set = (key) => (e) => { setForm(f => ({ ...f, [key]: e.target.value })); markDirty(); };
@@ -477,12 +548,10 @@ function ProfilePanel({ form, setForm, markDirty }) {
             </StyledSelect>
           </Field>
 
-          <Field label="Care team" hint="Shows in generated reports to help your doctors coordinate">
-            <StyledInput
-              type="text"
-              value={form.careTeam}
-              onChange={set("careTeam")}
-              placeholder="e.g. Dr. Patel – Cardiologist, Houston Methodist"
+          <Field label="Care team" hint="Added providers appear in your doctor reports and are suggested when scheduling appointments">
+            <CareTeamInput
+              providers={form.careProviders || [{ id: 1, name: "", specialty: "" }, { id: 2, name: "", specialty: "" }]}
+              onChange={providers => { setForm(f => ({ ...f, careProviders: providers })); markDirty(); }}
             />
           </Field>
 
@@ -1168,7 +1237,7 @@ export default function CareCompassSettings() {
     firstName: "Maya", lastName: "Rodriguez", preferredName: "Maya", email: "maya@example.com",
     dob: "1988-04-14", sex: "Female", pronouns: "She / Her",
     timezone: "America/Chicago (CDT, UTC−5)",
-    condition: "POTS / Dysautonomia", conditions: ["POTS / Dysautonomia"], diagnosisStatus: "Formally diagnosed", careTeam: "",
+    condition: "POTS / Dysautonomia", conditions: ["POTS / Dysautonomia"], diagnosisStatus: "Formally diagnosed", careTeam: "", careProviders: [{ id: 1, name: "", specialty: "" }, { id: 2, name: "", specialty: "" }],
   });
 
   // Notification prefs state
@@ -1194,6 +1263,9 @@ export default function CareCompassSettings() {
       const displayName = profileForm.preferredName?.trim() || profileForm.firstName?.trim() || "";
       localStorage.setItem("cc-display-name", displayName);
       localStorage.setItem("cc-full-name", `${profileForm.firstName} ${profileForm.lastName}`.trim());
+      // Persist care team for use in tracker reports and appointment suggestions
+      const activeProviders = (profileForm.careProviders || []).filter(p => p.name.trim());
+      localStorage.setItem("cc-care-team", JSON.stringify(activeProviders));
     } catch {}
   };
 
