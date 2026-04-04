@@ -230,12 +230,12 @@ const NAV_ITEMS = [
     icon: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="3.5" width="13" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M1.5 6.5h13" stroke="currentColor" strokeWidth="1.4"/><path d="M4 10h2M7 10h1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>,
   },
   {
-    id: "medications", label: "Medications",
-    icon: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="6" y="1" width="4" height="14" rx="1" stroke="currentColor" strokeWidth="1.4"/><rect x="1" y="6" width="14" height="4" rx="1" stroke="currentColor" strokeWidth="1.4"/></svg>,
-  },
-  {
     id: "family", label: "Family History",
     icon: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="4" cy="5" r="2" stroke="currentColor" strokeWidth="1.3"/><circle cx="12" cy="5" r="2" stroke="currentColor" strokeWidth="1.3"/><circle cx="8" cy="13" r="2" stroke="currentColor" strokeWidth="1.3"/><path d="M4 7v2c0 1 1 2 4 2s4-1 4-2V7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
+  },
+  {
+    id: "medications", label: "Medications",
+    icon: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="6" y="1" width="4" height="14" rx="1" stroke="currentColor" strokeWidth="1.4"/><rect x="1" y="6" width="14" height="4" rx="1" stroke="currentColor" strokeWidth="1.4"/></svg>,
   },
 ];
 
@@ -1883,6 +1883,8 @@ function Toast({ visible }) {
 
 /* ─── Main component ─────────────────────────────────────────────────────── */
 const SAVEABLE_PANELS = new Set(["profile", "notifications", "privacy"]);
+// All panels that should show the sticky next bar (saveable + next-only)
+const ALL_NAV_PANELS = new Set(["profile", "notifications", "security", "privacy", "connected", "subscription", "family", "medications"]);
 
 export default function CareCompassSettings() {
   const [activePanel, setActivePanel] = useState("profile");
@@ -1927,7 +1929,7 @@ export default function CareCompassSettings() {
     try { localStorage.setItem("cc-completed-panels", JSON.stringify([...newCompleted])); } catch {}
 
     // Show welcome prompt only after Family History (last panel) is saved
-    if (activePanel === "family" || activePanel === "medications") {
+    if (activePanel === "medications") {
       setTimeout(() => setShowAssessmentPrompt(true), 600);
     }
     // Persist display name for dashboard greeting
@@ -2057,7 +2059,7 @@ export default function CareCompassSettings() {
         </div>
 
         {/* Content */}
-        <div style={{ padding: "32px 36px", maxWidth: 740, paddingBottom: SAVEABLE_PANELS.has(activePanel) ? "100px" : "32px" }}>
+        <div style={{ padding: "32px 36px", maxWidth: 740, paddingBottom: ALL_NAV_PANELS.has(activePanel) ? "100px" : "32px" }}>
           {activePanel === "profile"       && <ProfilePanel       form={profileForm}   setForm={setProfileForm}   markDirty={markDirty} />}
           {activePanel === "notifications" && <NotificationsPanel prefs={notifPrefs}   setPrefs={setNotifPrefs}   markDirty={markDirty} />}
           {activePanel === "security"      && <SecurityPanel />}
@@ -2069,11 +2071,15 @@ export default function CareCompassSettings() {
         </div>
 
         {/* ── Sticky save bar — travels with user on mobile ── */}
-        {SAVEABLE_PANELS.has(activePanel) && (() => {
+        {ALL_NAV_PANELS.has(activePanel) && (() => {
           const panelIds = NAV_ITEMS.map(n => n.id);
           const currentIdx = panelIds.indexOf(activePanel);
           const nextPanel = panelIds.find((id, i) => i > currentIdx);
           const isLast = activePanel === "medications";
+          const isSaveable = SAVEABLE_PANELS.has(activePanel);
+          // Family and medications have their own save buttons inside the panel
+          // Security, connected, subscription have no user-editable dirty state
+          const hasOwnSave = activePanel === "family" || activePanel === "medications";
           return (
             <div style={{
               position: "sticky", bottom: 0,
@@ -2085,38 +2091,44 @@ export default function CareCompassSettings() {
               justifyContent: "space-between", gap: 12,
               zIndex: 50, flexWrap: "wrap",
             }}>
-              <span style={{ fontSize: 12.5, color: dirty ? SAGE_DARK : WARM_GRAY, fontFamily: "sans-serif", fontStyle: dirty ? "normal" : "italic" }}>
-                {dirty ? "You have unsaved changes" : "All changes saved"}
+              <span style={{ fontSize: 12.5, fontFamily: "sans-serif", fontStyle: "italic",
+                color: isSaveable && dirty ? SAGE_DARK : WARM_GRAY }}>
+                {isSaveable && dirty ? "You have unsaved changes" : isSaveable ? "All changes saved" : ""}
               </span>
               <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-                {/* Save only */}
-                <button
-                  onClick={handleSave}
-                  disabled={!dirty}
-                  style={{
-                    background: isLast ? (dirty ? SAGE_DARK : "#bbb") : "transparent",
-                    color: isLast ? "white" : (dirty ? SAGE_DARK : WARM_GRAY),
-                    border: isLast ? "none" : `1.5px solid ${dirty ? SAGE : BORDER}`,
-                    borderRadius: 8, padding: "9px 18px", fontSize: 13,
-                    cursor: dirty ? "pointer" : "default", fontWeight: 600,
-                    transition: "all 0.15s", fontFamily: "sans-serif",
-                  }}
-                >
-                  {dirty ? "Save" : "Saved ✓"}
-                </button>
-                {/* Save & Next — only on non-last panels */}
+                {/* Save button — only for saveable panels, not panels with own save */}
+                {isSaveable && !hasOwnSave && (
+                  <button
+                    onClick={handleSave}
+                    disabled={!dirty}
+                    style={{
+                      background: isLast ? (dirty ? SAGE_DARK : "#bbb") : "transparent",
+                      color: isLast ? "white" : (dirty ? SAGE_DARK : WARM_GRAY),
+                      border: isLast ? "none" : `1.5px solid ${dirty ? SAGE : BORDER}`,
+                      borderRadius: 8, padding: "9px 18px", fontSize: 13,
+                      cursor: dirty ? "pointer" : "default", fontWeight: 600,
+                      transition: "all 0.15s", fontFamily: "sans-serif",
+                    }}
+                  >
+                    {dirty ? "Save" : "Saved ✓"}
+                  </button>
+                )}
+                {/* Next button — shown on all panels except last */}
                 {!isLast && nextPanel && (
                   <button
-                    onClick={() => { if (dirty) handleSave(); switchPanel(nextPanel); window.scrollTo(0, 0); }}
+                    onClick={() => {
+                      if (isSaveable && dirty && !hasOwnSave) handleSave();
+                      switchPanel(nextPanel);
+                      window.scrollTo(0, 0);
+                    }}
                     style={{
                       background: SAGE_DARK, color: "white", border: "none",
                       borderRadius: 8, padding: "9px 18px", fontSize: 13,
                       cursor: "pointer", fontWeight: 600,
                       transition: "all 0.15s", fontFamily: "sans-serif",
-                      display: "flex", alignItems: "center", gap: 6,
                     }}
                   >
-                    {dirty ? "Save & Next →" : "Next →"}
+                    {isSaveable && dirty && !hasOwnSave ? "Save & Next →" : "Next →"}
                   </button>
                 )}
               </div>
