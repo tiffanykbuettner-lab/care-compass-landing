@@ -282,35 +282,81 @@ function BPReadingCard({ reading, onDelete }) {
 
 
 /* ─── Med picker in log modal ───────────────────────────────────────────── */
-function MedPicker({ medications, selectedIds, onToggle, onAddAll, manualText, onManualChange }) {
+function MedPicker({ medications, selectedIds, onToggle, onAddAll, manualText, onManualChange, onSaveUnlisted }) {
+  const [showList, setShowList] = React.useState(false);
+  const selectedMeds = medications.filter(m => selectedIds.includes(m.id));
+  const hasSelected = selectedMeds.length > 0;
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
-      {medications.length > 0 && (
-        <div style={{ background: "#f5f9f6", borderRadius: "0.75rem", padding: "0.75rem 1rem", display: "flex", flexDirection: "column", gap: "0.4rem" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.25rem" }}>
-            <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "#4a4540", textTransform: "uppercase", letterSpacing: "0.05em" }}>Your medications</span>
-            <button onClick={onAddAll} style={{ background: "none", border: "1px solid rgba(74,112,88,0.3)", borderRadius: "100px", padding: "0.2rem 0.75rem", fontSize: "0.72rem", color: "#4a7058", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
-              Add all
-            </button>
-          </div>
-          {medications.map(med => (
-            <label key={med.id} style={{ display: "flex", alignItems: "center", gap: "0.65rem", cursor: "pointer", padding: "0.35rem 0" }}>
-              <input
-                type="checkbox"
-                checked={selectedIds.includes(med.id)}
-                onChange={() => onToggle(med.id)}
-                style={{ accentColor: "#4a7058", width: 15, height: 15, flexShrink: 0 }}
-              />
-              <span style={{ fontSize: "0.875rem", color: "#2d2926" }}>
-                {med.name}
-                {med.dose && <span style={{ color: "#6b6560", marginLeft: "0.35rem" }}>{med.dose}</span>}
-                {med.frequency && <span style={{ color: "#aaa", marginLeft: "0.35rem", fontSize: "0.78rem" }}>· {med.frequency}</span>}
-              </span>
-            </label>
+
+      {/* ── Pill tag row for selected meds ── */}
+      {hasSelected && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+          {selectedMeds.map(med => (
+            <span
+              key={med.id}
+              style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem", background: SAGE_LIGHT, color: SAGE_DARK, borderRadius: "100px", padding: "0.25rem 0.75rem", fontSize: "0.78rem", fontWeight: 600 }}
+            >
+              {med.name}{med.dose ? ` ${med.dose}` : ""}
+              <button
+                onClick={() => onToggle(med.id)}
+                style={{ background: "none", border: "none", cursor: "pointer", color: SAGE_DARK, fontSize: "0.85rem", padding: 0, lineHeight: 1, display: "flex", alignItems: "center" }}
+              >×</button>
+            </span>
           ))}
         </div>
       )}
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem" }}>
+
+      {/* ── Expandable medication list ── */}
+      {medications.length > 0 && (
+        <div style={{ border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: "0.75rem", overflow: "hidden" }}>
+          {/* Header / toggle */}
+          <button
+            onClick={() => setShowList(s => !s)}
+            style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.6rem 0.9rem", background: showList ? SAGE_LIGHT : "#fafaf8", border: "none", cursor: "pointer", fontFamily: "inherit" }}
+          >
+            <span style={{ fontSize: "0.82rem", fontWeight: 600, color: SAGE_DARK }}>
+              {hasSelected ? `${selectedMeds.length} selected` : "Select from your medications"}
+            </span>
+            <span style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              {!hasSelected && medications.length > 0 && (
+                <span
+                  onClick={e => { e.stopPropagation(); onAddAll(); }}
+                  style={{ fontSize: "0.72rem", fontWeight: 600, color: SAGE_DARK, background: "rgba(74,112,88,0.1)", borderRadius: "100px", padding: "0.15rem 0.6rem", cursor: "pointer" }}
+                >Add all</span>
+              )}
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ transform: showList ? "rotate(180deg)" : "none", transition: "transform 0.2s", color: SAGE_DARK }}>
+                <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </span>
+          </button>
+
+          {/* Checkbox list */}
+          {showList && (
+            <div style={{ borderTop: "1px solid rgba(0,0,0,0.07)", padding: "0.5rem 0.75rem", display: "flex", flexDirection: "column", gap: "0.1rem", maxHeight: "200px", overflowY: "auto" }}>
+              {medications.map(med => (
+                <label key={med.id} style={{ display: "flex", alignItems: "center", gap: "0.65rem", cursor: "pointer", padding: "0.4rem 0.25rem", borderRadius: "0.4rem" }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.includes(med.id)}
+                    onChange={() => onToggle(med.id)}
+                    style={{ accentColor: SAGE_DARK, width: 15, height: 15, flexShrink: 0 }}
+                  />
+                  <span style={{ fontSize: "0.875rem", color: INK, flex: 1 }}>
+                    {med.name}
+                    {med.dose && <span style={{ color: WARM_GRAY, marginLeft: "0.35rem", fontSize: "0.82rem" }}>{med.dose}</span>}
+                    {med.frequency && <span style={{ color: "#bbb", marginLeft: "0.35rem", fontSize: "0.75rem" }}>· {med.frequency}</span>}
+                  </span>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Other / unlisted ── */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
         <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "#4a4540" }}>
           {medications.length > 0 ? "Other / unlisted medications" : "Medications taken"}
         </span>
@@ -319,8 +365,20 @@ function MedPicker({ medications, selectedIds, onToggle, onAddAll, manualText, o
           onChange={e => onManualChange(e.target.value)}
           placeholder={medications.length > 0 ? "Any other medications not in your list..." : "Any medications or supplements?"}
           rows={2}
-          style={{ padding: "0.75rem 1rem", borderRadius: "0.65rem", border: "1.5px solid rgba(0,0,0,0.12)", fontSize: "0.92rem", color: "#2d2926", background: "#fafaf8", outline: "none", fontFamily: "inherit", resize: "vertical", lineHeight: 1.6, boxSizing: "border-box", width: "100%" }}
+          style={{ padding: "0.65rem 0.9rem", borderRadius: "0.65rem", border: "1.5px solid rgba(0,0,0,0.12)", fontSize: "0.875rem", color: INK, background: "#fafaf8", outline: "none", fontFamily: "inherit", resize: "vertical", lineHeight: 1.6, boxSizing: "border-box", width: "100%" }}
         />
+        {/* Save unlisted to list option */}
+        {manualText.trim() && (
+          <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", fontSize: "0.75rem", color: SAGE_DARK }}>
+            <input
+              type="checkbox"
+              checked={onSaveUnlisted?.enabled || false}
+              onChange={() => onSaveUnlisted?.toggle()}
+              style={{ accentColor: SAGE_DARK, width: 13, height: 13 }}
+            />
+            Save to my medication list in Account Settings
+          </label>
+        )}
       </div>
     </div>
   );
@@ -545,7 +603,7 @@ export default function CareCompassTracker() {
   const [editTime, setEditTime]           = useState("08:00");
   const [editLabel, setEditLabel]         = useState("");
 
-  const blankForm = { symptoms: "", severity: 5, food: "", medications: "", selectedMedIds: [], activity: "", sleep: null, stress: 5, weather: "", notes: "", photos: [] };
+  const blankForm = { symptoms: "", severity: 5, food: "", medications: "", selectedMedIds: [], saveUnlistedMed: false, activity: "", sleep: null, stress: 5, weather: "", notes: "", photos: [] };
   const [form, setForm] = useState(blankForm);
 
   useEffect(() => { try { const stored = localStorage.getItem(STORAGE_KEY); if (stored) setEntries(JSON.parse(stored)); } catch {} }, []);
@@ -656,6 +714,24 @@ export default function CareCompassTracker() {
     const selectedMedsStr = buildMedString(form.selectedMedIds || []);
     const finalMeds = [selectedMedsStr, form.medications].filter(Boolean).join(", ");
     const finalForm = { ...form, medications: finalMeds };
+
+    // Save unlisted med to settings list if opted in
+    if (form.saveUnlistedMed && form.medications.trim()) {
+      try {
+        const existing = JSON.parse(localStorage.getItem(MED_STORAGE_KEY) || "[]");
+        // Split on comma in case multiple unlisted were entered
+        const newNames = form.medications.split(",").map(n => n.trim()).filter(Boolean);
+        newNames.forEach(name => {
+          const alreadyExists = existing.some(m => m.name.toLowerCase() === name.toLowerCase());
+          if (!alreadyExists) {
+            existing.push({ id: Date.now() + Math.random(), name, dose: "", frequency: "", duration: "", notes: "", reminder: false, reminderTime: "08:00" });
+          }
+        });
+        localStorage.setItem(MED_STORAGE_KEY, JSON.stringify(existing));
+        setMedications(existing);
+      } catch {}
+    }
+
     if (editingEntry) {
       saveEntries(entries.map(e => e.id === editingEntry.id ? { ...finalForm, id: editingEntry.id, timestamp: editingEntry.timestamp } : e));
     } else {
@@ -1784,24 +1860,27 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
             <div style={s.modalBody}>
               <div style={s.formGroup}><label style={s.label}>What symptoms are you experiencing?</label><textarea value={form.symptoms} onChange={e => setForm(f => ({ ...f, symptoms: e.target.value }))} placeholder="Describe what you're feeling right now…" style={s.textarea} rows={3}/></div>
               <div style={s.formGroup}><label style={s.label}>Symptom severity right now</label><SeveritySlider value={form.severity} onChange={v => setForm(f => ({ ...f, severity: v }))}/></div>
-              <div style={s.formRow}>
-                <div style={s.formGroup}><label style={s.label}>Food & Drink</label><textarea value={form.food} onChange={e => setForm(f => ({ ...f, food: e.target.value }))} placeholder="Have you eaten or had anything to drink?" style={s.textarea} rows={2}/></div>
-                <div style={s.formGroup}>
-                  <label style={s.label}>Medications taken</label>
-                  <MedPicker
-                    medications={medications}
-                    selectedIds={form.selectedMedIds || []}
-                    onToggle={id => setForm(f => ({
-                      ...f,
-                      selectedMedIds: f.selectedMedIds.includes(id)
-                        ? f.selectedMedIds.filter(i => i !== id)
-                        : [...f.selectedMedIds, id]
-                    }))}
-                    onAddAll={() => setForm(f => ({ ...f, selectedMedIds: medications.map(m => m.id) }))}
-                    manualText={form.medications}
-                    onManualChange={val => setForm(f => ({ ...f, medications: val }))}
-                  />
-                </div>
+              <div style={s.formGroup}><label style={s.label}>Food & Drink</label><textarea value={form.food} onChange={e => setForm(f => ({ ...f, food: e.target.value }))} placeholder="Have you eaten or had anything to drink?" style={s.textarea} rows={2}/></div>
+
+              <div style={s.formGroup}>
+                <label style={s.label}>Medications taken</label>
+                <MedPicker
+                  medications={medications}
+                  selectedIds={form.selectedMedIds || []}
+                  onToggle={id => setForm(f => ({
+                    ...f,
+                    selectedMedIds: f.selectedMedIds.includes(id)
+                      ? f.selectedMedIds.filter(i => i !== id)
+                      : [...f.selectedMedIds, id]
+                  }))}
+                  onAddAll={() => setForm(f => ({ ...f, selectedMedIds: medications.map(m => m.id) }))}
+                  manualText={form.medications}
+                  onManualChange={val => setForm(f => ({ ...f, medications: val }))}
+                  onSaveUnlisted={{
+                    enabled: form.saveUnlistedMed,
+                    toggle: () => setForm(f => ({ ...f, saveUnlistedMed: !f.saveUnlistedMed }))
+                  }}
+                />
               </div>
               <div style={s.formRow}>
                 <div style={s.formGroup}><label style={s.label}>Activity</label><input value={form.activity} onChange={e => setForm(f => ({ ...f, activity: e.target.value }))} placeholder="e.g. 30 min walk, rest day…" style={s.input}/></div>
