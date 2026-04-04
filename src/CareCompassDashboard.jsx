@@ -248,39 +248,72 @@ function AppointmentForm({ initial, onSave, onCancel }) {
   };
   const lbl = { fontSize: "0.78rem", fontWeight: 600, color: INK_LIGHT, marginBottom: "0.3rem", display: "block" };
 
+  const [showDoctorSuggestions, setShowDoctorSuggestions] = useState(false);
+  const activeCareTeam = careTeamProviders.filter(p => p.name.trim());
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-      {/* Specialty + Doctor */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "0.875rem" }}>
-        <div>
-          <label style={lbl}>Specialty <span style={{ color: "#c0392b" }}>*</span></label>
-          <select value={form.specialty} onChange={set("specialty")} style={{ ...inp, WebkitAppearance: "none" }}>
-            <option value="">Select specialty...</option>
-            {APPT_SPECIALTIES.map(s => <option key={s}>{s}</option>)}
-          </select>
-        </div>
-        <div style={{ position: "relative" }}>
-          <label style={lbl}>Doctor <span style={{ fontWeight: 400, color: "#aaa" }}>(optional)</span></label>
+
+      {/* Doctor — first field, suggests from care team */}
+      <div style={{ position: "relative" }}>
+        <label style={lbl}>Doctor <span style={{ fontWeight: 400, color: "#aaa" }}>(optional)</span></label>
+        {activeCareTeam.length > 0 ? (
+          <>
+            <select
+              value={form.doctor}
+              onChange={e => {
+                const val = e.target.value;
+                const match = activeCareTeam.find(p => p.name === val);
+                setForm(f => ({
+                  ...f,
+                  doctor: val,
+                  specialty: match?.specialty || f.specialty,
+                }));
+              }}
+              style={{ ...inp, WebkitAppearance: "none" }}
+            >
+              <option value="">Select from your care team...</option>
+              {activeCareTeam.map((p, i) => (
+                <option key={i} value={p.name}>
+                  {p.name}{p.specialty ? ` — ${p.specialty}` : ""}
+                </option>
+              ))}
+              <option value="__other__">Other / not in my care team</option>
+            </select>
+            {form.doctor === "__other__" && (
+              <input
+                type="text"
+                value={form._customDoctor || ""}
+                onChange={e => setForm(f => ({ ...f, _customDoctor: e.target.value }))}
+                placeholder="Enter doctor name..."
+                style={{ ...inp, marginTop: "0.5rem" }}
+                autoFocus
+              />
+            )}
+          </>
+        ) : (
           <input
             type="text"
             value={form.doctor}
-            onChange={e => {
-              setForm(f => ({ ...f, doctor: e.target.value }));
-              // Auto-fill specialty if a care team provider is selected
-              const match = careTeamProviders.find(p => p.name === e.target.value);
-              if (match?.specialty) setForm(f => ({ ...f, doctor: e.target.value, specialty: match.specialty }));
-            }}
+            onChange={set("doctor")}
             placeholder="e.g. Dr. Patel"
             style={inp}
-            list="care-team-list"
           />
-          {/* Suggest from saved care team */}
-          <datalist id="care-team-list">
-            {careTeamProviders.filter(p => p.name).map((p, i) => (
-              <option key={i} value={p.name}>{p.specialty ? `${p.name} — ${p.specialty}` : p.name}</option>
-            ))}
-          </datalist>
-        </div>
+        )}
+        {activeCareTeam.length === 0 && (
+          <p style={{ fontSize: "0.72rem", color: "#aaa", margin: "0.25rem 0 0", fontStyle: "italic" }}>
+            Add providers in <a href="/account" style={{ color: SAGE_DARK }}>Account Settings → Care team</a> to see suggestions here.
+          </p>
+        )}
+      </div>
+
+      {/* Specialty */}
+      <div>
+        <label style={lbl}>Specialty <span style={{ color: "#c0392b" }}>*</span></label>
+        <select value={form.specialty} onChange={set("specialty")} style={{ ...inp, WebkitAppearance: "none" }}>
+          <option value="">Select specialty...</option>
+          {APPT_SPECIALTIES.map(s => <option key={s}>{s}</option>)}
+        </select>
       </div>
 
       {/* Date + Time */}
@@ -481,10 +514,15 @@ export default function CareCompassDashboard() {
   };
 
   const handleSaveAppt = (form) => {
+    // Resolve custom doctor name if "Other" was selected
+    const resolvedForm = {
+      ...form,
+      doctor: form.doctor === "__other__" ? (form._customDoctor || "") : form.doctor,
+    };
     if (editingAppt) {
-      saveAppointments(appointments.map(a => a.id === editingAppt.id ? { ...form, id: editingAppt.id } : a));
+      saveAppointments(appointments.map(a => a.id === editingAppt.id ? { ...resolvedForm, id: editingAppt.id } : a));
     } else {
-      saveAppointments([...appointments, { ...form, id: Date.now() }]);
+      saveAppointments([...appointments, { ...resolvedForm, id: Date.now() }]);
     }
     setShowApptForm(false);
     setEditingAppt(null);
