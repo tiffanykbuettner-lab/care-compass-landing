@@ -662,9 +662,7 @@ function MedicationsPanel() {
           {showBulk && (
             <div style={{ background: SAGE_LIGHT, borderRadius: 10, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
               <div style={{ fontSize: 12.5, color: WARM_GRAY, fontFamily: "sans-serif" }}>One per line — format: <em>Medication Dose</em> e.g. "Metoprolol 25mg"</div>
-              <textarea value={bulkText} onChange={e => setBulkText(e.target.value)} placeholder={"Metoprolol 25mg
-Levothyroxine 50mcg
-Cetirizine 10mg"} rows={4} style={{ ...inp, resize: "vertical", lineHeight: 1.5 }}/>
+              <textarea value={bulkText} onChange={e => setBulkText(e.target.value)} placeholder={"Metoprolol 25mg\nLevothyroxine 50mcg\nCetirizine 10mg"} rows={4} style={{ ...inp, resize: "vertical", lineHeight: 1.5 }}/>
               <div style={{ display: "flex", gap: 8 }}>
                 <button onClick={handleBulkImport} disabled={!bulkText.trim()} style={{ background: SAGE_DARK, color: "#fff", border: "none", borderRadius: 8, padding: "6px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "sans-serif", opacity: bulkText.trim() ? 1 : 0.5 }}>Import</button>
                 <OutlineBtn onClick={() => { setShowBulk(false); setBulkText(""); }}>Cancel</OutlineBtn>
