@@ -128,7 +128,7 @@ function EntryCard({ entry, onDelete, onEdit }) {
         </div>
         <div style={s.entryCardRight}>
           <button onClick={e => { e.stopPropagation(); onEdit(entry); }} style={s.editEntryBtn}>Edit</button>
-          <button onClick={e => { e.stopPropagation(); onDelete(entry.id); }} style={s.deleteBtn}>✕</button>
+          <button onClick={e => { e.stopPropagation(); onDelete(entry.id); }} style={{ ...s.deleteBtn, color: "#ddd" }} title="Delete entry">✕</button>
           <span style={s.expandChevron}>{expanded ? "▲" : "▼"}</span>
         </div>
       </div>
@@ -585,6 +585,8 @@ export default function CareCompassTracker() {
   const [apptContext, setApptContext]    = useState(null);
   const [loadingInsights, setLoadingInsights] = useState(false);
   const [saved, setSaved]               = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null); // id of entry pending delete confirmation
+  const [saveError, setSaveError]         = useState("");
   const [chartField, setChartField]     = useState("severity");
   const [dateFilter, setDateFilter]     = useState("all");
 
@@ -630,7 +632,24 @@ export default function CareCompassTracker() {
   useEffect(() => { try { const stored = localStorage.getItem(BP_STORAGE_KEY); if (stored) setBpReadings(JSON.parse(stored)); } catch {} }, []);
   useEffect(() => { try { const stored = localStorage.getItem(BP_REMINDERS_KEY); if (stored) setBpReminders(JSON.parse(stored)); } catch {} }, []);
 
-  const saveEntries = (updated) => { setEntries(updated); try { localStorage.setItem(STORAGE_KEY, JSON.stringify(updated)); } catch {} };
+  const saveEntries = (updated) => {
+    setEntries(updated);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      setSaveError("");
+    } catch (e) {
+      if (e.name === "QuotaExceededError" || e.code === 22) {
+        // Storage full — likely caused by photos. Try saving without photos as fallback.
+        try {
+          const stripped = updated.map(entry => ({ ...entry, photos: [] }));
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(stripped));
+          setSaveError("⚠️ Storage limit reached — photos were not saved to keep your entries. Consider reducing photo size or clearing old entries.");
+        } catch {
+          setSaveError("⚠️ Could not save your entry — device storage is full. Please free up space and try again.");
+        }
+      }
+    }
+  };
   const saveBpReadings = (updated) => { setBpReadings(updated); try { localStorage.setItem(BP_STORAGE_KEY, JSON.stringify(updated)); } catch {} };
   const saveBpReminders = (updated) => { setBpReminders(updated); try { localStorage.setItem(BP_REMINDERS_KEY, JSON.stringify(updated)); } catch {} };
 
@@ -741,7 +760,8 @@ export default function CareCompassTracker() {
     setSaved(true); setTimeout(() => setSaved(false), 3000);
   };
 
-  const handleDelete = (id) => saveEntries(entries.filter(e => e.id !== id));
+  const handleDelete = (id) => setConfirmDeleteId(id);
+  const confirmDelete = () => { saveEntries(entries.filter(e => e.id !== confirmDeleteId)); setConfirmDeleteId(null); };
 
   const uniqueDaysLogged = new Set(entries.map(e => new Date(e.timestamp).toDateString())).size;
 
@@ -1852,6 +1872,27 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
           )}
         </div>
       </main>
+
+      {/* ── Delete confirmation ── */}
+      {confirmDeleteId && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }} onClick={() => setConfirmDeleteId(null)}>
+          <div style={{ background: "#fff", borderRadius: "1.25rem", padding: "2rem", maxWidth: 360, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: "2rem", textAlign: "center", marginBottom: "0.75rem" }}>🗑️</div>
+            <h3 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.15rem", fontWeight: 700, color: INK, margin: "0 0 0.5rem", textAlign: "center" }}>Delete this entry?</h3>
+            <p style={{ fontSize: "0.85rem", color: WARM_GRAY, textAlign: "center", margin: "0 0 1.5rem", lineHeight: 1.6 }}>This entry will be permanently removed from your tracker. This cannot be undone.</p>
+            <div style={{ display: "flex", gap: "0.75rem" }}>
+              <button
+                onClick={() => setConfirmDeleteId(null)}
+                style={{ flex: 1, background: "transparent", border: "1.5px solid rgba(0,0,0,0.12)", borderRadius: "100px", padding: "0.7rem", fontSize: "0.875rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit", fontWeight: 500 }}
+              >Keep entry</button>
+              <button
+                onClick={confirmDelete}
+                style={{ flex: 1, background: "#c0392b", color: "#fff", border: "none", borderRadius: "100px", padding: "0.7rem", fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
+              >Yes, delete</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showForm && (
         <div style={s.modalOverlay} onClick={() => setShowForm(false)}>
