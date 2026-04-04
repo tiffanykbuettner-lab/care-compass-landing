@@ -474,7 +474,7 @@ const ONBOARDING_STEPS = [
   {
     icon: "🧭",
     title: "Start with your full assessment",
-    desc: "The Care Compass assessment maps your symptoms across every body system and uses AI to surface patterns, specialist recommendations, and questions to bring to your doctor.",
+    desc: "The Care Compass assessment maps your symptoms across every area of your health — joints, energy, digestion, mood, and more — and uses AI to surface patterns, specialist recommendations, and questions to bring to your doctor.",
     cta: "Take the Assessment →",
     href: "/compass",
     secondary: "I'll do this later",

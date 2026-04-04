@@ -134,6 +134,72 @@ const BODY_SYSTEMS = [
   },
 ];
 
+
+/* ─── Body systems tooltip ───────────────────────────────────────────────── */
+function BodySystemsTooltip() {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <span style={{ display: "inline" }}>
+      <button
+        onClick={() => setOpen(true)}
+        style={{
+          background: "none", border: "none", cursor: "pointer",
+          color: SAGE_DARK, fontWeight: 600, fontSize: "inherit",
+          fontFamily: "inherit", padding: 0, textDecoration: "underline",
+          textDecorationStyle: "dotted", textUnderlineOffset: "3px",
+        }}
+      >
+        different areas of your health
+      </button>
+      {open && (
+        <div
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: "1.5rem" }}
+          onClick={() => setOpen(false)}
+        >
+          <div
+            style={{ background: "#fff", borderRadius: "1.25rem", padding: "2rem", maxWidth: 400, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.2rem", fontWeight: 700, color: INK, margin: "0 0 0.75rem" }}>
+              What are the different areas?
+            </h3>
+            <p style={{ fontSize: "0.85rem", color: WARM_GRAY, margin: "0 0 1rem", lineHeight: 1.6 }}>
+              We ask about symptoms in nine areas of your body and health — not because you need to know medical terms, but because symptoms in different areas often connect in ways that aren't obvious.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+              {[
+                ["🦴", "Joints & Muscles", "pain, stiffness, instability"],
+                ["❤️", "Heart & Circulation", "palpitations, dizziness, fainting"],
+                ["🫁", "Breathing & Energy", "fatigue, breathlessness, exercise tolerance"],
+                ["🧠", "Neurological", "brain fog, headaches, numbness"],
+                ["🩺", "Digestive", "nausea, bloating, food sensitivities"],
+                ["🌿", "Skin & Immune", "rashes, reactions, sensitivities"],
+                ["🌸", "Reproductive & Pelvic", "periods, pelvic pain, urinary symptoms"],
+                ["💭", "Mental Health", "anxiety, mood, emotional regulation"],
+                ["✨", "Other", "anything that doesn't fit neatly"],
+              ].map(([icon, label, desc]) => (
+                <div key={label} style={{ display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
+                  <span style={{ fontSize: "1rem", flexShrink: 0, marginTop: 1 }}>{icon}</span>
+                  <div>
+                    <span style={{ fontSize: "0.82rem", fontWeight: 600, color: INK }}>{label}</span>
+                    <span style={{ fontSize: "0.78rem", color: WARM_GRAY }}> — {desc}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={() => setOpen(false)}
+              style={{ marginTop: "1.5rem", width: "100%", background: SAGE_DARK, color: "#fff", border: "none", borderRadius: "100px", padding: "0.75rem", fontSize: "0.9rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
+    </span>
+  );
+}
+
 /* ─── Botanical logo mark ────────────────────────────────────────────────── */
 const BotanicalMark = ({ size = 32 }) => (
   <svg width={size} height={size} viewBox="0 0 72 72" fill="none">
@@ -588,8 +654,7 @@ Please provide a Care Compass Insight Report with these sections:
                 <div style={s.stepIntro}>
                   <h2 style={s.stepTitle}>What are you experiencing?</h2>
                   <p style={s.stepDesc}>
-                    Share symptoms across any body systems that feel relevant. You don't need to know
-                    what's causing them — just describe what you notice. Leave any section blank if it doesn't apply.
+                    Share what you've been experiencing across <BodySystemsTooltip/> — from joints and energy to digestion and mood. You don't need to know what's causing them. Leave any section blank if it doesn't apply.
                   </p>
                 </div>
                 <div style={s.formGroup}>
@@ -741,7 +806,7 @@ Please provide a Care Compass Insight Report with these sections:
                 <div style={s.reviewCard}>
                   {filledSystems.length > 0 && (
                     <div style={s.reviewSection}>
-                      <p style={s.reviewLabel}>Symptoms shared across {filledSystems.length} body system{filledSystems.length !== 1 ? "s" : ""}</p>
+                      <p style={s.reviewLabel}>Symptoms shared across {filledSystems.length} area{filledSystems.length !== 1 ? "s" : ""} of health</p>
                       {filledSystems.map(([sys]) => (
                         <span key={sys} style={s.reviewTag}>{sys}</span>
                       ))}
