@@ -602,6 +602,10 @@ function MedicationsPanel() {
   const [bulkText, setBulkText]   = useState("");
   const [showBulk, setShowBulk]   = useState(false);
   const [saved, setSaved]         = useState(false);
+  const [scanning, setScanning]   = useState(false);
+  const [scanError, setScanError] = useState("");
+  const [scanPreview, setScanPreview] = useState(null);
+  const scanInputRef = React.useRef(null);
 
   const saveMeds = (updated) => {
     setMedications(updated);
@@ -617,6 +621,90 @@ function MedicationsPanel() {
       saveMeds([...medications, { ...form, id: Date.now() }]);
     }
     setForm(blankMed()); setShowForm(false); setEditingId(null);
+  };
+
+  const handleScan = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    e.target.value = "";
+
+    // Show preview
+    const reader = new FileReader();
+    reader.onload = evt => setScanPreview(evt.target.result);
+    reader.readAsDataURL(file);
+
+    setScanning(true);
+    setScanError("");
+
+    try {
+      // Convert to base64
+      const base64 = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result.split(",")[1]);
+        r.onerror = reject;
+        r.readAsDataURL(file);
+      });
+
+      const mediaType = file.type || "image/jpeg";
+
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-6",
+          max_tokens: 500,
+          messages: [{
+            role: "user",
+            content: [
+              {
+                type: "image",
+                source: { type: "base64", media_type: mediaType, data: base64 },
+              },
+              {
+                type: "text",
+                text: `This is a photo of a prescription or supplement bottle label. Please extract the medication information and respond ONLY with a JSON object (no markdown, no explanation) in this exact format:
+{
+  "name": "medication name only, no brand/generic distinction",
+  "dose": "strength and unit e.g. 25mg, 500mg, 10mcg",
+  "frequency": "dosing instructions simplified e.g. Once daily, Twice daily, As needed",
+  "notes": "any important instructions like take with food, avoid alcohol, etc — leave empty if none"
+}
+If you cannot read the label clearly, return: {"name":"","dose":"","frequency":"","notes":""}`,
+              },
+            ],
+          }],
+        }),
+      });
+
+      const data = await response.json();
+      const text = data.content?.[0]?.text || "";
+      const clean = text.replace(/```json|```/g, "").trim();
+      const parsed = JSON.parse(clean);
+
+      if (parsed.name) {
+        setForm(f => ({
+          ...blankMed(),
+          name: parsed.name || "",
+          dose: parsed.dose || "",
+          frequency: FREQUENCIES.includes(parsed.frequency) ? parsed.frequency : "",
+          notes: parsed.notes || "",
+        }));
+        setEditingId(null);
+        setShowForm(true);
+        setScanPreview(null);
+      } else {
+        setScanError("Couldn't read the label clearly. Please try a clearer photo or enter manually.");
+      }
+    } catch (err) {
+      console.error("Scan error:", err);
+      setScanError("Something went wrong. Please try again or enter manually.");
+    }
+    setScanning(false);
   };
 
   const handleEdit = (med) => { setForm({ ...med }); setEditingId(med.id); setShowForm(true); };
@@ -652,11 +740,58 @@ function MedicationsPanel() {
           {/* Action buttons */}
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }} className="no-print">
             <OutlineBtn onClick={() => setShowBulk(b => !b)}>↑ Bulk import</OutlineBtn>
+            {/* Scan button */}
+            <label style={{ cursor: "pointer" }}>
+              <input
+                ref={scanInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                style={{ display: "none" }}
+                onChange={handleScan}
+              />
+              <span style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                background: "none", border: `1px solid ${BORDER}`,
+                borderRadius: 6, padding: "5px 12px", fontSize: 12.5,
+                color: scanning ? WARM_GRAY : SAGE_DARK, cursor: "pointer",
+                fontFamily: "sans-serif", transition: "all 0.15s",
+                opacity: scanning ? 0.7 : 1,
+              }}>
+                {scanning ? (
+                  "Scanning..."
+                ) : (
+                  <>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                    Scan bottle
+                  </>
+                )}
+              </span>
+            </label>
             <button
               onClick={() => { setForm(blankMed()); setEditingId(null); setShowForm(true); }}
               style={{ background: SAGE_DARK, color: "#fff", border: "none", borderRadius: 8, padding: "6px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "sans-serif" }}
             >+ Add medication</button>
           </div>
+
+          {/* Scan preview */}
+          {scanPreview && scanning && (
+            <div style={{ display: "flex", alignItems: "center", gap: 12, background: SAGE_LIGHT, borderRadius: 8, padding: "10px 14px" }}>
+              <img src={scanPreview} alt="Scanning" style={{ width: 56, height: 56, objectFit: "cover", borderRadius: 6, border: `1px solid ${BORDER}` }}/>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: SAGE_DARK, fontFamily: "sans-serif" }}>Reading label...</div>
+                <div style={{ fontSize: 12, color: WARM_GRAY, fontFamily: "sans-serif" }}>Claude is extracting medication info from your photo</div>
+              </div>
+            </div>
+          )}
+
+          {/* Scan error */}
+          {scanError && (
+            <div style={{ background: "#fdecea", borderRadius: 8, padding: "10px 14px", fontSize: 12.5, color: "#c0392b", fontFamily: "sans-serif", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span>{scanError}</span>
+              <button onClick={() => setScanError("")} style={{ background: "none", border: "none", cursor: "pointer", color: "#c0392b", fontSize: 16 }}>×</button>
+            </div>
+          )}
 
           {/* Bulk import */}
           {showBulk && (
@@ -752,6 +887,15 @@ function MedicationsPanel() {
                 >
                   {editingId ? "Save changes" : "Add medication"}
                 </button>
+                {!editingId && (
+                  <label style={{ cursor: "pointer" }}>
+                    <input type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={async (e) => { await handleSave(); handleScan(e); }}/>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "none", border: `1px solid ${BORDER}`, borderRadius: 6, padding: "5px 10px", fontSize: 12, color: SAGE_DARK, cursor: "pointer", fontFamily: "sans-serif" }}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                      Save & scan another
+                    </span>
+                  </label>
+                )}
               </div>
             </div>
           )}
