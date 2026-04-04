@@ -486,7 +486,7 @@ const blankFamilyMember = () => ({
   notes: "",
 });
 
-function FamilyHistoryPanel() {
+function FamilyHistoryPanel({ onComplete }) {
   const [entries, setEntries] = useState(() => {
     try { const s = localStorage.getItem(FAMILY_STORAGE_KEY); return s ? JSON.parse(s) : []; } catch { return []; }
   });
@@ -498,6 +498,7 @@ function FamilyHistoryPanel() {
     setEntries(updated);
     try { localStorage.setItem(FAMILY_STORAGE_KEY, JSON.stringify(updated)); } catch {}
     setSaved(true); setFamilyDirty(false); setTimeout(() => setSaved(false), 2500);
+    if (onComplete) onComplete();
   };
 
   const markFamilyDirty = (updated) => {
@@ -852,7 +853,7 @@ function ProfilePanel({ form, setForm, markDirty }) {
 
 
 /* ─── Panel: Medications ─────────────────────────────────────────────────── */
-function MedicationsPanel() {
+function MedicationsPanel({ onComplete }) {
   const [medications, setMedications] = useState(() => {
     try { const s = localStorage.getItem(MED_STORAGE_KEY); return s ? JSON.parse(s) : []; } catch { return []; }
   });
@@ -1224,6 +1225,18 @@ If you cannot read the label clearly, return: {"name":"","dose":"","frequency":"
           )}
         </div>
       </SectionCard>
+
+      {/* Done button — marks medications complete and triggers next step */}
+      {onComplete && (
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+          <button
+            onClick={onComplete}
+            style={{ background: SAGE_DARK, color: "#fff", border: "none", borderRadius: 8, padding: "10px 24px", fontSize: 13.5, fontWeight: 600, cursor: "pointer", fontFamily: "sans-serif" }}
+          >
+            {medications.length > 0 ? "Done →" : "Skip for now →"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -1897,6 +1910,8 @@ const SAVEABLE_PANELS = new Set(["profile", "notifications", "privacy"]);
 const ALL_NAV_PANELS = new Set(["profile", "notifications", "security", "privacy", "connected", "subscription", "family", "medications"]);
 
 export default function CareCompassSettings() {
+  // Setup mode — triggered from /account?setup=true (new user flow)
+  const isSetupMode = new URLSearchParams(window.location.search).get("setup") === "true";
   const [activePanel, setActivePanel] = useState("profile");
   const [dirty, setDirty] = useState(false);
   const [toastVisible, setToastVisible] = useState(false);
@@ -2011,7 +2026,13 @@ export default function CareCompassSettings() {
               transition: "all 0.15s",
             }}
           >
-            <span style={{ opacity: 0.75, flexShrink: 0, display: "flex" }}>{icon}</span>
+            {isSetupMode ? (
+              <span style={{ width: 18, height: 18, borderRadius: "50%", background: completedPanels.has(id) ? SAGE : activePanel === id ? SAGE_DARK : BORDER, color: completedPanels.has(id) || activePanel === id ? "#fff" : WARM_GRAY, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, flexShrink: 0 }}>
+                {completedPanels.has(id) ? "✓" : NAV_ITEMS.findIndex(n => n.id === id) + 1}
+              </span>
+            ) : (
+              <span style={{ opacity: 0.75, flexShrink: 0, display: "flex" }}>{icon}</span>
+            )}
             <span style={{ flex: 1 }}>{label}</span>
             {completedPanels.has(id) && activePanel !== id && (
               <span style={{ fontSize: 10, color: SAGE_DARK, background: SAGE_LIGHT, borderRadius: "100px", padding: "1px 6px", fontWeight: 700, flexShrink: 0 }}>✓</span>
@@ -2070,14 +2091,24 @@ export default function CareCompassSettings() {
 
         {/* Content */}
         <div style={{ padding: "32px 36px", maxWidth: 740, paddingBottom: ALL_NAV_PANELS.has(activePanel) ? "100px" : "32px" }}>
+          {/* Setup mode banner */}
+          {isSetupMode && (
+            <div style={{ background: `linear-gradient(135deg, ${SAGE_LIGHT}, ${TEAL_LIGHT})`, borderRadius: "0.875rem", padding: "0.875rem 1.25rem", marginBottom: "1.5rem", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
+              <div>
+                <p style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: SAGE_DARK, margin: "0 0 0.2rem", fontFamily: "sans-serif" }}>Account setup</p>
+                <p style={{ fontSize: "0.82rem", color: INK, margin: 0, fontFamily: "sans-serif" }}>Fill in what you can — use <strong>Save & Next</strong> to move through each section</p>
+              </div>
+              <a href="/welcome" style={{ fontSize: "0.78rem", color: SAGE_DARK, textDecoration: "underline", fontFamily: "sans-serif" }}>Back to overview</a>
+            </div>
+          )}
           {activePanel === "profile"       && <ProfilePanel       form={profileForm}   setForm={setProfileForm}   markDirty={markDirty} />}
           {activePanel === "notifications" && <NotificationsPanel prefs={notifPrefs}   setPrefs={setNotifPrefs}   markDirty={markDirty} />}
           {activePanel === "security"      && <SecurityPanel />}
           {activePanel === "privacy"       && <PrivacyPanel       prefs={privacyPrefs} setPrefs={setPrivacyPrefs} markDirty={markDirty} />}
           {activePanel === "connected"     && <ConnectedAppsPanel />}
           {activePanel === "subscription"  && <SubscriptionPanel />}
-          {activePanel === "medications"  && <MedicationsPanel />}
-          {activePanel === "family"       && <FamilyHistoryPanel />}
+          {activePanel === "medications"  && <MedicationsPanel onComplete={() => { const nc = new Set(completedPanels); nc.add("medications"); setCompletedPanels(nc); try { localStorage.setItem("cc-completed-panels", JSON.stringify([...nc])); } catch {}; setTimeout(() => setShowAssessmentPrompt(true), 400); }}/>}
+          {activePanel === "family"       && <FamilyHistoryPanel onComplete={() => { const nc = new Set(completedPanels); nc.add("family"); setCompletedPanels(nc); try { localStorage.setItem("cc-completed-panels", JSON.stringify([...nc])); } catch {}; }}/>}
         </div>
 
         {/* ── Sticky save bar — travels with user on mobile ── */}
@@ -2131,6 +2162,11 @@ export default function CareCompassSettings() {
                   <button
                     onClick={() => {
                       if (isSaveable && dirty && !hasOwnSave) handleSave();
+                      // Mark current panel as complete when navigating forward
+                      const nc = new Set(completedPanels);
+                      nc.add(activePanel);
+                      setCompletedPanels(nc);
+                      try { localStorage.setItem("cc-completed-panels", JSON.stringify([...nc])); } catch {}
                       switchPanel(nextPanel);
                       window.scrollTo(0, 0);
                     }}
@@ -2180,7 +2216,7 @@ export default function CareCompassSettings() {
 
               {/* CTA */}
               <a
-                href="/dashboard"
+                href={isSetupMode ? "/welcome?step=2" : "/dashboard"}
                 style={{
                   background: SAGE_DARK, color: "#fff", textDecoration: "none",
                   padding: "0.95rem", borderRadius: "100px", fontSize: "1rem",
