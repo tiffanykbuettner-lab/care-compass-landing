@@ -230,6 +230,57 @@ function AppointmentCard({ appt, onEdit, onDelete }) {
   );
 }
 
+
+/* ─── Calendar export helpers ────────────────────────────────────────────── */
+function makeICSContent(appt) {
+  const [y, m, d] = appt.date.split("-").map(Number);
+  const [hh, mm] = appt.time ? appt.time.split(":").map(Number) : [9, 0];
+  const pad = n => String(n).padStart(2, "0");
+  const dtStart = `${y}${pad(m)}${pad(d)}T${pad(hh)}${pad(mm)}00`;
+  const dtEnd = `${y}${pad(m)}${pad(d)}T${pad(hh + 1)}${pad(mm)}00`;
+  const now = new Date().toISOString().replace(/[-:]/g, "").slice(0, 15) + "Z";
+  const title = `${appt.specialty} Appointment${appt.doctor ? " — " + appt.doctor : ""}`;
+  const desc = [appt.reason, "Prepared with Care Compass (joincarecompass.com)"].filter(Boolean).join("\n");
+  return [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//CareCompass//EN",
+    "BEGIN:VEVENT",
+    `UID:${now}-carecompass@joincarecompass.com`,
+    `DTSTAMP:${now}`,
+    `DTSTART:${dtStart}`,
+    `DTEND:${dtEnd}`,
+    `SUMMARY:${title}`,
+    `DESCRIPTION:${desc}`,
+    appt.location ? `LOCATION:${appt.location}` : "",
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ].filter(Boolean).join("\r\n");
+}
+
+function makeGoogleCalUrl(appt) {
+  const [y, m, d] = appt.date.split("-").map(Number);
+  const [hh, mm] = appt.time ? appt.time.split(":").map(Number) : [9, 0];
+  const pad = n => String(n).padStart(2, "0");
+  const dt = `${y}${pad(m)}${pad(d)}T${pad(hh)}${pad(mm)}00`;
+  const dtEnd = `${y}${pad(m)}${pad(d)}T${pad(hh + 1)}${pad(mm)}00`;
+  const title = encodeURIComponent(`${appt.specialty} Appointment${appt.doctor ? " — " + appt.doctor : ""}`);
+  const details = encodeURIComponent(appt.reason || "");
+  const loc = encodeURIComponent(appt.location || "");
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dt}/${dtEnd}&details=${details}&location=${loc}`;
+}
+
+function downloadICS(appt) {
+  const content = makeICSContent(appt);
+  const blob = new Blob([content], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `carecompass-appointment.ics`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 function AppointmentForm({ initial, onSave, onCancel }) {
   const blank = { specialty: "", doctor: "", date: "", time: "", location: "", reason: "", reminder: true, reminderAdvance: "1440", prepReport: true };
   const careTeamProviders = (() => {
@@ -281,14 +332,27 @@ function AppointmentForm({ initial, onSave, onCancel }) {
               <option value="__other__">Other / not in my care team</option>
             </select>
             {form.doctor === "__other__" && (
-              <input
-                type="text"
-                value={form._customDoctor || ""}
-                onChange={e => setForm(f => ({ ...f, _customDoctor: e.target.value }))}
-                placeholder="Enter doctor name..."
-                style={{ ...inp, marginTop: "0.5rem" }}
-                autoFocus
-              />
+              <div style={{ marginTop: "0.5rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                <input
+                  type="text"
+                  value={form._customDoctor || ""}
+                  onChange={e => setForm(f => ({ ...f, _customDoctor: e.target.value }))}
+                  placeholder="Enter doctor name..."
+                  style={inp}
+                  autoFocus
+                />
+                {form._customDoctor?.trim() && (
+                  <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", fontSize: "0.8rem", color: SAGE_DARK }}>
+                    <input
+                      type="checkbox"
+                      checked={form._saveToTeam || false}
+                      onChange={() => setForm(f => ({ ...f, _saveToTeam: !f._saveToTeam }))}
+                      style={{ accentColor: SAGE_DARK, width: 14, height: 14 }}
+                    />
+                    Save this provider to my care team in Account Settings
+                  </label>
+                )}
+              </div>
             )}
           </>
         ) : (
@@ -498,8 +562,9 @@ export default function CareCompassDashboard() {
 
   // ── Appointments state ────────────────────────────────────────────────────
   const [appointments, setAppointments] = useState([]);
-  const [showApptForm, setShowApptForm] = useState(false);
-  const [editingAppt, setEditingAppt]   = useState(null);
+  const [showApptForm, setShowApptForm]     = useState(false);
+  const [editingAppt, setEditingAppt]       = useState(null);
+  const [calendarAppt, setCalendarAppt]     = useState(null); // newly saved appt for calendar prompt
 
   useEffect(() => {
     try {
@@ -515,10 +580,21 @@ export default function CareCompassDashboard() {
 
   const handleSaveAppt = (form) => {
     // Resolve custom doctor name if "Other" was selected
-    const resolvedForm = {
-      ...form,
-      doctor: form.doctor === "__other__" ? (form._customDoctor || "") : form.doctor,
-    };
+    const resolvedDoctor = form.doctor === "__other__" ? (form._customDoctor || "") : form.doctor;
+    const resolvedForm = { ...form, doctor: resolvedDoctor };
+
+    // Optionally save new provider to care team
+    if (form._saveToTeam && resolvedDoctor) {
+      try {
+        const existing = JSON.parse(localStorage.getItem("cc-care-team") || "[]");
+        const alreadyExists = existing.some(p => p.name.toLowerCase() === resolvedDoctor.toLowerCase());
+        if (!alreadyExists) {
+          existing.push({ id: Date.now(), name: resolvedDoctor, specialty: form.specialty || "" });
+          localStorage.setItem("cc-care-team", JSON.stringify(existing));
+        }
+      } catch {}
+    }
+
     if (editingAppt) {
       saveAppointments(appointments.map(a => a.id === editingAppt.id ? { ...resolvedForm, id: editingAppt.id } : a));
     } else {
@@ -526,6 +602,8 @@ export default function CareCompassDashboard() {
     }
     setShowApptForm(false);
     setEditingAppt(null);
+    // Prompt to add to calendar for new appointments only
+    if (!editingAppt) setCalendarAppt(resolvedForm);
   };
 
   const handleEditAppt = (appt) => { setEditingAppt(appt); setShowApptForm(true); };
@@ -843,6 +921,43 @@ export default function CareCompassDashboard() {
                       Generate report →
                     </a>
                   )}
+                </div>
+              )}
+
+              {/* ── Calendar prompt modal ── */}
+              {calendarAppt && (
+                <div style={{ background: SAGE_LIGHT, borderRadius: "1rem", padding: "1.25rem", marginBottom: "1.25rem", display: "flex", flexDirection: "column", gap: "0.875rem" }}>
+                  <div>
+                    <p style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: SAGE_DARK, margin: "0 0 0.2rem" }}>Appointment saved! 🎉</p>
+                    <p style={{ fontSize: "0.85rem", color: INK, margin: 0 }}>Add this to your calendar?</p>
+                  </div>
+                  <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                    <a
+                      href={makeGoogleCalUrl(calendarAppt)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ display: "flex", alignItems: "center", gap: "0.5rem", background: "#fff", border: "1px solid rgba(0,0,0,0.12)", borderRadius: "0.65rem", padding: "0.55rem 1rem", fontSize: "0.82rem", fontWeight: 600, color: INK, textDecoration: "none" }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="18" rx="2" stroke="#4285F4" strokeWidth="1.5"/><path d="M3 9h18" stroke="#4285F4" strokeWidth="1.5"/><path d="M8 2v4M16 2v4" stroke="#4285F4" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                      Add to Google Calendar
+                    </a>
+                    <button
+                      onClick={() => downloadICS(calendarAppt)}
+                      style={{ display: "flex", alignItems: "center", gap: "0.5rem", background: "#fff", border: "1px solid rgba(0,0,0,0.12)", borderRadius: "0.65rem", padding: "0.55rem 1rem", fontSize: "0.82rem", fontWeight: 600, color: INK, cursor: "pointer", fontFamily: "inherit" }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="18" rx="2" stroke="#888" strokeWidth="1.5"/><path d="M3 9h18" stroke="#888" strokeWidth="1.5"/><path d="M8 2v4M16 2v4" stroke="#888" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                      Add to Apple Calendar (.ics)
+                    </button>
+                    <button
+                      onClick={() => setCalendarAppt(null)}
+                      style={{ background: "none", border: "none", fontSize: "0.78rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit", padding: "0.55rem 0.5rem" }}
+                    >
+                      Skip
+                    </button>
+                  </div>
+                  <p style={{ fontSize: "0.7rem", color: WARM_GRAY, margin: 0, fontStyle: "italic" }}>
+                    The .ics file works with Apple Calendar, Outlook, and most calendar apps.
+                  </p>
                 </div>
               )}
 
