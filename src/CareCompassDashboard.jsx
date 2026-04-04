@@ -794,7 +794,11 @@ export default function CareCompassDashboard() {
           {/* ── New user empty state ── */}
           {isNew && (
             <div style={s.newUserGrid}>
-              {ONBOARDING_STEPS.map((step, i) => (
+              {[
+                { icon: "⚙️", title: "Set up your account", desc: "Add medications, care team, and health context to personalise your experience.", href: "/account?setup=true", cta: "Set up account →" },
+                { icon: "🧭", title: "Take your assessment", desc: "Map your symptoms across every area of your health. AI surfaces patterns and next steps.", href: "/compass", cta: "Start assessment →" },
+                { icon: "📋", title: "Track daily symptoms", desc: "Log how you feel in real time and generate doctor-ready reports for every appointment.", href: "/tracker", cta: "Open tracker →" },
+              ].map((step, i) => (
                 <div key={i} style={s.newUserCard}>
                   <div style={s.newUserCardNum}>{i + 1}</div>
                   <span style={s.newUserCardIcon}>{step.icon}</span>
