@@ -492,16 +492,23 @@ function FamilyHistoryPanel() {
   });
   const [saved, setSaved] = useState(false);
 
+  const [familyDirty, setFamilyDirty] = useState(false);
+
   const saveEntries = (updated) => {
     setEntries(updated);
     try { localStorage.setItem(FAMILY_STORAGE_KEY, JSON.stringify(updated)); } catch {}
-    setSaved(true); setTimeout(() => setSaved(false), 2500);
+    setSaved(true); setFamilyDirty(false); setTimeout(() => setSaved(false), 2500);
   };
 
-  const addMember = () => saveEntries([...entries, blankFamilyMember()]);
-  const removeMember = (id) => saveEntries(entries.filter(e => e.id !== id));
+  const markFamilyDirty = (updated) => {
+    setEntries(updated);
+    setFamilyDirty(true);
+  };
+
+  const addMember = () => markFamilyDirty([...entries, blankFamilyMember()]);
+  const removeMember = (id) => markFamilyDirty(entries.filter(e => e.id !== id));
   const updateMember = (id, field, value) =>
-    saveEntries(entries.map(e => e.id === id ? { ...e, [field]: value } : e));
+    markFamilyDirty(entries.map(e => e.id === id ? { ...e, [field]: value } : e));
 
   // Group by side for display
   const maternal = entries.filter(e => {
@@ -614,14 +621,16 @@ function FamilyHistoryPanel() {
             + Add family member
           </button>
 
-          <div style={{ display: "flex", justifyContent: "flex-end", paddingTop: 4 }}>
-            <button
-              onClick={() => saveEntries(entries)}
-              style={{ background: SAGE_DARK, color: "#fff", border: "none", borderRadius: 8, padding: "8px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "sans-serif" }}
-            >
-              Save family history
-            </button>
-          </div>
+          {familyDirty && (
+            <div style={{ display: "flex", justifyContent: "flex-end", paddingTop: 4 }}>
+              <button
+                onClick={() => saveEntries(entries)}
+                style={{ background: SAGE_DARK, color: "#fff", border: "none", borderRadius: 8, padding: "8px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "sans-serif" }}
+              >
+                Save changes
+              </button>
+            </div>
+          )}
 
           <p style={{ fontSize: 11.5, color: "#aaa", fontFamily: "sans-serif", margin: 0, fontStyle: "italic" }}>
             Only include information you know and are comfortable sharing. This is stored privately on your device.
@@ -1445,11 +1454,12 @@ function InfoPopover({ children }) {
       </button>
       {open && (
         <div style={{
-          position: "absolute", left: 0, top: "calc(100% + 6px)", zIndex: 50,
+          position: "fixed", left: "auto", zIndex: 200,
           background: "white", border: `1px solid ${BORDER}`,
           borderRadius: 10, padding: "14px 16px",
-          boxShadow: "0 4px 20px rgba(0,0,0,0.10)",
+          boxShadow: "0 4px 24px rgba(0,0,0,0.14)",
           width: 280, fontFamily: "sans-serif",
+          maxHeight: "80vh", overflowY: "auto",
         }}>
           {children}
           <div style={{
@@ -2079,7 +2089,7 @@ export default function CareCompassSettings() {
           const isSaveable = SAVEABLE_PANELS.has(activePanel);
           // Family and medications have their own save buttons inside the panel
           // Security, connected, subscription have no user-editable dirty state
-          const hasOwnSave = activePanel === "family" || activePanel === "medications";
+          const hasOwnSave = activePanel === "family";
           return (
             <div style={{
               position: "sticky", bottom: 0,
@@ -2093,7 +2103,10 @@ export default function CareCompassSettings() {
             }}>
               <span style={{ fontSize: 12.5, fontFamily: "sans-serif", fontStyle: "italic",
                 color: isSaveable && dirty ? SAGE_DARK : WARM_GRAY }}>
-                {isSaveable && dirty ? "You have unsaved changes" : isSaveable ? "All changes saved" : ""}
+                {isSaveable && dirty ? "You have unsaved changes"
+                  : isLast ? "🎉 All done! Your account is set up."
+                  : isSaveable ? "All changes saved"
+                  : ""}
               </span>
               <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
                 {/* Save button — only for saveable panels, not panels with own save */}
