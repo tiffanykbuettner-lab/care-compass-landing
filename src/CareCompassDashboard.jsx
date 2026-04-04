@@ -582,12 +582,7 @@ function NewUserWelcome({ userName, onComplete }) {
             >
               Start tracking instead
             </a>
-            <button
-              onClick={onComplete}
-              style={{ background: "none", border: "none", fontSize: "0.82rem", color: "#bbb", cursor: "pointer", fontFamily: "inherit" }}
-            >
-              I'll explore the dashboard first
-            </button>
+
           </div>
 
         </div>
