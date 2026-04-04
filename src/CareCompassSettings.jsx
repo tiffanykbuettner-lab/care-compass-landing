@@ -623,7 +623,7 @@ function MedicationsPanel() {
   const handleDelete = (id) => saveMeds(medications.filter(m => m.id !== id));
 
   const handleBulkImport = () => {
-    const lines = bulkText.replace(/,|;/g, "
+    const lines = bulkText.replace(/,|;/g, "\n").split("\n").map(l => l.trim()).filter(Boolean);
 ").split("
 ").map(l => l.trim()).filter(Boolean);
     const newMeds = lines.map(line => {
