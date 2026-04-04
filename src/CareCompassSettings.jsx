@@ -1638,6 +1638,9 @@ export default function CareCompassSettings() {
   const [dirty, setDirty] = useState(false);
   const [toastVisible, setToastVisible] = useState(false);
   const [showAssessmentPrompt, setShowAssessmentPrompt] = useState(false);
+  const [completedPanels, setCompletedPanels] = useState(() => {
+    try { const s = localStorage.getItem("cc-completed-panels"); return s ? new Set(JSON.parse(s)) : new Set(); } catch { return new Set(); }
+  });
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   // Profile form state
@@ -1666,9 +1669,15 @@ export default function CareCompassSettings() {
     setDirty(false);
     setToastVisible(true);
     setTimeout(() => setToastVisible(false), 2800);
-    // Prompt new users to take assessment after saving
-    if (!localStorage.getItem("cc-assessment-complete") && activePanel === "profile") {
-      setTimeout(() => setShowAssessmentPrompt(true), 1000);
+    // Mark this panel as complete
+    const newCompleted = new Set(completedPanels);
+    newCompleted.add(activePanel);
+    setCompletedPanels(newCompleted);
+    try { localStorage.setItem("cc-completed-panels", JSON.stringify([...newCompleted])); } catch {}
+
+    // Show welcome prompt only after Medications (last panel) is saved
+    if (activePanel === "medications") {
+      setTimeout(() => setShowAssessmentPrompt(true), 600);
     }
     // Persist display name for dashboard greeting
     try {
@@ -1740,7 +1749,10 @@ export default function CareCompassSettings() {
             }}
           >
             <span style={{ opacity: 0.75, flexShrink: 0, display: "flex" }}>{icon}</span>
-            {label}
+            <span style={{ flex: 1 }}>{label}</span>
+            {completedPanels.has(id) && activePanel !== id && (
+              <span style={{ fontSize: 10, color: SAGE_DARK, background: SAGE_LIGHT, borderRadius: "100px", padding: "1px 6px", fontWeight: 700, flexShrink: 0 }}>✓</span>
+            )}
           </div>
         ))}
 
@@ -1805,73 +1817,106 @@ export default function CareCompassSettings() {
         </div>
 
         {/* ── Sticky save bar — travels with user on mobile ── */}
-        {SAVEABLE_PANELS.has(activePanel) && (
-          <div style={{
-            position: "sticky", bottom: 0,
-            background: "rgba(255,255,255,0.96)",
-            backdropFilter: "blur(8px)",
-            borderTop: `1px solid ${BORDER}`,
-            padding: "12px 24px",
-            display: "flex", alignItems: "center",
-            justifyContent: "space-between", gap: 12,
-            zIndex: 50,
-          }}>
-            <span style={{ fontSize: 12.5, color: dirty ? SAGE_DARK : WARM_GRAY, fontFamily: "sans-serif", fontStyle: dirty ? "normal" : "italic" }}>
-              {dirty ? "You have unsaved changes" : "All changes saved"}
-            </span>
-            <button
-              onClick={handleSave}
-              disabled={!dirty}
-              style={{
-                background: dirty ? SAGE_DARK : "#bbb", color: "white", border: "none",
-                borderRadius: 8, padding: "10px 24px", fontSize: 13.5,
-                cursor: dirty ? "pointer" : "default", fontWeight: 600,
-                transition: "all 0.15s", minWidth: 130, fontFamily: "sans-serif",
-              }}
-            >
-              {dirty ? "Save changes" : "Saved ✓"}
-            </button>
-          </div>
-        )}
+        {SAVEABLE_PANELS.has(activePanel) && (() => {
+          const panelIds = NAV_ITEMS.map(n => n.id);
+          const currentIdx = panelIds.indexOf(activePanel);
+          const nextPanel = panelIds.find((id, i) => i > currentIdx);
+          const isLast = activePanel === "medications";
+          return (
+            <div style={{
+              position: "sticky", bottom: 0,
+              background: "rgba(255,255,255,0.96)",
+              backdropFilter: "blur(8px)",
+              borderTop: `1px solid ${BORDER}`,
+              padding: "12px 24px",
+              display: "flex", alignItems: "center",
+              justifyContent: "space-between", gap: 12,
+              zIndex: 50, flexWrap: "wrap",
+            }}>
+              <span style={{ fontSize: 12.5, color: dirty ? SAGE_DARK : WARM_GRAY, fontFamily: "sans-serif", fontStyle: dirty ? "normal" : "italic" }}>
+                {dirty ? "You have unsaved changes" : "All changes saved"}
+              </span>
+              <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                {/* Save only */}
+                <button
+                  onClick={handleSave}
+                  disabled={!dirty}
+                  style={{
+                    background: isLast ? (dirty ? SAGE_DARK : "#bbb") : "transparent",
+                    color: isLast ? "white" : (dirty ? SAGE_DARK : WARM_GRAY),
+                    border: isLast ? "none" : `1.5px solid ${dirty ? SAGE : BORDER}`,
+                    borderRadius: 8, padding: "9px 18px", fontSize: 13,
+                    cursor: dirty ? "pointer" : "default", fontWeight: 600,
+                    transition: "all 0.15s", fontFamily: "sans-serif",
+                  }}
+                >
+                  {dirty ? "Save" : "Saved ✓"}
+                </button>
+                {/* Save & Next — only on non-last panels */}
+                {!isLast && nextPanel && (
+                  <button
+                    onClick={() => { if (dirty) handleSave(); switchPanel(nextPanel); window.scrollTo(0, 0); }}
+                    style={{
+                      background: SAGE_DARK, color: "white", border: "none",
+                      borderRadius: 8, padding: "9px 18px", fontSize: 13,
+                      cursor: "pointer", fontWeight: 600,
+                      transition: "all 0.15s", fontFamily: "sans-serif",
+                      display: "flex", alignItems: "center", gap: 6,
+                    }}
+                  >
+                    {dirty ? "Save & Next →" : "Next →"}
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       <Toast visible={toastVisible} />
 
       {/* Assessment prompt — shown after first save if no assessment yet */}
-      {showAssessmentPrompt && (
-        <div style={{
-          position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
-          zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: "1.5rem"
-        }} onClick={() => setShowAssessmentPrompt(false)}>
+      {showAssessmentPrompt && (() => {
+        const displayName = localStorage.getItem("cc-display-name") || "";
+        return (
           <div style={{
-            background: "#fff", borderRadius: "1.25rem", padding: "2rem",
-            maxWidth: 400, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.2)",
-            textAlign: "center", display: "flex", flexDirection: "column", gap: "1rem"
-          }} onClick={e => e.stopPropagation()}>
-            <div style={{ fontSize: "2.5rem" }}>🧭</div>
-            <h3 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.2rem", fontWeight: 700, color: INK, margin: 0 }}>
-              Ready for your assessment?
-            </h3>
-            <p style={{ fontSize: "0.875rem", color: WARM_GRAY, lineHeight: 1.6, margin: 0 }}>
-              Your account is set up. The assessment will use your medications, conditions, and care team to give you more relevant insights.
-            </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
+            zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: "1.5rem"
+          }}>
+            <div style={{
+              background: "#fff", borderRadius: "1.5rem", padding: "2.5rem 2rem",
+              maxWidth: 380, width: "100%", boxShadow: "0 24px 64px rgba(0,0,0,0.22)",
+              textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: "1.25rem"
+            }}>
+              {/* Botanical mark */}
+              <BotanicalMark size={56}/>
+
+              {/* Welcome greeting */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.6rem", fontWeight: 700, color: INK, margin: 0, lineHeight: 1.2 }}>
+                  {displayName ? `Welcome, ${displayName}!` : "You're all set!"}
+                </h2>
+                <p style={{ fontSize: "0.875rem", color: WARM_GRAY, lineHeight: 1.65, margin: 0 }}>
+                  Your account is set up and ready. Head to your dashboard to take your assessment and start tracking.
+                </p>
+              </div>
+
+              {/* CTA */}
               <a
-                href="/compass"
-                style={{ background: SAGE_DARK, color: "#fff", textDecoration: "none", padding: "0.875rem", borderRadius: "100px", fontSize: "0.95rem", fontWeight: 600 }}
+                href="/dashboard"
+                style={{
+                  background: SAGE_DARK, color: "#fff", textDecoration: "none",
+                  padding: "0.95rem", borderRadius: "100px", fontSize: "1rem",
+                  fontWeight: 600, width: "100%", boxSizing: "border-box",
+                  display: "block",
+                }}
               >
-                Begin the Assessment →
+                Let's get started →
               </a>
-              <button
-                onClick={() => setShowAssessmentPrompt(false)}
-                style={{ background: "none", border: "none", color: WARM_GRAY, fontSize: "0.85rem", cursor: "pointer", fontFamily: "inherit", textDecoration: "underline", textDecorationColor: "rgba(0,0,0,0.2)" }}
-              >
-                I'll do it later
-              </button>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
