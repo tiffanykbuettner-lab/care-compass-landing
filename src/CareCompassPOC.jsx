@@ -38,116 +38,98 @@ const BODY_SYSTEMS = [
     system: "Joints & Muscles",
     examples: "joint pain, muscle pain, instability, subluxations, stiffness",
     hints: [
-      "Do your joints crack, pop, or slip out of place?",
-      "Do you feel stiff in the morning or after sitting?",
-      "Does your pain move around or stay in one place?",
-      "Do you bruise easily or feel like your skin tears?",
-      "Do you feel like you have to 'crack' joints for relief?",
-      "Do you experience muscle spasms or charlie horses?",
-      "Do you have hypermobile or double-jointed areas?",
+      "joint cracking, popping, or slipping",
+      "morning stiffness or stiffness after sitting",
+      "pain that moves around",
+      "easy bruising",
+      "muscle spasms",
+      "hypermobile or double-jointed areas",
     ]
   },
   {
     system: "Heart & Circulation",
     examples: "palpitations, dizziness on standing, fainting, Raynaud's",
     hints: [
-      "Do you feel dizzy, lightheaded, or faint when standing up?",
-      "Do you notice your heart racing or skipping beats?",
-      "Do your hands or feet turn white, blue, or red in the cold?",
-      "Do you feel worse after standing for long periods?",
-      "Do you have low blood pressure or feel faint in heat?",
-      "Do you feel your heartbeat strongly in your chest or neck?",
-      "Do you get shortness of breath just from standing or light activity?",
+      "dizziness or fainting when standing",
+      "racing or skipping heartbeat",
+      "hands or feet turning white/blue in cold",
+      "worse after standing for long periods",
+      "strongly feeling your heartbeat",
     ]
   },
   {
     system: "Digestive",
     examples: "nausea, reflux, difficulty swallowing, bloating, food intolerances",
     hints: [
-      "Do you experience nausea regularly, even without eating?",
-      "Does food or liquid come back up your throat?",
-      "Do you have trouble swallowing or feel like things get stuck?",
-      "Do certain foods consistently make you feel worse?",
-      "Do you experience extreme bloating after eating?",
-      "Do you have constipation, diarrhea, or alternating both?",
-      "Do you feel full very quickly, even after small amounts?",
-      "Do you experience stomach pain that is hard to explain?",
+      "nausea without eating",
+      "food or liquid coming back up",
+      "trouble swallowing",
+      "extreme bloating after eating",
+      "feeling full quickly after small amounts",
     ]
   },
   {
     system: "Neurological",
     examples: "migraines, brain fog, headaches, numbness, tingling",
     hints: [
-      "Do you experience 'brain fog' — difficulty thinking or concentrating?",
-      "Do you get frequent headaches or migraines?",
-      "Do you have numbness, tingling, or burning in hands or feet?",
-      "Do you have memory problems or difficulty finding words?",
-      "Do you feel sensitive to light, sound, or smell?",
-      "Do you experience visual disturbances or aura?",
-      "Do you feel clumsy, uncoordinated, or drop things often?",
+      "brain fog or difficulty concentrating",
+      "frequent headaches or migraines",
+      "numbness, tingling, or burning in hands/feet",
+      "memory issues or word-finding difficulty",
+      "sensitivity to light, sound, or smell",
     ]
   },
   {
     system: "Skin & Immune",
     examples: "rashes, allergic reactions, sensitivity to adhesives or bug bites",
     hints: [
-      "Do you have unexplained rashes or hives?",
-      "Do bug bites cause unusually large welts?",
-      "Do adhesives (bandages, tape) cause skin reactions?",
-      "Do you react to medications, foods, or environmental triggers?",
-      "Do you have skin that is very stretchy or velvety?",
-      "Do you flush easily or get red patches on your skin?",
-      "Do you have frequent infections or slow wound healing?",
-      "Do you experience itching without a visible rash?",
+      "unexplained rashes or hives",
+      "unusually large reactions to bug bites",
+      "reactions to adhesives or bandages",
+      "skin that is very stretchy or velvety",
+      "easy flushing or skin redness",
     ]
   },
   {
     system: "Reproductive & Pelvic",
     examples: "painful periods, pelvic pain, endometriosis, urinary urgency",
     hints: [
-      "Do you experience extremely painful periods?",
-      "Do you have pelvic pain that is not related to your cycle?",
-      "Do you experience urgency or frequency with urination?",
-      "Do you have pain during intercourse?",
-      "Have you been told you have endometriosis or PCOS?",
-      "Do you experience pelvic floor issues or prolapse symptoms?",
-      "Do you have unusual bleeding or hormonal irregularities?",
+      "extremely painful periods",
+      "pelvic pain unrelated to your cycle",
+      "urinary urgency or frequency",
+      "pain during intercourse",
+      "endometriosis or PCOS",
     ]
   },
   {
     system: "Breathing & Energy",
-    examples: "shortness of breath, fatigue, exercise intolerance, sleep issues",
+    examples: "shortness of breath, fatigue, exercise intolerance, unrefreshing sleep",
     hints: [
-      "Do you feel exhausted even after a full night's sleep?",
-      "Do you get short of breath with minimal exertion?",
-      "Do you crash after exercise or activity (post-exertional malaise)?",
-      "Do you have difficulty staying asleep or feel unrefreshed?",
-      "Do you experience air hunger — feeling like you can't get enough air?",
-      "Do you have a persistent cough or feel chest tightness?",
-      "Do you feel worse in heat or humidity?",
-      "Do you have caffeine intolerance — does it make you feel worse?",
+      "exhaustion after a full night's sleep",
+      "shortness of breath with minimal exertion",
+      "crashing after activity (post-exertional malaise)",
+      "air hunger — feeling you can't get enough air",
+      "worse in heat or humidity",
     ]
   },
   {
     system: "Mental Health",
-    examples: "anxiety, depression, mood changes, sleep disturbances",
+    examples: "anxiety, depression, mood changes, emotional dysregulation",
     hints: [
-      "Do you experience anxiety that feels physical — racing heart, trembling?",
-      "Do you have periods of depression that seem to come out of nowhere?",
-      "Do you feel emotionally overwhelmed more easily than others?",
-      "Do you have difficulty regulating your mood?",
-      "Do you experience panic attacks?",
-      "Do you feel disconnected from yourself or your surroundings?",
-      "Do you have heightened sensitivity to stress?",
+      "anxiety that feels physical — racing heart, trembling",
+      "depression that comes out of nowhere",
+      "easily emotionally overwhelmed",
+      "panic attacks",
+      "feeling disconnected from yourself",
     ]
   },
   {
     system: "Other",
     examples: "anything that doesn't fit above",
     hints: [
-      "Is there anything else you experience that doesn't fit the categories above?",
-      "Do you have symptoms that come and go without an obvious cause?",
-      "Are there patterns you've noticed that your doctors haven't been able to explain?",
+      "symptoms that come and go without cause",
+      "patterns your doctors haven't explained",
+      "anything else worth mentioning",
     ]
   },
 ];
@@ -162,8 +144,8 @@ const BotanicalMark = ({ size = 32 }) => (
     <ellipse cx="17" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.45"/>
     <ellipse cx="36" cy="36" rx="4.5" ry="11" fill="#4a7058" opacity="0.4" transform="rotate(42 36 36) translate(0 -14)"/>
     <ellipse cx="36" cy="36" rx="4.5" ry="11" fill="#4a7058" opacity="0.4" transform="rotate(-42 36 36) translate(0 -14)"/>
-    <ellipse cx="36" cy="36" rx="3.5" ry="9" fill="#4a9fa5" opacity="0.6" transform="rotate(135 36 36) translate(0 -14)"/>
-    <ellipse cx="36" cy="36" rx="3.5" ry="9" fill="#4a9fa5" opacity="0.6" transform="rotate(-135 36 36) translate(0 -14)"/>
+    <ellipse cx="36" cy="36" rx="3.5" ry="9" fill="#7a9e87" opacity="0.3" transform="rotate(135 36 36) translate(0 -14)"/>
+    <ellipse cx="36" cy="36" rx="3.5" ry="9" fill="#7a9e87" opacity="0.3" transform="rotate(-135 36 36) translate(0 -14)"/>
     <circle cx="36" cy="36" r="7" fill="#4a7058"/>
     <circle cx="36" cy="36" r="3" fill="#e8f0eb"/>
     <line x1="36" y1="29" x2="36" y2="17" stroke="#e8f0eb" strokeWidth="0.8" opacity="0.6"/>
@@ -233,7 +215,7 @@ function SymptomRow({ system, examples, hints, value, onChange }) {
       </div>
       {showHints && (
         <div style={s.hintsPanel}>
-          <p style={s.hintsPanelTitle}>Prompts to consider — you may have learned to live with some of these:</p>
+          <p style={s.hintsPanelTitle}>Examples:</p>
           <ul style={s.hintsList}>
             {hints.map((h, i) => (
               <li key={i} style={s.hintsItem}>{h}</li>
@@ -280,7 +262,7 @@ function LifestyleField({ label, val, set, placeholder, rows, hints }) {
       </div>
       {showHints && hints && (
         <div style={s.hintsPanel}>
-          <p style={s.hintsPanelTitle}>Prompts to help you reflect:</p>
+          <p style={s.hintsPanelTitle}>Examples:</p>
           <ul style={s.hintsList}>
             {hints.map((h, i) => <li key={i} style={s.hintsItem}>{h}</li>)}
           </ul>
@@ -730,15 +712,12 @@ Please provide a Care Compass Insight Report with these sections:
                 </div>
                 {[
                   { label: "Diet & eating patterns", val: diet, set: setDiet, placeholder: "e.g. gluten-free, dairy-free, irregular eating, specific food triggers…", rows: 3, hints: [
-    		   "Do you wake up hungry or with no appetite?",
-   	   	   "Do you eat breakfast? Do you eat 3 meals or many small ones?",
- 		   "Do you skip meals or go long periods without eating?",
-	           "Do you feel shaky, irritable, or foggy if you don't eat?",
-	           "Do certain foods consistently make you feel worse — gluten, dairy, sugar, histamine?",
-	           "Do you have food cravings, especially for salt or sugar?",
-	           "Do you eat at regular times or irregularly?",
-	           "Do you feel worse after large meals vs small ones?",
- 		   ]},
+                    "irregular eating, skipping meals",
+                    "shaky or foggy when hungry",
+                    "food triggers: gluten, dairy, sugar, histamine",
+                    "salt or sugar cravings",
+                    "worse after large meals",
+                  ]},
                   { label: "Activity level", val: activity, set: setActivity, placeholder: "e.g. active but limited by symptoms, mostly sedentary, exercise intolerant…", rows: 3 },
                   { label: "Sleep quality", val: sleep, set: setSleep, placeholder: "e.g. difficulty falling asleep, waking frequently, unrefreshing sleep, 4-5 hours per night…", rows: 3 },
                   { label: "Stress & mental load", val: stress, set: setStress, placeholder: "e.g. high stress, caregiving responsibilities, work pressure…", rows: 3 },
