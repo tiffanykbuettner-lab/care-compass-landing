@@ -1329,6 +1329,22 @@ function NotificationsPanel({ prefs, setPrefs, markDirty }) {
       cadenceLabel: "Every",
     },
     {
+      key: "morningCheckin",
+      label: "Morning check-in",
+      sub: "Prompt to log your sleep quality and how you feel on waking",
+      showTime: true,
+      cadenceLabel: "Show after",
+      timeHint: "Shows on tracker after this time each morning",
+    },
+    {
+      key: "eveningCheckin",
+      label: "Evening check-in",
+      sub: "Prompt to reflect on your day and log any remaining symptoms",
+      showTime: true,
+      cadenceLabel: "Show after",
+      timeHint: "Shows on tracker after this time each evening",
+    },
+    {
       key: "productUpdates",
       label: "Product updates & tips",
       sub: "Occasional emails from the Care Compass team about new features and tips — sent when we have something worth sharing",
@@ -1934,6 +1950,8 @@ export default function CareCompassSettings() {
   // Notification prefs state
   const [notifPrefs, setNotifPrefs] = useState({
     dailyReminder:  { on: true,  time: "20:00" },
+    morningCheckin: { on: true,  time: "04:00" },
+    eveningCheckin: { on: true,  time: "18:00" },
     weeklyDigest:   { on: true,  time: "08:00", day: "Sunday" },
     productUpdates: { on: false },
   });
@@ -1963,6 +1981,13 @@ export default function CareCompassSettings() {
     try {
       const displayName = profileForm.preferredName?.trim() || profileForm.firstName?.trim() || "";
       localStorage.setItem("cc-display-name", displayName);
+      // Persist check-in times for tracker
+      localStorage.setItem("cc-notif-checkins", JSON.stringify({
+        morningTime: notifPrefs.morningCheckin?.time || "04:00",
+        eveningTime: notifPrefs.eveningCheckin?.time || "18:00",
+        morningOn: notifPrefs.morningCheckin?.on !== false,
+        eveningOn: notifPrefs.eveningCheckin?.on !== false,
+      }));
       localStorage.setItem("cc-full-name", `${profileForm.firstName} ${profileForm.lastName}`.trim());
       // Persist care team for use in tracker reports and appointment suggestions
       const activeProviders = (profileForm.careProviders || []).filter(p => p.name.trim());
