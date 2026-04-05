@@ -33,6 +33,9 @@ import WelcomeSplash      from './WelcomeSplash';
  *   /onboarding      → /dashboard (signup used to send here)
  *   anything else    → /
  * 
+ * TESTING NOTE: All routes are currently public for cross-device testing.
+ * Re-add ProtectedRoute wrappers when Clerk auth is live.
+ *
  * CLERK INTEGRATION NOTE:
  * When Clerk is added, wrap this file's AuthProvider with ClerkProvider
  * and replace AuthProvider / ProtectedRoute with Clerk equivalents.
@@ -56,29 +59,13 @@ export default function App() {
           <Route path="/compass" element={<CareCompassPOC />} />
 
           {/* ── Protected routes ── */}
-          <Route path="/dashboard" element={
-            <ProtectedRoute>
-              <CareCompassDashboard />
-            </ProtectedRoute>
-          }/>
+          <Route path="/dashboard" element={<CareCompassDashboard />}/>
 
-          <Route path="/tracker" element={
-            <ProtectedRoute>
-              <CareCompassTracker />
-            </ProtectedRoute>
-          }/>
+          <Route path="/tracker" element={<CareCompassTracker />}/>
 
-          <Route path="/welcome" element={
-            <ProtectedRoute>
-              <WelcomeSplash />
-            </ProtectedRoute>
-          }/>
+          <Route path="/welcome" element={<WelcomeSplash />}/>
 
-          <Route path="/account" element={
-            <ProtectedRoute>
-              <CareCompassSettings />
-            </ProtectedRoute>
-          }/>
+          <Route path="/account" element={<CareCompassSettings />}/>
 
           {/* ── Redirects ── */}
           {/* Signup used to send users to /onboarding — redirect to dashboard now */}
