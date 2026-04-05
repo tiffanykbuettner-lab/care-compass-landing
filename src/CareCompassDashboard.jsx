@@ -33,13 +33,62 @@ const BotanicalMark = ({ size = 32 }) => (
 
 
 const APPT_SPECIALTIES = [
-  "Primary Care", "Cardiologist", "Rheumatologist", "Neurologist",
-  "Gastroenterologist", "Immunologist / Allergist", "Endocrinologist",
-  "Dermatologist", "Physical Therapist", "Pain Management",
-  "Psychiatrist / Psychologist", "Gynecologist", "Orthopedist",
-  "Pulmonologist", "Nephrologist", "Other",
+  "Cardiologist", "Dermatologist", "ENT", "Endocrinologist",
+  "Gastroenterologist", "Geneticist", "Gynecologist", "Hematologist",
+  "Immunologist / Allergist", "Nephrologist", "Neurologist", "Oncologist",
+  "Ophthalmologist", "Orthopedist", "Pain Management", "Physical Therapist",
+  "Primary Care", "Psychiatrist / Psychologist", "Pulmonologist",
+  "Rheumatologist", "Urologist", "Other",
 ];
 
+
+
+/* ─── SearchableSelect — type-to-search dropdown ─────────────────────────── */
+function SearchableSelect({ value, onChange, options, placeholder = "Select...", style: extraStyle = {} }) {
+  const [query, setQuery] = React.useState("");
+  const [open, setOpen]   = React.useState(false);
+  const ref = React.useRef(null);
+  const inputRef = React.useRef(null);
+  React.useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setQuery(""); } };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+  const selectedLabel = options.find(o => (o.value !== undefined ? o.value : o) === value)?.label ?? value ?? "";
+  const filtered = options.filter(o => { const l = o.label ?? o; return !query || l.toLowerCase().includes(query.toLowerCase()); });
+  return (
+    <div ref={ref} style={{ position: "relative", width: "100%" }}>
+      <div onClick={() => { setOpen(o => !o); setTimeout(() => inputRef.current?.focus(), 50); }}
+        style={{ padding: "0.65rem 0.9rem", borderRadius: "0.65rem", border: `1.5px solid ${open ? SAGE : "rgba(0,0,0,0.12)"}`, fontSize: "0.9rem", color: INK, background: OFF_WHITE, outline: "none", fontFamily: "inherit", cursor: "pointer", width: "100%", boxSizing: "border-box", ...extraStyle }}>
+        {open ? (
+          <input ref={inputRef} value={query} onChange={e => setQuery(e.target.value)} placeholder={selectedLabel || placeholder}
+            style={{ border: "none", outline: "none", background: "transparent", width: "100%", fontSize: "0.9rem", color: INK, fontFamily: "inherit" }} autoComplete="off"/>
+        ) : (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ color: selectedLabel ? INK : "#aaa" }}>{selectedLabel || placeholder}</span>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0, marginLeft: 8 }}><path d="M2 4l4 4 4-4" stroke={WARM_GRAY} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          </div>
+        )}
+      </div>
+      {open && (
+        <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 999, background: "#fff", borderRadius: "0.75rem", border: "1.5px solid rgba(0,0,0,0.1)", boxShadow: "0 8px 32px rgba(0,0,0,0.12)", maxHeight: 240, overflowY: "auto" }}>
+          {filtered.length === 0 ? <div style={{ padding: "0.75rem 1rem", fontSize: "0.85rem", color: "#aaa" }}>No matches</div>
+          : filtered.map((o, i) => {
+            const val = o.value !== undefined ? o.value : o;
+            const label = o.label ?? o;
+            const isSel = val === value;
+            return <div key={String(val)+i} onMouseDown={() => { onChange(val); setOpen(false); setQuery(""); }}
+              style={{ padding: "0.65rem 1rem", fontSize: "0.875rem", cursor: "pointer", color: isSel ? SAGE_DARK : INK, background: isSel ? SAGE_LIGHT : "transparent", fontWeight: isSel ? 600 : 400, fontFamily: "inherit", borderBottom: i < filtered.length-1 ? "1px solid rgba(0,0,0,0.04)" : "none" }}
+              onMouseEnter={e => { if(!isSel) e.currentTarget.style.background="#f5f9f6"; }}
+              onMouseLeave={e => { if(!isSel) e.currentTarget.style.background="transparent"; }}>
+              {query ? (() => { const idx=label.toLowerCase().indexOf(query.toLowerCase()); if(idx<0) return label; return <>{label.slice(0,idx)}<strong style={{color:SAGE_DARK}}>{label.slice(idx,idx+query.length)}</strong>{label.slice(idx+query.length)}</>; })() : label}
+            </div>;
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /* ─── Appointment time picker ────────────────────────────────────────────── */
 function ApptTimePicker({ value, onChange, style: extraStyle = {} }) {

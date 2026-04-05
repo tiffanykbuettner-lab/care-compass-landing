@@ -357,9 +357,9 @@ function ConditionTagInput({ conditions, onChange }) {
 const MED_STORAGE_KEY = "care-compass-medications-v1";
 
 const FREQUENCIES = [
-  "Once daily", "Twice daily", "Three times daily", "Every 4 hours",
-  "Every 6 hours", "Every 8 hours", "Weekly", "As needed (PRN)",
-  "With meals", "At bedtime", "Other",
+  "As needed (PRN)", "At bedtime", "Every 4 hours", "Every 6 hours",
+  "Every 8 hours", "Once daily", "Three times daily", "Twice daily",
+  "Weekly", "With meals", "Other",
 ];
 
 const DURATION_OPTIONS = [
@@ -377,14 +377,91 @@ const DURATION_OPTIONS = [
 
 const blankMed = () => ({ id: Date.now() + Math.random(), name: "", dose: "", frequency: "", duration: "", notes: "", reminder: false, reminderTime: "08:00" });
 
+
+/* ─── SearchableSelect — type-to-search dropdown ─────────────────────────── */
+function SearchableSelect({ value, onChange, options, placeholder = "Select...", style: extraStyle = {} }) {
+  const [query, setQuery] = React.useState("");
+  const [open, setOpen]   = React.useState(false);
+  const [focused, setFocused] = React.useState(false);
+  const ref = React.useRef(null);
+  const inputRef = React.useRef(null);
+
+  React.useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setQuery(""); } };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const selectedLabel = options.find(o => (o.value !== undefined ? o.value : o) === value)?.label ?? value ?? "";
+  const filtered = options.filter(o => {
+    const label = o.label ?? o;
+    return !query || label.toLowerCase().includes(query.toLowerCase());
+  });
+
+  const baseStyle = {
+    width: "100%", boxSizing: "border-box",
+    padding: "0.65rem 0.9rem", borderRadius: "0.65rem",
+    border: `1.5px solid ${open || focused ? SAGE : "rgba(0,0,0,0.12)"}`,
+    fontSize: "0.9rem", color: INK, background: OFF_WHITE,
+    outline: "none", fontFamily: "inherit", cursor: "pointer",
+    ...extraStyle,
+  };
+
+  return (
+    <div ref={ref} style={{ position: "relative", width: "100%" }}>
+      <div style={baseStyle} onClick={() => { setOpen(o => !o); setTimeout(() => inputRef.current?.focus(), 50); }}>
+        {open ? (
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            placeholder={selectedLabel || placeholder}
+            style={{ border: "none", outline: "none", background: "transparent", width: "100%", fontSize: "0.9rem", color: INK, fontFamily: "inherit", cursor: "text" }}
+            autoComplete="off"
+          />
+        ) : (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ color: selectedLabel ? INK : "#aaa" }}>{selectedLabel || placeholder}</span>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0, marginLeft: 8, color: WARM_GRAY }}>
+              <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+        )}
+      </div>
+      {open && (
+        <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 999, background: "#fff", borderRadius: "0.75rem", border: "1.5px solid rgba(0,0,0,0.1)", boxShadow: "0 8px 32px rgba(0,0,0,0.12)", maxHeight: 240, overflowY: "auto" }}>
+          {filtered.length === 0 ? (
+            <div style={{ padding: "0.75rem 1rem", fontSize: "0.85rem", color: "#aaa", fontFamily: "inherit" }}>No matches</div>
+          ) : filtered.map((o, i) => {
+            const val = o.value !== undefined ? o.value : o;
+            const label = o.label ?? o;
+            const isSelected = val === value;
+            return (
+              <div key={String(val) + i} onMouseDown={() => { onChange(val); setOpen(false); setQuery(""); }}
+                style={{ padding: "0.65rem 1rem", fontSize: "0.875rem", cursor: "pointer", color: isSelected ? SAGE_DARK : INK, background: isSelected ? SAGE_LIGHT : "transparent", fontWeight: isSelected ? 600 : 400, fontFamily: "inherit", borderBottom: i < filtered.length - 1 ? "1px solid rgba(0,0,0,0.04)" : "none" }}
+                onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = "#f5f9f6"; }}
+                onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = isSelected ? SAGE_LIGHT : "transparent"; }}
+              >
+                {query ? (() => { const idx = label.toLowerCase().indexOf(query.toLowerCase()); if (idx < 0) return label; return <>{label.slice(0,idx)}<strong style={{ color: SAGE_DARK }}>{label.slice(idx, idx+query.length)}</strong>{label.slice(idx+query.length)}</>; })() : label}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── Care team structured input ────────────────────────────────────────── */
 const CARE_SPECIALTIES = [
-  "Primary Care", "Cardiologist", "Rheumatologist", "Neurologist",
-  "Gastroenterologist", "Immunologist / Allergist", "Endocrinologist",
-  "Dermatologist", "Physical Therapist", "Pain Management",
-  "Psychiatrist / Psychologist", "Gynecologist", "Orthopedist",
-  "Pulmonologist", "Nephrologist", "Hematologist", "Oncologist",
-  "Ophthalmologist", "ENT", "Urologist", "Geneticist", "Other",
+  "Cardiologist", "Dermatologist", "ENT", "Endocrinologist",
+  "Gastroenterologist", "Geneticist", "Gynecologist", "Hematologist",
+  "Immunologist / Allergist", "Nephrologist", "Neurologist", "Oncologist",
+  "Ophthalmologist", "Orthopedist", "Pain Management", "Physical Therapist",
+  "Primary Care", "Psychiatrist / Psychologist", "Pulmonologist",
+  "Rheumatologist", "Urologist", "Other",
 ];
 
 const blankProvider = () => ({ id: Date.now() + Math.random(), name: "", specialty: "" });
@@ -412,13 +489,12 @@ function CareTeamInput({ providers, onChange }) {
           {/* Specialty */}
           <div style={{ flex: 1 }}>
             {idx === 0 && <label style={{ display: "block", fontSize: 11, fontWeight: 500, color: WARM_GRAY, marginBottom: 4, fontFamily: "sans-serif", textTransform: "uppercase", letterSpacing: "0.04em" }}>Specialty</label>}
-            <StyledSelect
+            <SearchableSelect
               value={provider.specialty}
-              onChange={e => updateProvider(provider.id, "specialty", e.target.value)}
-            >
-              <option value="">Select...</option>
-              {CARE_SPECIALTIES.map(s => <option key={s}>{s}</option>)}
-            </StyledSelect>
+              onChange={val => updateProvider(provider.id, "specialty", val)}
+              options={["", ...CARE_SPECIALTIES].map(s => ({ value: s, label: s || "Select..." }))}
+              placeholder="Select specialty..."
+            />
           </div>
           {/* Remove button */}
           <div style={{ paddingTop: idx === 0 ? 24 : 0, flexShrink: 0 }}>
@@ -469,15 +545,16 @@ const FAMILY_MEMBERS = [
 ];
 
 const FAMILY_CONDITIONS = [
-  "Heart disease", "Hypertension", "Stroke", "Diabetes (Type 1)", "Diabetes (Type 2)",
-  "Cancer", "Breast cancer", "Colon cancer", "Autoimmune disease", "Lupus",
-  "Rheumatoid arthritis", "Psoriatic arthritis", "Multiple sclerosis", "Thyroid disease",
-  "Hashimoto's", "Graves' disease", "Celiac disease", "IBD / Crohn's", "Ulcerative colitis",
-  "POTS", "hEDS / EDS", "Hypermobility", "Fibromyalgia", "ME/CFS", "MCAS",
-  "Dysautonomia", "Raynaud's", "Endometriosis", "PCOS", "Osteoporosis",
-  "Anxiety", "Depression", "Bipolar disorder", "Schizophrenia", "ADHD", "Autism",
-  "Alzheimer's / Dementia", "Parkinson's", "Epilepsy", "Migraines",
-  "Asthma", "COPD", "Kidney disease", "Liver disease", "Mental health condition",
+  "ADHD", "Alzheimer's / Dementia", "Anxiety", "Asthma", "Autism",
+  "Bipolar disorder", "Breast cancer", "Cancer", "Celiac disease", "COPD",
+  "Colon cancer", "Depression", "Diabetes (Type 1)", "Diabetes (Type 2)",
+  "Dysautonomia", "Endometriosis", "Epilepsy", "Fibromyalgia",
+  "Graves' disease", "hEDS / EDS", "Hashimoto's", "Heart disease",
+  "Hypermobility", "Hypertension", "IBD / Crohn's", "Kidney disease",
+  "Liver disease", "Lupus", "MCAS", "ME/CFS", "Mental health condition",
+  "Migraines", "Multiple sclerosis", "Osteoporosis", "PCOS", "POTS",
+  "Parkinson's", "Psoriatic arthritis", "Raynaud's", "Rheumatoid arthritis",
+  "Schizophrenia", "Stroke", "Thyroid disease", "Ulcerative colitis",
 ];
 
 const blankFamilyMember = () => ({
@@ -1114,10 +1191,12 @@ If you cannot read the label clearly, return: {"name":"","dose":"","frequency":"
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>
                 <div>
                   <label style={lbl}>How often <span style={{ textTransform: "none", fontWeight: 400, color: "#aaa" }}>(optional)</span></label>
-                  <StyledSelect value={form.frequency} onChange={e => setForm(f => ({ ...f, frequency: e.target.value }))}>
-                    <option value="">Select frequency...</option>
-                    {FREQUENCIES.map(f => <option key={f}>{f}</option>)}
-                  </StyledSelect>
+                  <SearchableSelect
+                    value={form.frequency}
+                    onChange={val => setForm(f => ({ ...f, frequency: val }))}
+                    options={["", ...FREQUENCIES].map(f => ({ value: f, label: f || "Select frequency..." }))}
+                    placeholder="Select frequency..."
+                  />
                 </div>
                 <div>
                   <label style={lbl}>How long taking it <span style={{ textTransform: "none", fontWeight: 400, color: "#aaa" }}>(optional)</span></label>

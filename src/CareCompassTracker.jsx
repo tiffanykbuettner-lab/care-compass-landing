@@ -388,9 +388,9 @@ function MedPicker({ medications, selectedIds, onToggle, onAddAll, manualText, o
 
 /* ─── Frequency options ──────────────────────────────────────────────────── */
 const FREQUENCIES = [
-  "Once daily", "Twice daily", "Three times daily", "Every 4 hours",
-  "Every 6 hours", "Every 8 hours", "Weekly", "As needed (PRN)",
-  "With meals", "At bedtime", "Other",
+  "As needed (PRN)", "At bedtime", "Every 4 hours", "Every 6 hours",
+  "Every 8 hours", "Once daily", "Three times daily", "Twice daily",
+  "Weekly", "With meals", "Other",
 ];
 
 
@@ -517,6 +517,54 @@ function ReportStatBox({ label, value, sub, color = "#4a4540" }) {
       <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.6rem", fontWeight: 700, color, lineHeight: 1 }}>{value}</div>
       <div style={{ fontSize: "0.7rem", color: "#888", marginTop: "0.25rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</div>
       {sub && <div style={{ fontSize: "0.7rem", color, marginTop: "0.2rem", fontWeight: 600 }}>{sub}</div>}
+    </div>
+  );
+}
+
+
+/* ─── SearchableSelect — type-to-search dropdown ─────────────────────────── */
+function SearchableSelect({ value, onChange, options, placeholder = "Select...", style: extraStyle = {} }) {
+  const [query, setQuery] = React.useState("");
+  const [open, setOpen]   = React.useState(false);
+  const ref = React.useRef(null);
+  const inputRef = React.useRef(null);
+  React.useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setQuery(""); } };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+  const selectedLabel = options.find(o => (o.value !== undefined ? o.value : o) === value)?.label ?? value ?? "";
+  const filtered = options.filter(o => { const l = o.label ?? o; return !query || l.toLowerCase().includes(query.toLowerCase()); });
+  return (
+    <div ref={ref} style={{ position: "relative", width: "100%" }}>
+      <div onClick={() => { setOpen(o => !o); setTimeout(() => inputRef.current?.focus(), 50); }}
+        style={{ padding: "0.75rem 1rem", borderRadius: "0.65rem", border: `1.5px solid ${open ? SAGE_DARK : "rgba(0,0,0,0.12)"}`, fontSize: "0.92rem", color: INK, background: "#fafaf8", outline: "none", fontFamily: "inherit", cursor: "pointer", width: "100%", boxSizing: "border-box", ...extraStyle }}>
+        {open ? (
+          <input ref={inputRef} value={query} onChange={e => setQuery(e.target.value)} placeholder={selectedLabel || placeholder}
+            style={{ border: "none", outline: "none", background: "transparent", width: "100%", fontSize: "0.92rem", color: INK, fontFamily: "inherit" }} autoComplete="off"/>
+        ) : (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ color: selectedLabel ? INK : "#aaa" }}>{selectedLabel || placeholder}</span>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0, marginLeft: 8 }}><path d="M2 4l4 4 4-4" stroke={WARM_GRAY} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          </div>
+        )}
+      </div>
+      {open && (
+        <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 999, background: "#fff", borderRadius: "0.75rem", border: "1.5px solid rgba(0,0,0,0.1)", boxShadow: "0 8px 32px rgba(0,0,0,0.12)", maxHeight: 240, overflowY: "auto" }}>
+          {filtered.length === 0 ? <div style={{ padding: "0.75rem 1rem", fontSize: "0.85rem", color: "#aaa" }}>No matches</div>
+          : filtered.map((o, i) => {
+            const val = o.value !== undefined ? o.value : o;
+            const label = o.label ?? o;
+            const isSel = val === value;
+            return <div key={String(val)+i} onMouseDown={() => { onChange(val); setOpen(false); setQuery(""); }}
+              style={{ padding: "0.65rem 1rem", fontSize: "0.875rem", cursor: "pointer", color: isSel ? SAGE_DARK : INK, background: isSel ? SAGE_LIGHT : "transparent", fontWeight: isSel ? 600 : 400, fontFamily: "inherit", borderBottom: i < filtered.length-1 ? "1px solid rgba(0,0,0,0.04)" : "none" }}
+              onMouseEnter={e => { if(!isSel) e.currentTarget.style.background="#f5f9f6"; }}
+              onMouseLeave={e => { if(!isSel) e.currentTarget.style.background="transparent"; }}>
+              {query ? (() => { const idx=label.toLowerCase().indexOf(query.toLowerCase()); if(idx<0) return label; return <>{label.slice(0,idx)}<strong style={{color:SAGE_DARK}}>{label.slice(idx,idx+query.length)}</strong>{label.slice(idx+query.length)}</>; })() : label}
+            </div>;
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -810,6 +858,16 @@ Please tailor your analysis specifically for a ${apptContext.specialty} visit. F
 
       const response = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" }, body: JSON.stringify({ model: "claude-opus-4-6", max_tokens: 4000, messages: [{ role: "user", content: `You are Care Compass, a compassionate health navigation assistant. Analyze these symptom tracker entries and identify patterns, triggers, and insights to discuss with a doctor.
 
+CORE PHILOSOPHY — WEIGHT SYMPTOMS OVER LABELS:
+Your analysis must be grounded primarily in what the user actually logs — their symptoms, timing, triggers, and patterns across days. Existing diagnoses and family history are context, not conclusions. Complex conditions are frequently misdiagnosed or incompletely diagnosed. A symptom pattern that doesn't fully align with a listed diagnosis is a signal worth noting, not ignoring. Let the data speak first, then layer in context.
+
+WEIGHTING HIERARCHY:
+1. HIGHEST — Logged symptoms and how they pattern across time, time-of-day, and days of the week
+2. HIGH — Correlations with food, medications, activity, sleep, stress
+3. MODERATE — Family history (genetic context)
+4. LOWER — Existing diagnoses (treat as one possible explanation; flag if symptoms suggest something additional or misaligned)
+5. LOWEST — Long-standing medications (unlikely to cause new symptoms unless recently changed)
+
 ${careTeamStr ? `CARE TEAM: ${careTeamStr}\n\n` : ""}${familyHistoryStr ? `FAMILY HISTORY (use this to add genetic/hereditary context to pattern analysis — flag if logged symptoms may have familial patterns):\n${familyHistoryStr}\n\n` : ""}${(() => {
         const medsWithDuration = medications.filter(m => m.name && m.duration);
         if (!medsWithDuration.length) return "";
@@ -832,7 +890,7 @@ Please provide a warm, specific analysis:
 ## What's Improving vs Worsening
 ## Questions to Bring to Your Doctor
 
-Never diagnose. Focus on patterns across days AND within-day timing. Be specific about which days or time patterns seem significant.` + apptPromptContext + (bpReadings.length > 0 ? `
+Never diagnose. Focus on patterns across days AND within-day timing. Be specific about which days or time patterns seem significant. If logged symptoms don't fully align with any existing diagnosis the user may have mentioned, gently note what the pattern does suggest and encourage them to explore it with their doctor. Many chronic illness patients carry incomplete or incorrect diagnoses — validating their lived experience is as important as pattern recognition.` + apptPromptContext + (bpReadings.length > 0 ? `
 
 BLOOD PRESSURE READINGS (most recent first):
 ` + bpReadings.slice(0, 20).map(r => formatBPTime(r.timestamp) + ": " + r.systolic + "/" + r.diastolic + " mmHg" + (r.pulse ? " | Pulse: " + r.pulse + " bpm" : "") + (r.notes ? " | Notes: " + r.notes : "") + " — " + bpCategory(r.systolic, r.diastolic).label).join("\n") + `
@@ -1882,10 +1940,12 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
                     {/* Frequency */}
                     <div style={s.formGroup}>
                       <label style={s.label}>How often <span style={s.optional}>(optional)</span></label>
-                      <select value={medForm.frequency} onChange={e => setMedForm(f => ({ ...f, frequency: e.target.value }))} style={{ ...s.input, WebkitAppearance: "none" }}>
-                        <option value="">Select frequency...</option>
-                        {FREQUENCIES.map(f => <option key={f}>{f}</option>)}
-                      </select>
+                      <SearchableSelect
+                        value={medForm.frequency}
+                        onChange={val => setMedForm(f => ({ ...f, frequency: val }))}
+                        options={["", ...FREQUENCIES].map(f => ({ value: f, label: f || "Select frequency..." }))}
+                        placeholder="Select frequency..."
+                      />
                     </div>
 
                     {/* Notes */}
