@@ -842,7 +842,7 @@ export default function CareCompassTracker() {
         const timeEntries = sorted.map(e =>
           `  ${new Date(e.timestamp).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}: Severity ${e.severity}/10${e.symptoms ? ` — ${e.symptoms}` : ""}${e.stress ? ` | Stress: ${e.stress}/10` : ""}${e.notes ? ` | Notes: ${e.notes}` : ""}`
         ).join("\n");
-        return `${day}:${sleep ? ` Sleep: ${sleep.sleep}/10` : ""}${allMeds ? ` | Medications: ${allMeds}` : ""}${allFood ? ` | Food: ${allFood}` : ""}${allActivity ? ` | Activity: ${allActivity}` : ""}\n${timeEntries}`;
+        return `${day}:${sleep ? ` Sleep: ${sleep.sleep}/10` : ""}${allMeds ? ` | Medications: ${allMeds}` : ""}${allFood ? ` | Food: ${allFood}` : ""}${allActivity ? ` | Activity/Function: ${allActivity}` : ""}\n${timeEntries}`;
       }).join("\n\n");
 
       const styleEl = document.createElement("style");
@@ -883,8 +883,14 @@ ${careTeamStr ? `CARE TEAM: ${careTeamStr}\n\n` : ""}${familyHistoryStr ? `FAMIL
 ENTRIES (grouped by day, chronological within each day):
 ${summary}
 
+FUNCTIONAL IMPACT INSTRUCTIONS — CRITICAL:
+Scan every entry's activity field and symptom descriptions for mentions of activities that were difficult, modified, avoided, or impossible due to symptoms. These include (but are not limited to): driving, cooking, showering, getting dressed, blow-drying hair, laundry, grocery shopping, walking, climbing stairs, lifting, writing, typing, phone use, working, attending appointments, caring for children/pets, exercise, socialising, sleeping in a bed vs couch, and any other daily task. 
+
+When you find these, compile them into a dedicated ## Daily Life Impact section. This section is one of the most important things a doctor can see — it translates abstract severity scores into real-world consequences. Be specific: quote or closely paraphrase what the user wrote. Group by activity type if multiple entries mention the same task.
+
 Please provide a warm, specific analysis:
 ## Patterns We Notice
+## Daily Life Impact
 ## Time-Based Correlations Worth Exploring
 ## Potential Triggers
 ## What's Improving vs Worsening
@@ -1513,6 +1519,62 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
                               <span key={m} style={{ background: SAGE_LIGHT, color: SAGE_DARK, fontSize: "0.75rem", fontWeight: 600, padding: "0.2rem 0.7rem", borderRadius: "100px" }}>{m}</span>
                             ))}
                           </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* ── Functional impact section ── */}
+                    {(() => {
+                      const ACTIVITY_KEYWORDS = [
+                        "driv", "cook", "shower", "bath", "dress", "undress", "hair", "brush",
+                        "laundry", "wash", "clean", "vacuum", "groceri", "shop", "lift", "carry",
+                        "walk", "stairs", "climb", "stand", "sit", "bed", "sleep", "couch",
+                        "work", "type", "write", "phone", "computer", "screen",
+                        "exercise", "gym", "yoga", "stretch", "run", "swim",
+                        "child", "kid", "pet", "dog", "cat", "feed",
+                        "eat", "chew", "swallow", "drink",
+                        "social", "friend", "family", "visit", "event", "cancel",
+                        "appointment", "class", "school", "errands",
+                        "couldn't", "unable", "difficult", "hard to", "struggle", "help",
+                        "had to stop", "had to sit", "had to rest", "had to cancel",
+                        "too tired", "too painful", "too dizzy", "too weak",
+                        "limited", "impacted", "affected", "prevented", "missed",
+                      ];
+                      const impactEntries = entries.filter(e => {
+                        const text = ((e.activity || "") + " " + (e.symptoms || "") + " " + (e.notes || "")).toLowerCase();
+                        return ACTIVITY_KEYWORDS.some(kw => text.includes(kw));
+                      });
+                      if (!impactEntries.length) return null;
+                      return (
+                        <div style={{ ...s.reportSection, pageBreakInside: "avoid" }}>
+                          <h3 style={s.reportSectionTitle}>Daily Life Impact</h3>
+                          <p style={{ fontSize: "0.78rem", color: WARM_GRAY, margin: "0 0 0.875rem", fontStyle: "italic", lineHeight: 1.6 }}>
+                            Activities and daily tasks affected by symptoms — shown to illustrate real-world severity.
+                          </p>
+                          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                            {impactEntries.slice(0, 20).map((e, i) => {
+                              const date = new Date(e.timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                              const time = new Date(e.timestamp).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+                              const impactText = [e.activity, e.symptoms, e.notes].filter(Boolean).join(" · ");
+                              return (
+                                <div key={e.id} style={{ display: "flex", gap: "0.875rem", alignItems: "flex-start", padding: "0.65rem 0.875rem", background: i % 2 === 0 ? "#fff" : OFF_WHITE, borderRadius: "0.5rem", borderLeft: `3px solid ${severityColor(e.severity)}` }}>
+                                  <div style={{ flexShrink: 0, textAlign: "center", minWidth: 52 }}>
+                                    <div style={{ fontSize: "0.72rem", fontWeight: 600, color: INK }}>{date}</div>
+                                    <div style={{ fontSize: "0.65rem", color: "#aaa" }}>{time}</div>
+                                    <span style={{ ...s.severityBadge, background: severityColor(e.severity), fontSize: "0.65rem", marginTop: "0.2rem", display: "inline-block" }}>{e.severity}/10</span>
+                                  </div>
+                                  <div style={{ flex: 1, fontSize: "0.82rem", color: INK, lineHeight: 1.6 }}>
+                                    {impactText}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          {impactEntries.length > 20 && (
+                            <p style={{ fontSize: "0.72rem", color: "#aaa", marginTop: "0.5rem", fontStyle: "italic" }}>
+                              Showing 20 of {impactEntries.length} entries with functional impact
+                            </p>
+                          )}
                         </div>
                       );
                     })()}
