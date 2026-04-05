@@ -1010,7 +1010,7 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
     try {
       const s = localStorage.getItem(CHECKIN_KEY);
       const existing = s ? JSON.parse(s) : [];
-      const entry = { ...data, type, id: Date.now(), timestamp: new Date().toISOString(), tag: type === "morning" ? "🌅 Morning check-in" : "🌙 Evening check-in" };
+      const entry = { ...data, type, id: Date.now(), timestamp: new Date().toISOString(), tag: type === "morning" ? "Morning check-in" : "Evening check-in" };
       // Also save as a regular tracker entry
       saveEntries([entry, ...entries]);
       // Record checkin done
@@ -1160,7 +1160,15 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
               {shouldShowMorning && !showMorningCheckin && (
                 <div style={{ background: `linear-gradient(135deg, #fff8e8, #fff3d4)`, borderRadius: "1rem", border: "1px solid #f0d58a", padding: "1rem 1.25rem", marginBottom: "1rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
                   <div>
-                    <p style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#9a7a00", margin: "0 0 0.2rem" }}>🌅 Morning check-in</p>
+                    <p style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#9a7a00", margin: "0 0 0.2rem" }}><span style={{ display:"flex", alignItems:"center", gap: "0.3rem" }}><svg width="18" height="18" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display:"inline-block", verticalAlign:"middle", marginRight:"0.4rem" }}>
+  <line x1="5" y1="26" x2="31" y2="26" stroke="#7a9e87" strokeWidth="2.2" strokeLinecap="round"/>
+  <path d="M 9 26 A 9 9 0 0 1 27 26" fill="#7a9e87"/>
+  <line x1="18" y1="4" x2="18" y2="11" stroke="#7a9e87" strokeWidth="2" strokeLinecap="round"/>
+  <line x1="28" y1="9" x2="24" y2="13" stroke="#7a9e87" strokeWidth="2" strokeLinecap="round"/>
+  <line x1="8" y1="9" x2="12" y2="13" stroke="#7a9e87" strokeWidth="2" strokeLinecap="round"/>
+  <line x1="32" y1="20" x2="27" y2="21" stroke="#7a9e87" strokeWidth="2" strokeLinecap="round"/>
+  <line x1="4" y1="20" x2="9" y2="21" stroke="#7a9e87" strokeWidth="2" strokeLinecap="round"/>
+</svg><span>Morning check-in</span></span></p>
                     <p style={{ fontSize: "0.88rem", fontWeight: 600, color: INK, margin: "0 0 0.15rem" }}>Good morning! How did you sleep?</p>
                     <p style={{ fontSize: "0.78rem", color: WARM_GRAY, margin: 0 }}>A quick check-in takes under a minute.</p>
                   </div>
@@ -1175,7 +1183,14 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
               {shouldShowEvening && !showEveningCheckin && (
                 <div style={{ background: `linear-gradient(135deg, #f0ebff, #e8e0ff)`, borderRadius: "1rem", border: "1px solid #c4aff5", padding: "1rem 1.25rem", marginBottom: "1rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
                   <div>
-                    <p style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#5c3d9e", margin: "0 0 0.2rem" }}>🌙 Evening check-in</p>
+                    <p style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#5c3d9e", margin: "0 0 0.2rem" }}><span style={{ display:"flex", alignItems:"center", gap: "0.3rem" }}><svg width="18" height="18" viewBox="0 0 80 90" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display:"inline-block", verticalAlign:"middle", marginRight:"0.4rem" }}>
+  <line x1="0" y1="78" x2="80" y2="78" stroke="#4a7058" strokeWidth="3" strokeLinecap="round"/>
+  <path d="M 58.5 21 A 28 28 0 1 0 58.5 63 A 22 22 0 1 1 58.5 21 Z" fill="#4a7058"/>
+  <circle cx="68" cy="6"  r="3"   fill="#4a7058"/>
+  <circle cx="8"  cy="18" r="2.2" fill="#4a7058"/>
+  <circle cx="52" cy="2"  r="1.8" fill="#4a7058"/>
+  <circle cx="22" cy="8"  r="1.8" fill="#4a7058"/>
+</svg><span>Evening check-in</span></span></p>
                     <p style={{ fontSize: "0.88rem", fontWeight: 600, color: INK, margin: "0 0 0.15rem" }}>How was your day?</p>
                     <p style={{ fontSize: "0.78rem", color: WARM_GRAY, margin: 0 }}>Reflect on today or summarise your symptoms.</p>
                   </div>
@@ -2107,7 +2122,15 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
         <div style={s.modalOverlay} onClick={() => setShowMorningCheckin(false)}>
           <div style={s.modal} onClick={e => e.stopPropagation()}>
             <div style={s.modalHeader}>
-              <h2 style={s.modalTitle}>🌅 Morning check-in</h2>
+              <h2 style={{ ...s.modalTitle, display:"flex", alignItems:"center" }}><svg width="18" height="18" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display:"inline-block", verticalAlign:"middle", marginRight:"0.4rem" }}>
+  <line x1="5" y1="26" x2="31" y2="26" stroke="#7a9e87" strokeWidth="2.2" strokeLinecap="round"/>
+  <path d="M 9 26 A 9 9 0 0 1 27 26" fill="#7a9e87"/>
+  <line x1="18" y1="4" x2="18" y2="11" stroke="#7a9e87" strokeWidth="2" strokeLinecap="round"/>
+  <line x1="28" y1="9" x2="24" y2="13" stroke="#7a9e87" strokeWidth="2" strokeLinecap="round"/>
+  <line x1="8" y1="9" x2="12" y2="13" stroke="#7a9e87" strokeWidth="2" strokeLinecap="round"/>
+  <line x1="32" y1="20" x2="27" y2="21" stroke="#7a9e87" strokeWidth="2" strokeLinecap="round"/>
+  <line x1="4" y1="20" x2="9" y2="21" stroke="#7a9e87" strokeWidth="2" strokeLinecap="round"/>
+</svg>Morning check-in</h2>
               <button onClick={() => setShowMorningCheckin(false)} style={s.modalClose}>✕</button>
             </div>
             <div style={s.modalBody}>
@@ -2154,7 +2177,7 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
               <button onClick={() => {
                 saveCheckin("morning", { sleep: morningForm.sleep, severity: morningForm.severity, stress: morningForm.energy, symptoms: morningForm.symptoms, notes: morningForm.notes });
                 setShowMorningCheckin(false);
-                setCheckinSaved("🌅 Morning check-in saved!");
+                setCheckinSaved("Morning check-in saved!");
                 setTimeout(() => setCheckinSaved(""), 3000);
                 setMorningForm({ sleep: 7, severity: 5, symptoms: "", energy: 5, notes: "" });
               }} style={s.saveBtn}>Save check-in →</button>
@@ -2165,7 +2188,7 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
 
       {/* ── Evening check-in modal — smart: adapts based on today's logged entries ── */}
       {showEveningCheckin && (() => {
-        const todayEntries = entries.filter(e => new Date(e.timestamp).toDateString() === new Date().toDateString() && e.tag !== "🌙 Evening check-in");
+        const todayEntries = entries.filter(e => new Date(e.timestamp).toDateString() === new Date().toDateString() && e.tag !== "Evening check-in");
         const hasLoggedToday = todayEntries.length > 0;
         const todaySymptoms = [...new Set(todayEntries.map(e => e.symptoms).filter(Boolean))].join("; ");
         const todayActivity = [...new Set(todayEntries.map(e => e.activity).filter(Boolean))].join("; ");
@@ -2175,7 +2198,14 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
           <div style={s.modalOverlay} onClick={() => setShowEveningCheckin(false)}>
             <div style={s.modal} onClick={e => e.stopPropagation()}>
               <div style={s.modalHeader}>
-                <h2 style={s.modalTitle}>🌙 Evening check-in</h2>
+                <h2 style={{ ...s.modalTitle, display:"flex", alignItems:"center" }}><svg width="18" height="18" viewBox="0 0 80 90" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display:"inline-block", verticalAlign:"middle", marginRight:"0.4rem" }}>
+  <line x1="0" y1="78" x2="80" y2="78" stroke="#4a7058" strokeWidth="3" strokeLinecap="round"/>
+  <path d="M 58.5 21 A 28 28 0 1 0 58.5 63 A 22 22 0 1 1 58.5 21 Z" fill="#4a7058"/>
+  <circle cx="68" cy="6"  r="3"   fill="#4a7058"/>
+  <circle cx="8"  cy="18" r="2.2" fill="#4a7058"/>
+  <circle cx="52" cy="2"  r="1.8" fill="#4a7058"/>
+  <circle cx="22" cy="8"  r="1.8" fill="#4a7058"/>
+</svg>Evening check-in</h2>
                 <button onClick={() => setShowEveningCheckin(false)} style={s.modalClose}>✕</button>
               </div>
               <div style={s.modalBody}>
@@ -2291,7 +2321,7 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
                   const finalMeds = [selectedMedsStr, eveningForm.medications].filter(Boolean).join(", ");
                   saveCheckin("evening", { ...eveningForm, medications: finalMeds });
                   setShowEveningCheckin(false);
-                  setCheckinSaved("🌙 Evening check-in saved!");
+                  setCheckinSaved("Evening check-in saved!");
                   setTimeout(() => setCheckinSaved(""), 3000);
                   setEveningForm({ severity: 5, symptoms: "", food: "", medications: "", selectedMedIds: [], activity: "", stress: 5, notes: "" });
                 }} style={s.saveBtn}>Save check-in →</button>
