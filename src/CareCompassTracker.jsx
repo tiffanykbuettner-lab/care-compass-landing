@@ -2362,11 +2362,7 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
                 <textarea
                   value={form.symptoms}
                   onChange={e => setForm(f => ({ ...f, symptoms: e.target.value }))}
-                  placeholder={"The more detail, the better your insights. Try to include:
-• Where exactly (e.g. behind right eye, left hip, base of skull)
-• What it feels like (throbbing, stabbing, dull ache, burning, pressure)
-• What triggered or worsened it
-• e.g. "Throbbing headache behind right eye, worse with light, started after standing for 20 min""}
+                  placeholder="The more detail the better — where exactly (e.g. behind right eye, left hip), what it feels like (throbbing, stabbing, dull ache), what triggered or worsened it. e.g. throbbing headache behind right eye, worse with light, started after standing for 20 min"
                   style={s.textarea}
                   rows={4}
                 />
