@@ -27,6 +27,7 @@ const STORAGE_KEY = "care-compass-tracker-v1";
 const BP_STORAGE_KEY = "care-compass-bp-v1";
 const BP_REMINDERS_KEY = "care-compass-bp-reminders-v1";
 const MED_STORAGE_KEY = "care-compass-medications-v1";
+const CHECKIN_KEY = "care-compass-checkins-v1";
 
 const BotanicalMark = ({ size = 32 }) => (
   <svg width={size} height={size} viewBox="0 0 72 72" fill="none">
@@ -587,7 +588,12 @@ export default function CareCompassTracker() {
   const [apptContext, setApptContext]    = useState(null);
   const [loadingInsights, setLoadingInsights] = useState(false);
   const [saved, setSaved]               = useState(false);
-  const [confirmDeleteId, setConfirmDeleteId] = useState(null); // id of entry pending delete confirmation
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [showMorningCheckin, setShowMorningCheckin] = useState(false);
+  const [showEveningCheckin, setShowEveningCheckin] = useState(false);
+  const [morningForm, setMorningForm] = useState({ sleep: 7, severity: 5, symptoms: "", energy: 5, notes: "" });
+  const [eveningForm, setEveningForm] = useState({ severity: 5, symptoms: "", food: "", medications: "", selectedMedIds: [], activity: "", stress: 5, notes: "" });
+  const [checkinSaved, setCheckinSaved] = useState(""); // id of entry pending delete confirmation
   const [saveError, setSaveError]         = useState("");
   const [chartField, setChartField]     = useState("severity");
   const [dateFilter, setDateFilter]     = useState("all");
@@ -918,6 +924,48 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
       .join(", ");
   };
 
+    // ── Check-in time detection ────────────────────────────────────────────────
+  const getCheckinPrefs = () => {
+    try {
+      const s = localStorage.getItem("cc-notif-checkins");
+      return s ? JSON.parse(s) : { morningTime: "04:00", eveningTime: "18:00" };
+    } catch { return { morningTime: "04:00", eveningTime: "18:00" }; }
+  };
+
+  const hasDoneCheckinToday = (type) => {
+    try {
+      const s = localStorage.getItem(CHECKIN_KEY);
+      if (!s) return false;
+      const checkins = JSON.parse(s);
+      const today = new Date().toDateString();
+      return checkins.some(c => c.type === type && new Date(c.timestamp).toDateString() === today);
+    } catch { return false; }
+  };
+
+  const saveCheckin = (type, data) => {
+    try {
+      const s = localStorage.getItem(CHECKIN_KEY);
+      const existing = s ? JSON.parse(s) : [];
+      const entry = { ...data, type, id: Date.now(), timestamp: new Date().toISOString(), tag: type === "morning" ? "🌅 Morning check-in" : "🌙 Evening check-in" };
+      // Also save as a regular tracker entry
+      saveEntries([entry, ...entries]);
+      // Record checkin done
+      existing.push({ type, timestamp: entry.timestamp });
+      localStorage.setItem(CHECKIN_KEY, JSON.stringify(existing.slice(-60)));
+    } catch {}
+  };
+
+  const now = new Date();
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+  const prefs = getCheckinPrefs();
+  const parseMins = (t) => { const [h, m] = (t || "00:00").split(":").map(Number); return h * 60 + m; };
+  const morningStartMins = parseMins(prefs.morningTime);
+  const eveningStartMins = parseMins(prefs.eveningTime);
+  const isMorningTime = nowMins >= morningStartMins && nowMins < eveningStartMins;
+  const isEveningTime = nowMins >= eveningStartMins;
+  const shouldShowMorning = isMorningTime && !hasDoneCheckinToday("morning") && view === "log" && prefs.morningOn !== false;
+  const shouldShowEvening = isEveningTime && !hasDoneCheckinToday("evening") && view === "log" && prefs.eveningOn !== false;
+
     const avgSeverity = entries.length ? (entries.reduce((sum, e) => sum + e.severity, 0) / entries.length).toFixed(1) : "—";
   const todayCount = entries.filter(e => new Date(e.timestamp).toDateString() === new Date().toDateString()).length;
   const filteredEntries = dateFilter === "all" ? entries : entries.filter(e => {
@@ -1025,6 +1073,37 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
           {view === "log" && (
             <div style={s.tabContent}>
               {saved && <div style={s.savedBanner}>🌿 {editingEntry ? "Entry updated!" : "Entry saved!"}</div>}
+              {checkinSaved && <div style={{ ...s.savedBanner, background: TEAL_LIGHT, color: TEAL }}>{checkinSaved}</div>}
+
+              {/* ── Morning check-in banner ── */}
+              {shouldShowMorning && !showMorningCheckin && (
+                <div style={{ background: `linear-gradient(135deg, #fff8e8, #fff3d4)`, borderRadius: "1rem", border: "1px solid #f0d58a", padding: "1rem 1.25rem", marginBottom: "1rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
+                  <div>
+                    <p style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#9a7a00", margin: "0 0 0.2rem" }}>🌅 Morning check-in</p>
+                    <p style={{ fontSize: "0.88rem", fontWeight: 600, color: INK, margin: "0 0 0.15rem" }}>Good morning! How did you sleep?</p>
+                    <p style={{ fontSize: "0.78rem", color: WARM_GRAY, margin: 0 }}>A quick check-in takes under a minute.</p>
+                  </div>
+                  <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
+                    <button onClick={() => setShowMorningCheckin(true)} style={{ background: "#e8a838", color: "#fff", border: "none", borderRadius: "100px", padding: "0.55rem 1.1rem", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Check in →</button>
+                    <button onClick={() => { saveCheckin("morning_skip", {}); }} style={{ background: "none", border: "none", fontSize: "0.75rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit" }}>Skip</button>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Evening check-in banner ── */}
+              {shouldShowEvening && !showEveningCheckin && (
+                <div style={{ background: `linear-gradient(135deg, #f0ebff, #e8e0ff)`, borderRadius: "1rem", border: "1px solid #c4aff5", padding: "1rem 1.25rem", marginBottom: "1rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
+                  <div>
+                    <p style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#5c3d9e", margin: "0 0 0.2rem" }}>🌙 Evening check-in</p>
+                    <p style={{ fontSize: "0.88rem", fontWeight: 600, color: INK, margin: "0 0 0.15rem" }}>How was your day?</p>
+                    <p style={{ fontSize: "0.78rem", color: WARM_GRAY, margin: 0 }}>Reflect on today or summarise your symptoms.</p>
+                  </div>
+                  <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
+                    <button onClick={() => setShowEveningCheckin(true)} style={{ background: "#7c5cbf", color: "#fff", border: "none", borderRadius: "100px", padding: "0.55rem 1.1rem", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Check in →</button>
+                    <button onClick={() => { saveCheckin("evening_skip", {}); }} style={{ background: "none", border: "none", fontSize: "0.75rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit" }}>Skip</button>
+                  </div>
+                </div>
+              )}
               {entries.length === 0 ? (
                 <>
                   <div style={s.assessmentPrompt}>
@@ -1883,6 +1962,150 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
           )}
         </div>
       </main>
+
+      {/* ── Morning check-in modal ── */}
+      {showMorningCheckin && (
+        <div style={s.modalOverlay} onClick={() => setShowMorningCheckin(false)}>
+          <div style={s.modal} onClick={e => e.stopPropagation()}>
+            <div style={s.modalHeader}>
+              <h2 style={s.modalTitle}>🌅 Morning check-in</h2>
+              <button onClick={() => setShowMorningCheckin(false)} style={s.modalClose}>✕</button>
+            </div>
+            <div style={s.modalBody}>
+              {/* Sleep quality */}
+              <div style={s.formGroup}>
+                <label style={s.label}>Sleep quality last night <span style={s.sevValue}>{morningForm.sleep}/10</span></label>
+                <input type="range" min="1" max="10" step="1" value={morningForm.sleep}
+                  onChange={e => setMorningForm(f => ({ ...f, sleep: Number(e.target.value) }))}
+                  style={{ width: "100%", accentColor: TEAL }}/>
+                <div style={s.sevLabels}><span style={s.sevLabel}>Poor</span><span style={s.sevLabel}>Excellent</span></div>
+              </div>
+              {/* Morning severity */}
+              <div style={s.formGroup}>
+                <label style={s.label}>How are you feeling this morning? <span style={s.sevValue}>{morningForm.severity}/10</span></label>
+                <SeveritySlider value={morningForm.severity} onChange={v => setMorningForm(f => ({ ...f, severity: v }))}/>
+              </div>
+              {/* Energy level */}
+              <div style={s.formGroup}>
+                <label style={s.label}>Energy level <span style={s.sevValue}>{morningForm.energy}/10</span></label>
+                <input type="range" min="1" max="10" step="1" value={morningForm.energy}
+                  onChange={e => setMorningForm(f => ({ ...f, energy: Number(e.target.value) }))}
+                  style={{ width: "100%", accentColor: "#e8a838" }}/>
+                <div style={s.sevLabels}><span style={s.sevLabel}>Exhausted</span><span style={s.sevLabel}>Energised</span></div>
+              </div>
+              {/* Symptoms on waking */}
+              <div style={s.formGroup}>
+                <label style={s.label}>Any symptoms on waking? <span style={s.optional}>(optional)</span></label>
+                <textarea value={morningForm.symptoms}
+                  onChange={e => setMorningForm(f => ({ ...f, symptoms: e.target.value }))}
+                  placeholder="e.g. stiff joints, headache, racing heart on standing..."
+                  style={s.textarea} rows={2}/>
+              </div>
+              {/* Notes */}
+              <div style={s.formGroup}>
+                <label style={s.label}>Anything else to note? <span style={s.optional}>(optional)</span></label>
+                <textarea value={morningForm.notes}
+                  onChange={e => setMorningForm(f => ({ ...f, notes: e.target.value }))}
+                  placeholder="e.g. slept 6 hours, woke at 3am, vivid dreams..."
+                  style={s.textarea} rows={2}/>
+              </div>
+            </div>
+            <div style={s.modalFooter}>
+              <button onClick={() => setShowMorningCheckin(false)} style={s.cancelBtn}>Cancel</button>
+              <button onClick={() => {
+                saveCheckin("morning", { sleep: morningForm.sleep, severity: morningForm.severity, stress: morningForm.energy, symptoms: morningForm.symptoms, notes: morningForm.notes });
+                setShowMorningCheckin(false);
+                setCheckinSaved("🌅 Morning check-in saved!");
+                setTimeout(() => setCheckinSaved(""), 3000);
+                setMorningForm({ sleep: 7, severity: 5, symptoms: "", energy: 5, notes: "" });
+              }} style={s.saveBtn}>Save check-in →</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Evening check-in modal ── */}
+      {showEveningCheckin && (
+        <div style={s.modalOverlay} onClick={() => setShowEveningCheckin(false)}>
+          <div style={s.modal} onClick={e => e.stopPropagation()}>
+            <div style={s.modalHeader}>
+              <h2 style={s.modalTitle}>🌙 Evening check-in</h2>
+              <button onClick={() => setShowEveningCheckin(false)} style={s.modalClose}>✕</button>
+            </div>
+            <div style={s.modalBody}>
+              {/* Day severity */}
+              <div style={s.formGroup}>
+                <label style={s.label}>How was your day overall? <span style={s.sevValue}>{eveningForm.severity}/10</span></label>
+                <SeveritySlider value={eveningForm.severity} onChange={v => setEveningForm(f => ({ ...f, severity: v }))}/>
+              </div>
+              {/* Symptoms */}
+              <div style={s.formGroup}>
+                <label style={s.label}>Symptoms today <span style={s.optional}>(optional)</span></label>
+                <textarea value={eveningForm.symptoms}
+                  onChange={e => setEveningForm(f => ({ ...f, symptoms: e.target.value }))}
+                  placeholder="Describe how you felt today — symptoms, flares, good moments..."
+                  style={s.textarea} rows={3}/>
+              </div>
+              {/* Medications */}
+              <div style={s.formGroup}>
+                <label style={s.label}>Medications today</label>
+                <MedPicker
+                  medications={medications}
+                  selectedIds={eveningForm.selectedMedIds || []}
+                  onToggle={id => setEveningForm(f => ({ ...f, selectedMedIds: f.selectedMedIds.includes(id) ? f.selectedMedIds.filter(i => i !== id) : [...f.selectedMedIds, id] }))}
+                  onAddAll={() => setEveningForm(f => ({ ...f, selectedMedIds: medications.map(m => m.id) }))}
+                  manualText={eveningForm.medications}
+                  onManualChange={val => setEveningForm(f => ({ ...f, medications: val }))}
+                />
+              </div>
+              {/* Food */}
+              <div style={s.formGroup}>
+                <label style={s.label}>Food & drink today <span style={s.optional}>(optional)</span></label>
+                <textarea value={eveningForm.food}
+                  onChange={e => setEveningForm(f => ({ ...f, food: e.target.value }))}
+                  placeholder="Anything notable about what you ate or drank today?"
+                  style={s.textarea} rows={2}/>
+              </div>
+              {/* Activity */}
+              <div style={s.formGroup}>
+                <label style={s.label}>Activity today <span style={s.optional}>(optional)</span></label>
+                <input value={eveningForm.activity}
+                  onChange={e => setEveningForm(f => ({ ...f, activity: e.target.value }))}
+                  placeholder="e.g. 20 min walk, mostly resting, physical therapy..."
+                  style={s.input}/>
+              </div>
+              {/* Stress */}
+              <div style={s.formGroup}>
+                <label style={s.label}>Stress level today <span style={s.sevValue}>{eveningForm.stress}/10</span></label>
+                <input type="range" min="1" max="10" step="1" value={eveningForm.stress}
+                  onChange={e => setEveningForm(f => ({ ...f, stress: Number(e.target.value) }))}
+                  style={{ width: "100%", accentColor: SAGE_DARK }}/>
+                <div style={s.sevLabels}><span style={s.sevLabel}>Low</span><span style={s.sevLabel}>High</span></div>
+              </div>
+              {/* Notes */}
+              <div style={s.formGroup}>
+                <label style={s.label}>Reflections <span style={s.optional}>(optional)</span></label>
+                <textarea value={eveningForm.notes}
+                  onChange={e => setEveningForm(f => ({ ...f, notes: e.target.value }))}
+                  placeholder="Anything you want to remember or reflect on from today..."
+                  style={s.textarea} rows={2}/>
+              </div>
+            </div>
+            <div style={s.modalFooter}>
+              <button onClick={() => setShowEveningCheckin(false)} style={s.cancelBtn}>Cancel</button>
+              <button onClick={() => {
+                const selectedMedsStr = buildMedString(eveningForm.selectedMedIds || []);
+                const finalMeds = [selectedMedsStr, eveningForm.medications].filter(Boolean).join(", ");
+                saveCheckin("evening", { ...eveningForm, medications: finalMeds });
+                setShowEveningCheckin(false);
+                setCheckinSaved("🌙 Evening check-in saved!");
+                setTimeout(() => setCheckinSaved(""), 3000);
+                setEveningForm({ severity: 5, symptoms: "", food: "", medications: "", selectedMedIds: [], activity: "", stress: 5, notes: "" });
+              }} style={s.saveBtn}>Save check-in →</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Delete confirmation ── */}
       {confirmDeleteId && (
