@@ -269,7 +269,7 @@ function BPReadingCard({ reading, onDelete }) {
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.2rem" }}>
             <span style={{ background: cat.bg, color: cat.color, fontSize: "0.7rem", fontWeight: 700, padding: "0.15rem 0.6rem", borderRadius: "100px" }}>{cat.label}</span>
-            {reading.pulse && <span style={{ fontSize: "0.75rem", color: WARM_GRAY, display:"inline-flex", alignItems:"center", gap:"0.25rem" }}><function <lambda> at 0x7ef809e1e3e0> {reading.pulse} bpm</span>}
+            {reading.pulse && <span style={{ fontSize: "0.75rem", color: WARM_GRAY, display:"inline-flex", alignItems:"center", gap:"0.25rem" }}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M1 8h3l2-5 2 10 2-6 1 3h4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg> {reading.pulse} bpm</span>}
             {reading.arm && <span style={{ fontSize: "0.72rem", color: "#aaa" }}>{reading.arm} arm</span>}
           </div>
           <div style={{ fontSize: "0.78rem", color: WARM_GRAY }}>{formatBPTime(reading.timestamp)}</div>
