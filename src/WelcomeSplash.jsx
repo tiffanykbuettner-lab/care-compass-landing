@@ -108,7 +108,7 @@ export default function WelcomeSplash() {
           {/* Greeting */}
           {displayName && (
             <div style={{ background: SAGE_LIGHT, color: SAGE_DARK, borderRadius: "100px", padding: "0.4rem 1.25rem", fontSize: "0.9rem", fontWeight: 600 }}>
-              Welcome, {displayName}! 🌿
+              Welcome, {displayName}!
             </div>
           )}
 
@@ -170,7 +170,7 @@ export default function WelcomeSplash() {
 
           {/* Privacy note */}
           <div style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", background: SAGE_LIGHT, borderRadius: "0.75rem", padding: "0.875rem 1.25rem", width: "100%", textAlign: "left" }}>
-            <span style={{ flexShrink: 0 }}>🔒</span>
+            <span style={{ flexShrink:0, color:"#7a9e87" }}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><rect x="3" y="7" width="10" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M5 7V5a3 3 0 016 0v2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="8" cy="10.5" r="1" fill="currentColor"/></svg></span>
             <p style={{ fontSize: "0.8rem", color: SAGE_DARK, lineHeight: 1.6, margin: 0 }}>
               Your data is stored privately on your device only. It is never uploaded, sold, or shared without your consent.
             </p>

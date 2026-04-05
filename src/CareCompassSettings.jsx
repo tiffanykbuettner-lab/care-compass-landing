@@ -306,7 +306,7 @@ function ConditionTagInput({ conditions, onChange }) {
             <button
               onClick={(e) => { e.stopPropagation(); removeCondition(i); }}
               style={{ background: "none", border: "none", cursor: "pointer", color: SAGE_DARK, padding: 0, lineHeight: 1, fontSize: 13, display: "flex", alignItems: "center" }}
-            >×</button>
+            ><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg></button>
           </span>
         ))}
         <input
@@ -502,7 +502,7 @@ function CareTeamInput({ providers, onChange }) {
               onClick={() => removeProvider(provider.id)}
               style={{ background: "none", border: "none", color: "#ccc", cursor: "pointer", fontSize: 16, padding: "8px 4px", lineHeight: 1 }}
               title="Remove"
-            >×</button>
+            ><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg></button>
           </div>
         </div>
       ))}
@@ -623,7 +623,7 @@ function FamilyHistoryPanel({ onComplete }) {
 
           {entries.length === 0 ? (
             <div style={{ textAlign: "center", padding: "24px 0", color: WARM_GRAY, fontFamily: "sans-serif" }}>
-              <div style={{ fontSize: 28, marginBottom: 8 }}>🧬</div>
+              <div style={{ display:"flex", justifyContent:"center", marginBottom:8, color:"#7a9e87" }}><svg width="28" height="28" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M5 2c0 3 6 3 6 6s-6 3-6 6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M11 2c0 3-6 3-6 6s6 3 6 6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><line x1="5" y1="6" x2="11" y2="6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/><line x1="5" y1="10" x2="11" y2="10" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg></div>
               <div style={{ fontSize: 13.5, fontWeight: 500, color: INK, marginBottom: 4 }}>No family history added yet</div>
               <div style={{ fontSize: 12.5, lineHeight: 1.6 }}>Add a family member to begin. Only include what you know — incomplete information is fine.</div>
             </div>
@@ -660,7 +660,7 @@ function FamilyHistoryPanel({ onComplete }) {
                         </span>
                       ) : null;
                     })()}
-                    <button onClick={() => removeMember(entry.id)} style={{ background: "none", border: "none", color: "#ccc", cursor: "pointer", fontSize: 18, padding: "0 4px", lineHeight: 1, flexShrink: 0 }}>×</button>
+                    <button onClick={() => removeMember(entry.id)} style={{ background: "none", border: "none", color: "#ccc", cursor: "pointer", fontSize: 18, padding: "0 4px", lineHeight: 1, flexShrink: 0 }}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg></button>
                   </div>
 
                   {/* Conditions + notes */}
@@ -753,7 +753,7 @@ function FamilyConditionInput({ conditions, onChange }) {
         {conditions.map((c, i) => (
           <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "#e8f0fc", color: "#2c4e9b", borderRadius: 100, padding: "3px 10px", fontSize: 12.5, fontFamily: "sans-serif", fontWeight: 500 }}>
             {c}
-            <button onClick={() => removeCondition(i)} style={{ background: "none", border: "none", cursor: "pointer", color: "#2c4e9b", padding: 0, fontSize: 14, lineHeight: 1, display: "flex" }}>×</button>
+            <button onClick={() => removeCondition(i)} style={{ background: "none", border: "none", cursor: "pointer", color: "#2c4e9b", padding: 0, fontSize: 14, lineHeight: 1, display: "flex" }}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg></button>
           </span>
         ))}
         <input
@@ -1086,11 +1086,11 @@ If you cannot read the label clearly, return: {"name":"","dose":"","frequency":"
           desc="Your saved medications — used in tracker logs and AI insights"
         />
         <div style={{ padding: "16px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
-          {saved && <div style={{ background: SAGE_LIGHT, color: SAGE_DARK, borderRadius: 8, padding: "8px 14px", fontSize: 13, fontFamily: "sans-serif", fontWeight: 500 }}>💊 Saved!</div>}
+          {saved && <div style={{ background: SAGE_LIGHT, color: SAGE_DARK, borderRadius: 8, padding: "8px 14px", fontSize: 13, fontFamily: "sans-serif", fontWeight: 500 }}>Saved!</div>}
 
           {/* Action buttons */}
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }} className="no-print">
-            <OutlineBtn onClick={() => setShowBulk(b => !b)}>↑ Bulk import</OutlineBtn>
+            <OutlineBtn onClick={() => setShowBulk(b => !b)}><span style={{ display:"inline-flex", alignItems:"center", gap:"0.35rem" }}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M8 10V3M5 6l3-3 3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><path d="M3 13h10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg> Bulk import</span></OutlineBtn>
             {/* Scan button */}
             <label style={{ cursor: "pointer" }}>
               <input
@@ -1140,7 +1140,7 @@ If you cannot read the label clearly, return: {"name":"","dose":"","frequency":"
           {scanError && (
             <div style={{ background: "#fdecea", borderRadius: 8, padding: "10px 14px", fontSize: 12.5, color: "#c0392b", fontFamily: "sans-serif", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span>{scanError}</span>
-              <button onClick={() => setScanError("")} style={{ background: "none", border: "none", cursor: "pointer", color: "#c0392b", fontSize: 16 }}>×</button>
+              <button onClick={() => setScanError("")} style={{ background: "none", border: "none", cursor: "pointer", color: "#c0392b", fontSize: 16 }}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg></button>
             </div>
           )}
 
@@ -1155,7 +1155,7 @@ If you cannot read the label clearly, return: {"name":"","dose":"","frequency":"
               </div>
               <div style={{ borderTop: `1px solid ${BORDER}`, paddingTop: 10 }}>
                 <label style={{ cursor: "pointer" }}>
-                  <span style={{ fontSize: 12, color: WARM_GRAY, fontFamily: "sans-serif" }}>📎 Or upload .txt / .csv — </span>
+                  <span style={{ fontSize:12, color:WARM_GRAY, fontFamily:"sans-serif", display:"inline-flex", alignItems:"center", gap:"0.3rem" }}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M13 7.5l-5.5 5.5a4 4 0 01-5.7-5.6L7 2.3a2.5 2.5 0 013.5 3.5L5.3 11a1 1 0 01-1.4-1.4l4.8-4.9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg> Or upload .txt / .csv — </span>
                   <input type="file" accept=".txt,.csv" style={{ display: "none" }} onChange={e => {
                     const file = e.target.files[0];
                     if (!file) return;
@@ -1235,7 +1235,7 @@ If you cannot read the label clearly, return: {"name":"","dose":"","frequency":"
               {duplicateWarning && (
                 <div style={{ background: "#fef3da", border: "1px solid #e8a838", borderRadius: 8, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
                   <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-                    <span style={{ fontSize: 16, flexShrink: 0 }}>⚠️</span>
+                    <span style={{ color:"#e8a838", display:"flex", alignItems:"center" }}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M8 2L1 14h14L8 2z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><path d="M8 7v3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="8" cy="12" r="0.7" fill="currentColor"/></svg></span>
                     <div style={{ fontSize: 13, color: "#8a5a00", fontFamily: "sans-serif", lineHeight: 1.5 }}>
                       <strong>{duplicateWarning}</strong> is already in your medication list. Would you like to add it again anyway?
                     </div>
@@ -1275,7 +1275,7 @@ If you cannot read the label clearly, return: {"name":"","dose":"","frequency":"
           {/* Medication list */}
           {medications.length === 0 && !showForm && !showBulk ? (
             <div style={{ textAlign: "center", padding: "24px 0", color: WARM_GRAY, fontFamily: "sans-serif" }}>
-              <div style={{ fontSize: 24, marginBottom: 8 }}>💊</div>
+              <div style={{ display:"flex", justifyContent:"center", marginBottom:8, color:"#7a9e87" }}><svg width="32" height="32" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><rect x="2" y="6" width="12" height="4" rx="2" stroke="currentColor" strokeWidth="1.4"/><line x1="8" y1="6" x2="8" y2="10" stroke="currentColor" strokeWidth="1.4"/></svg></div>
               <div style={{ fontSize: 13.5, fontWeight: 500, color: INK, marginBottom: 4 }}>No medications saved yet</div>
               <div style={{ fontSize: 12.5, lineHeight: 1.6 }}>Add your medications once — they appear as quick-select options when logging daily tracker entries.</div>
             </div>
@@ -1288,14 +1288,14 @@ If you cannot read the label clearly, return: {"name":"","dose":"","frequency":"
                       <span style={{ fontSize: 14, fontWeight: 600, color: INK, fontFamily: "sans-serif" }}>{med.name}</span>
                       {med.dose && <span style={{ fontSize: 12.5, color: SAGE_DARK, fontWeight: 600, fontFamily: "sans-serif" }}>{med.dose}</span>}
                       {med.frequency && <span style={{ fontSize: 11.5, color: WARM_GRAY, background: CREAM, borderRadius: 100, padding: "2px 8px", fontFamily: "sans-serif" }}>{med.frequency}</span>}
-                      {med.duration && <span style={{ fontSize: 11.5, color: TEAL, background: "#e0f2f4", borderRadius: 100, padding: "2px 8px", fontFamily: "sans-serif" }}>⏱ {durationLabel(med.duration)}</span>}
+                      {med.duration && <span style={{ fontSize: 11.5, color: TEAL, background: "#e0f2f4", borderRadius: 100, padding: "2px 8px", fontFamily: "sans-serif" }}><span style={{ display:"inline-flex", alignItems:"center", gap:"0.3rem" }}></span>{durationLabel(med.duration)}</span>}
                     </div>
                     {med.notes && <div style={{ fontSize: 12, color: WARM_GRAY, fontStyle: "italic", fontFamily: "sans-serif" }}>{med.notes}</div>}
-                    {med.reminder && <div style={{ fontSize: 11.5, color: SAGE_DARK, background: SAGE_LIGHT, display: "inline-block", borderRadius: 100, padding: "2px 8px", marginTop: 4, fontFamily: "sans-serif" }}>⏰ Daily {med.reminderTime}</div>}
+                    {med.reminder && <div style={{ fontSize: 11.5, color: SAGE_DARK, background: SAGE_LIGHT, display: "inline-block", borderRadius: 100, padding: "2px 8px", marginTop: 4, fontFamily: "sans-serif" }}><span style={{ display:"inline-flex", alignItems:"center", gap:"0.3rem" }}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><circle cx="8" cy="9" r="5.5" stroke="currentColor" strokeWidth="1.4"/><path d="M8 6.5V9l2 1.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/><path d="M3 3.5L1.5 2M13 3.5L14.5 2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg> Daily {med.reminderTime}</span></div>}
                   </div>
                   <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
                     <OutlineBtn onClick={() => handleEdit(med)}>Edit</OutlineBtn>
-                    <DangerBtn onClick={() => handleDelete(med.id)}>✕</DangerBtn>
+                    <DangerBtn onClick={() => handleDelete(med.id)}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg></DangerBtn>
                   </div>
                 </div>
               ))}
@@ -1969,7 +1969,7 @@ function SubscriptionPanel() {
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <div style={{ fontSize: 14, fontWeight: 500, color: INK, fontFamily: "sans-serif" }}>Subscription cancelled.</div>
               <div style={{ fontSize: 13.5, color: WARM_GRAY, fontFamily: "sans-serif", lineHeight: 1.6 }}>
-                You have full access until <strong style={{ color: INK }}>{nextDate}</strong>. We've emailed you a confirmation. We're sorry to see you go 🌿
+                You have full access until <strong style={{ color: INK }}>{nextDate}</strong>. We've emailed you a confirmation. We're sorry to see you go.
               </div>
               <OutlineBtn hoverColor={SAGE_DARK} hoverBorder={SAGE} style={{ alignSelf: "flex-start" }} onClick={() => { setShowCancel(false); setCancelStep(0); }}>
                 Resubscribe
@@ -2239,7 +2239,7 @@ export default function CareCompassSettings() {
               <span style={{ fontSize: 12.5, fontFamily: "sans-serif", fontStyle: "italic",
                 color: isSaveable && dirty ? SAGE_DARK : WARM_GRAY }}>
                 {isSaveable && dirty ? "You have unsaved changes"
-                  : isLast ? "🎉 All done! Your account is set up."
+                  : isLast ? "All done! Your account is set up."
                   : isSaveable ? "All changes saved"
                   : ""}
               </span>

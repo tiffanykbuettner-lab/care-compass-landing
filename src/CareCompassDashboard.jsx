@@ -257,24 +257,24 @@ function AppointmentCard({ appt, onEdit, onDelete }) {
         <p style={{ fontSize: "0.78rem", color: TEAL, margin: "0 0 0.3rem", fontWeight: 500 }}>
           {formatApptDate(appt.date, appt.time)}
         </p>
-        {appt.location && <p style={{ fontSize: "0.75rem", color: WARM_GRAY, margin: "0 0 0.2rem" }}>📍 {appt.location}</p>}
+        {appt.location && <p style={{ fontSize: "0.75rem", color: WARM_GRAY, margin: "0 0 0.2rem" }}><span style={{ display:"inline-flex", alignItems:"center", gap:"0.3rem", color:WARM_GRAY }}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M8 1a4 4 0 014 4c0 3-4 9-4 9S4 8 4 5a4 4 0 014-4z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><circle cx="8" cy="5" r="1.5" stroke="currentColor" strokeWidth="1.2"/></svg>{appt.location}</span></p>}
         {appt.reason && <p style={{ fontSize: "0.78rem", color: INK_LIGHT, margin: 0, fontStyle: "italic" }}>"{appt.reason}"</p>}
         <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
           {appt.reminder && (
             <span style={{ fontSize: "0.7rem", background: SAGE_LIGHT, color: SAGE_DARK, borderRadius: "100px", padding: "0.2rem 0.65rem", fontWeight: 500 }}>
-              {appt.reminder ? `⏰ ${(REMINDER_OPTIONS.find(o => o.value === appt.reminderAdvance) || REMINDER_OPTIONS[1]).label}` : ''}
+              {appt.reminder ? `(REMINDER_OPTIONS.find(o => o.value === appt.reminderAdvance) || REMINDER_OPTIONS[1]).label}` : ''}
             </span>
           )}
           {appt.prepReport && (
             <span style={{ fontSize: "0.7rem", background: TEAL_LIGHT, color: TEAL, borderRadius: "100px", padding: "0.2rem 0.65rem", fontWeight: 500 }}>
-              📋 Report requested
+              <span style={{ display:"inline-flex", alignItems:"center", gap:"0.35rem" }}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M3 13c1-4 2-8 9-10-3 5-4 8-9 10z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><path d="M3 13c2-3 4-5 6-7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg> Report requested</span>
             </span>
           )}
         </div>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", flexShrink: 0 }}>
         <button onClick={() => onEdit(appt)} style={{ background: "none", border: "1px solid rgba(0,0,0,0.12)", borderRadius: "6px", padding: "0.25rem 0.65rem", fontSize: "0.72rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit" }}>Edit</button>
-        <button onClick={() => onDelete(appt.id)} style={{ background: "none", border: "none", color: "#ddd", cursor: "pointer", fontSize: "0.9rem", textAlign: "center" }}>✕</button>
+        <button onClick={() => onDelete(appt.id)} style={{ background: "none", border: "none", color: "#ddd", cursor: "pointer", fontSize: "0.9rem", textAlign: "center" }}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg></button>
       </div>
     </div>
   );
@@ -582,7 +582,7 @@ function NewUserWelcome({ userName, onComplete }) {
 
           {userName && (
             <div style={{ background: SAGE_LIGHT, color: SAGE_DARK, borderRadius: "100px", padding: "0.35rem 1.25rem", fontSize: "0.9rem", fontWeight: 600 }}>
-              Welcome, {userName}! 🌿
+              Welcome, {userName}!
             </div>
           )}
 
@@ -612,7 +612,7 @@ function NewUserWelcome({ userName, onComplete }) {
 
           {/* Privacy note */}
           <div style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", background: SAGE_LIGHT, borderRadius: "0.75rem", padding: "0.875rem 1.25rem", width: "100%", textAlign: "left" }}>
-            <span>🔒</span>
+            <span style={{ color:"#7a9e87" }}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><rect x="3" y="7" width="10" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M5 7V5a3 3 0 016 0v2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="8" cy="10.5" r="1" fill="currentColor"/></svg></span>
             <p style={{ fontSize: "0.82rem", color: SAGE_DARK, lineHeight: 1.6, margin: 0 }}>
               Your data is stored privately on this device only. It is never uploaded, sold, or shared.
             </p>
@@ -868,7 +868,7 @@ export default function CareCompassDashboard() {
                   <div>
                     <p style={s.statLabel}>Tracking streak</p>
                     <p style={s.statValue}>{tracker?.streak ?? 0}<span style={s.statUnit}> days</span></p>
-                    <p style={s.statSub}>{tracker?.streak >= 7 ? "🔥 Keep it up!" : tracker?.streak > 0 ? "Keep going!" : "Start tracking today"}</p>
+                    <p style={s.statSub}>{tracker?.streak >= 7 ? "Keep it up!" : tracker?.streak > 0 ? "Keep going!" : "Start tracking today"}</p>
                   </div>
                   <div style={s.streakBar}>
                     {Array.from({ length: 7 }).map((_, i) => (
@@ -1051,7 +1051,7 @@ export default function CareCompassDashboard() {
               {calendarAppt && (
                 <div style={{ background: SAGE_LIGHT, borderRadius: "1rem", padding: "1.25rem", marginBottom: "1.25rem", display: "flex", flexDirection: "column", gap: "0.875rem" }}>
                   <div>
-                    <p style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: SAGE_DARK, margin: "0 0 0.2rem" }}>Appointment saved! 🎉</p>
+                    <p style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: SAGE_DARK, margin: "0 0 0.2rem" }}>Appointment saved!</p>
                     <p style={{ fontSize: "0.85rem", color: INK, margin: 0 }}>Add this to your calendar?</p>
                   </div>
                   <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
@@ -1087,7 +1087,7 @@ export default function CareCompassDashboard() {
               {/* Appointment list */}
               {appointments.length === 0 && !showApptForm ? (
                 <div style={s.emptyCard}>
-                  <span style={{ fontSize: "2rem" }}>🗓️</span>
+                  <span style={{ color:"#7a9e87", display:"flex" }}><svg width="32" height="32" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><rect x="1.5" y="3" width="13" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M1.5 7h13M5 1v4M11 1v4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg></span>
                   <p style={s.emptyTitle}>No appointments yet</p>
                   <p style={s.emptyDesc}>Add upcoming doctor visits to get reminders and auto-prepare reports before you go.</p>
                   <button onClick={() => setShowApptForm(true)} style={{ ...s.emptyBtn, border: "none", cursor: "pointer", fontFamily: "inherit" }}>Add your first appointment →</button>

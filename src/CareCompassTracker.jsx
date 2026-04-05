@@ -130,7 +130,7 @@ function EntryCard({ entry, onDelete, onEdit }) {
         </div>
         <div style={s.entryCardRight}>
           <button onClick={e => { e.stopPropagation(); onEdit(entry); }} style={s.editEntryBtn}>Edit</button>
-          <button onClick={e => { e.stopPropagation(); onDelete(entry.id); }} style={{ ...s.deleteBtn, color: "#ddd" }} title="Delete entry">✕</button>
+          <button onClick={e => { e.stopPropagation(); onDelete(entry.id); }} style={{ ...s.deleteBtn, color: "#bbb" }} title="Delete entry"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg></button>
           <span style={s.expandChevron}>{expanded ? "▲" : "▼"}</span>
         </div>
       </div>
@@ -269,7 +269,7 @@ function BPReadingCard({ reading, onDelete }) {
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.2rem" }}>
             <span style={{ background: cat.bg, color: cat.color, fontSize: "0.7rem", fontWeight: 700, padding: "0.15rem 0.6rem", borderRadius: "100px" }}>{cat.label}</span>
-            {reading.pulse && <span style={{ fontSize: "0.75rem", color: WARM_GRAY }}>♥ {reading.pulse} bpm</span>}
+            {reading.pulse && <span style={{ fontSize: "0.75rem", color: WARM_GRAY, display:"inline-flex", alignItems:"center", gap:"0.25rem" }}><function <lambda> at 0x7ef809e1e3e0> {reading.pulse} bpm</span>}
             {reading.arm && <span style={{ fontSize: "0.72rem", color: "#aaa" }}>{reading.arm} arm</span>}
           </div>
           <div style={{ fontSize: "0.78rem", color: WARM_GRAY }}>{formatBPTime(reading.timestamp)}</div>
@@ -277,7 +277,7 @@ function BPReadingCard({ reading, onDelete }) {
           {reading.position && <div style={{ fontSize: "0.72rem", color: "#aaa" }}>{reading.position}</div>}
         </div>
       </div>
-      <button onClick={() => onDelete(reading.id)} style={{ background: "none", border: "none", color: "#ddd", cursor: "pointer", fontSize: "1rem", padding: "0.25rem", flexShrink: 0 }}>✕</button>
+      <button onClick={() => onDelete(reading.id)} style={{ background: "none", border: "none", color: "#ddd", cursor: "pointer", fontSize: "1rem", padding: "0.25rem", flexShrink: 0 }}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg></button>
     </div>
   );
 }
@@ -699,7 +699,7 @@ export default function CareCompassTracker() {
         try {
           const stripped = updated.map(entry => ({ ...entry, photos: [] }));
           localStorage.setItem(STORAGE_KEY, JSON.stringify(stripped));
-          setSaveError("⚠️ Storage limit reached — photos were not saved to keep your entries. Consider reducing photo size or clearing old entries.");
+          setSaveError("Storage limit reached — photos were not saved to keep your entries. Consider reducing photo size or clearing old entries.");
         } catch {
           setSaveError("⚠️ Could not save your entry — device storage is full. Please free up space and try again.");
         }
@@ -1090,7 +1090,7 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
               </div>
             </div>
             <div style={s.onboardingPrivacy}>
-              <span>🔒</span>
+              <span style={{ color:"#7a9e87" }}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><rect x="3" y="7" width="10" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M5 7V5a3 3 0 016 0v2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="8" cy="10.5" r="1" fill="currentColor"/></svg></span>
               <p style={s.onboardingPrivacyText}>
                 Your data is stored privately on this device only. It is never uploaded, sold, or shared.
               </p>
@@ -1136,13 +1136,13 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
 
           {view === "log" && (
             <div style={s.tabContent}>
-              {saved && <div style={s.savedBanner}>🌿 {editingEntry ? "Entry updated!" : "Entry saved!"}</div>}
+              {saved && <div style={s.savedBanner}><span style={{ color:"#7a9e87", marginRight:"0.4rem" }}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M3 13c1-4 2-8 9-10-3 5-4 8-9 10z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><path d="M3 13c2-3 4-5 6-7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg></span>{editingEntry ? "Entry updated!" : "Entry saved!"}</div>}
               {checkinSaved && <div style={{ ...s.savedBanner, background: TEAL_LIGHT, color: TEAL }}>{checkinSaved}</div>}
 
               {/* ── Logging philosophy tip — shown until dismissed ── */}
               {!localStorage.getItem("cc-log-tip-dismissed") && (
                 <div style={{ background: "#fff", border: "1px solid rgba(0,0,0,0.07)", borderRadius: "0.875rem", padding: "0.875rem 1rem 0.875rem 1.25rem", marginBottom: "0.75rem", display: "flex", alignItems: "flex-start", gap: "0.75rem" }}>
-                  <span style={{ fontSize: "1.1rem", flexShrink: 0, marginTop: "0.05rem" }}>💡</span>
+                  <span style={{ color:"#7a9e87", display:"flex", alignItems:"center" }}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M8 2a4 4 0 00-1.5 7.7V11h3V9.7A4 4 0 008 2z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><path d="M6.5 11v1.5a1.5 1.5 0 003 0V11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg></span>
                   <div style={{ flex: 1 }}>
                     <p style={{ fontSize: "0.82rem", fontWeight: 600, color: INK, margin: "0 0 0.2rem" }}>Two ways to track — both work</p>
                     <p style={{ fontSize: "0.78rem", color: WARM_GRAY, margin: 0, lineHeight: 1.6 }}>
@@ -1428,7 +1428,7 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
                     })}
                   </div>
                   <div style={s.insightsFooter} className="no-print">
-                    <p style={s.insightsFooterNote}>🌿 Bring this report to your next appointment and ask your provider to help you explore these patterns.</p>
+                    <p style={{...s.insightsFooterNote, display:"flex", alignItems:"center", gap:"0.4rem"}}><span style={{ color:"#7a9e87" }}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M3 13c1-4 2-8 9-10-3 5-4 8-9 10z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><path d="M3 13c2-3 4-5 6-7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg></span> Bring this report to your next appointment and ask your provider to help you explore these patterns.</p>
                     <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center", flexWrap: "wrap" }}>
                       <button onClick={() => {
                         const style = document.createElement("style");
@@ -1653,7 +1653,7 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
                 <button onClick={() => setShowBpForm(true)} style={s.addBtn}>+ Log Reading</button>
               </div>
 
-              {bpSaved && <div style={s.savedBanner}>🫀 Reading saved!</div>}
+              {bpSaved && <div style={s.savedBanner}>Reading saved!</div>}
 
               {/* Sub-tabs */}
               <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.5rem", borderBottom: "1px solid rgba(0,0,0,0.07)", paddingBottom: "0" }} className="no-print">
@@ -1667,7 +1667,7 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
                 <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
                   {bpReadings.length === 0 ? (
                     <div style={s.emptyState}>
-                      <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>🫀</div>
+                      <div style={{ color:"#7a9e87", display:"flex", justifyContent:"center", marginBottom:"0.5rem" }}><svg width="32" height="32" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M1 8h3l2-5 2 10 2-6 1 3h4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg></div>
                       <h2 style={s.emptyTitle}>Start your BP log</h2>
                       <p style={s.emptyDesc}>Log your first reading. Your cardiologist wants a record — this will build it automatically.</p>
                       <button onClick={() => setShowBpForm(true)} style={s.addBtn}>+ Log First Reading</button>
@@ -1754,7 +1754,7 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
                             {editingReminderId !== r.id && (
                               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.75rem 1rem" }}>
                                 <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                                  <span style={{ fontSize: "1rem" }}>⏰</span>
+                                  <span style={{ color:"#7a9e87", display:"flex", alignItems:"center" }}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><circle cx="8" cy="9" r="5.5" stroke="currentColor" strokeWidth="1.4"/><path d="M8 6.5V9l2 1.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/><path d="M3 3.5L1.5 2M13 3.5L14.5 2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg></span>
                                   <div>
                                     <p style={{ fontSize: "0.9rem", fontWeight: 600, color: INK, margin: 0 }}>
                                       {(() => {
@@ -1772,7 +1772,7 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
                                   <button onClick={() => toggleReminder(r.id)} style={{ background: r.enabled ? SAGE_DARK : "#ccc", color: "#fff", border: "none", borderRadius: "100px", padding: "0.25rem 0.75rem", fontSize: "0.75rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
                                     {r.enabled ? "On" : "Off"}
                                   </button>
-                                  <button onClick={() => deleteReminder(r.id)} style={{ background: "none", border: "none", color: "#ccc", cursor: "pointer", fontSize: "1rem", lineHeight: 1 }}>✕</button>
+                                  <button onClick={() => deleteReminder(r.id)} style={{ background: "none", border: "none", color: "#ccc", cursor: "pointer", fontSize: "1rem", lineHeight: 1 }}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg></button>
                                 </div>
                               </div>
                             )}
@@ -1900,7 +1900,7 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
                   <div style={s.modal} onClick={e => e.stopPropagation()}>
                     <div style={s.modalHeader}>
                       <h2 style={s.modalTitle}>Log Blood Pressure Reading</h2>
-                      <button onClick={() => setShowBpForm(false)} style={s.modalClose}>✕</button>
+                      <button onClick={() => setShowBpForm(false)} style={s.modalClose}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg></button>
                     </div>
                     <div style={s.modalBody}>
                       {/* Systolic / Diastolic */}
@@ -1979,7 +1979,7 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
                 </div>
               </div>
 
-              {medSaved && <div style={s.savedBanner}>💊 Saved!</div>}
+              {medSaved && <div style={s.savedBanner}>Saved!</div>}
 
               {/* Bulk import */}
               {showBulk && (
@@ -2000,7 +2000,7 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
                   <div style={{ borderTop: "1px solid rgba(0,0,0,0.08)", paddingTop: "0.75rem" }}>
                     <p style={{ fontSize: "0.75rem", color: WARM_GRAY, margin: "0 0 0.4rem", fontWeight: 600 }}>Or upload a file</p>
                     <label style={{ cursor: "pointer", display: "inline-block" }}>
-                      <span style={{ ...s.uploadBtn, fontSize: "0.82rem" }}>📎 Upload .txt or .csv file</span>
+                      <span style={{ ...s.uploadBtn, fontSize: "0.82rem" }}><span style={{ display:"inline-flex", alignItems:"center", gap:"0.35rem" }}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M13 7.5l-5.5 5.5a4 4 0 01-5.7-5.6L7 2.3a2.5 2.5 0 013.5 3.5L5.3 11a1 1 0 01-1.4-1.4l4.8-4.9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg> Upload .txt or .csv file</span></span>
                       <input type="file" accept=".txt,.csv" style={{ display: "none" }} onChange={e => {
                         const file = e.target.files[0];
                         if (!file) return;
@@ -2075,7 +2075,7 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
               {/* Medication list */}
               {medications.length === 0 && !showMedForm && !showBulk ? (
                 <div style={s.emptyState}>
-                  <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>💊</div>
+                  <div style={{ color:"#7a9e87", display:"flex", justifyContent:"center", marginBottom:"0.5rem" }}><svg width="32" height="32" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><rect x="2" y="6" width="12" height="4" rx="2" stroke="currentColor" strokeWidth="1.4"/><line x1="8" y1="6" x2="8" y2="10" stroke="currentColor" strokeWidth="1.4"/></svg></div>
                   <h2 style={s.emptyTitle}>No medications yet</h2>
                   <p style={s.emptyDesc}>Add your medications once — then select them with one tap when logging daily entries.</p>
                   <button onClick={() => setShowMedForm(true)} style={s.addBtn}>+ Add first medication</button>
@@ -2103,7 +2103,7 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
                       </div>
                       <div style={{ display: "flex", gap: "0.4rem", flexShrink: 0 }}>
                         <button onClick={() => handleEditMed(med)} style={{ background: "none", border: "1px solid rgba(0,0,0,0.12)", borderRadius: "6px", padding: "0.25rem 0.65rem", fontSize: "0.72rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit" }}>Edit</button>
-                        <button onClick={() => handleDeleteMed(med.id)} style={{ background: "none", border: "none", color: "#ddd", cursor: "pointer", fontSize: "1rem" }}>✕</button>
+                        <button onClick={() => handleDeleteMed(med.id)} style={{ background: "none", border: "none", color: "#ddd", cursor: "pointer", fontSize: "1rem" }}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg></button>
                       </div>
                     </div>
                   ))}
@@ -2131,7 +2131,7 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
   <line x1="32" y1="20" x2="27" y2="21" stroke="#7a9e87" strokeWidth="2" strokeLinecap="round"/>
   <line x1="4" y1="20" x2="9" y2="21" stroke="#7a9e87" strokeWidth="2" strokeLinecap="round"/>
 </svg>Morning check-in</h2>
-              <button onClick={() => setShowMorningCheckin(false)} style={s.modalClose}>✕</button>
+              <button onClick={() => setShowMorningCheckin(false)} style={s.modalClose}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg></button>
             </div>
             <div style={s.modalBody}>
               {/* Sleep quality */}
@@ -2206,7 +2206,7 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
   <circle cx="52" cy="2"  r="1.8" fill="#4a7058"/>
   <circle cx="22" cy="8"  r="1.8" fill="#4a7058"/>
 </svg>Evening check-in</h2>
-                <button onClick={() => setShowEveningCheckin(false)} style={s.modalClose}>✕</button>
+                <button onClick={() => setShowEveningCheckin(false)} style={s.modalClose}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg></button>
               </div>
               <div style={s.modalBody}>
 
@@ -2214,7 +2214,7 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
                 {hasLoggedToday ? (
                   <div style={{ background: SAGE_LIGHT, borderRadius: "0.75rem", padding: "0.75rem 1rem", marginBottom: "0.25rem" }}>
                     <p style={{ fontSize: "0.78rem", fontWeight: 600, color: SAGE_DARK, margin: "0 0 0.2rem" }}>
-                      You logged {todayEntries.length} {todayEntries.length === 1 ? "entry" : "entries"} today 👍
+                      You logged {todayEntries.length} {todayEntries.length === 1 ? "entry" : "entries"} today
                     </p>
                     <p style={{ fontSize: "0.75rem", color: SAGE_DARK, margin: 0, lineHeight: 1.6 }}>
                       This is just a reflection — no need to repeat what you already noted. Add anything you missed or want to capture overall.
@@ -2335,7 +2335,7 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
       {confirmDeleteId && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }} onClick={() => setConfirmDeleteId(null)}>
           <div style={{ background: "#fff", borderRadius: "1.25rem", padding: "2rem", maxWidth: 360, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }} onClick={e => e.stopPropagation()}>
-            <div style={{ fontSize: "2rem", textAlign: "center", marginBottom: "0.75rem" }}>🗑️</div>
+            <div style={{ display:"flex", justifyContent:"center", marginBottom:"0.75rem", color:"#c0392b" }}><svg width="32" height="32" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M2 4h12M5 4V2h6v2M3 4l1 10h8l1-10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><path d="M6 7v5M10 7v5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg></div>
             <h3 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.15rem", fontWeight: 700, color: INK, margin: "0 0 0.5rem", textAlign: "center" }}>Delete this entry?</h3>
             <p style={{ fontSize: "0.85rem", color: WARM_GRAY, textAlign: "center", margin: "0 0 1.5rem", lineHeight: 1.6 }}>This entry will be permanently removed from your tracker. This cannot be undone.</p>
             <div style={{ display: "flex", gap: "0.75rem" }}>
@@ -2355,7 +2355,7 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
       {showForm && (
         <div style={s.modalOverlay} onClick={() => setShowForm(false)}>
           <div style={s.modal} onClick={e => e.stopPropagation()}>
-            <div style={s.modalHeader}><h2 style={s.modalTitle}>{editingEntry ? "Edit entry" : "Log an entry"}</h2><button onClick={() => setShowForm(false)} style={s.modalClose}>✕</button></div>
+            <div style={s.modalHeader}><h2 style={s.modalTitle}>{editingEntry ? "Edit entry" : "Log an entry"}</h2><button onClick={() => setShowForm(false)} style={s.modalClose}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg></button></div>
             <div style={s.modalBody}>
               <div style={s.formGroup}>
                 <label style={s.label}>What symptoms are you experiencing?</label>
@@ -2423,7 +2423,7 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
                 <label style={s.label}>Photos <span style={s.optional}>(optional — up to 3, max 2MB each)</span></label>
                 <label style={s.photoUploadArea}>
                   <input type="file" accept="image/*" multiple style={{ display: "none" }} onChange={handlePhotoUpload}/>
-                  <span style={s.photoUploadIcon}>📷</span>
+                  <span style={{ ...s.photoUploadIcon, color:"#7a9e87", display:"flex", alignItems:"center" }}><svg width="20" height="20" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><rect x="1" y="4" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.4"/><circle cx="8" cy="9" r="2.5" stroke="currentColor" strokeWidth="1.4"/><path d="M5 4l1-2h4l1 2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg></span>
                   <span style={s.photoUploadText}>Tap to add photos</span>
                   <span style={s.photoUploadSub}>Rashes, swelling, bruising — anything worth documenting</span>
                 </label>
@@ -2432,7 +2432,7 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
                     {(form.photos || []).map((photo, idx) => (
                       <div key={idx} style={s.photoPreviewWrap}>
                         <img src={photo.data} alt={photo.name} style={s.photoPreview}/>
-                        <button onClick={() => removePhoto(idx)} style={s.photoRemoveBtn}>✕</button>
+                        <button onClick={() => removePhoto(idx)} style={s.photoRemoveBtn}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg></button>
                       </div>
                     ))}
                   </div>

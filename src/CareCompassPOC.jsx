@@ -838,7 +838,7 @@ Please provide a Care Compass Insight Report with these sections:
                     <textarea value={val} onChange={e => set(e.target.value)} placeholder={placeholder} style={s.textarea} rows={3}/>
                     {upload && (
                       <label style={s.uploadLabel}>
-                        <span style={s.uploadBtn}>📎 Upload medication list (.txt, .csv, .pdf)</span>
+                        <span style={{...s.uploadBtn, display:"inline-flex", alignItems:"center", gap:"0.35rem"}}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M13 7.5l-5.5 5.5a4 4 0 01-5.7-5.6L7 2.3a2.5 2.5 0 013.5 3.5L5.3 11a1 1 0 01-1.4-1.4l4.8-4.9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg> Upload medication list (.txt, .csv, .pdf)</span>
                         <input type="file" accept=".txt,.pdf,.csv" style={{ display: "none" }} onChange={e => {
                           const file = e.target.files[0];
                           if (!file) return;
@@ -914,14 +914,14 @@ Please provide a Care Compass Insight Report with these sections:
                 </div>
                 <div style={s.consentBox}>
                   <p style={s.consentText}>
-                    🔒 <strong>Privacy notice:</strong> Your symptom information is processed securely via the Anthropic API to generate your insights. It is never stored permanently, never sold or shared, and is automatically deleted within 7 days. It will never be used to train AI models.{" "}
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><rect x="3" y="7" width="10" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M5 7V5a3 3 0 016 0v2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="8" cy="10.5" r="1" fill="currentColor"/></svg> <strong>Privacy notice:</strong> Your symptom information is processed securely via the Anthropic API to generate your insights. It is never stored permanently, never sold or shared, and is automatically deleted within 7 days. It will never be used to train AI models.{" "}
                     <a href="/privacy" target="_blank" rel="noreferrer" style={s.consentLink}>Read our Privacy Policy →</a>
                   </p>
                 </div>
                 {error && (
                   <div style={{ ...s.errorBox, background: error.includes("retrying") ? "#fff8e8" : "#fdeaea", borderColor: error.includes("retrying") ? "#f0d080" : "#f5c6c6" }}>
                     <p style={{ ...s.errorMsg, color: error.includes("retrying") ? "#8a6000" : "#c0392b" }}>
-                      {error.includes("retrying") ? "⏳ " : "⚠️ "}{error}
+                      {error.includes("retrying") ? "" : ""}{error}
                     </p>
                     {!error.includes("retrying") && (
                       <button onClick={() => handleAnalyze(1)} style={s.retryBtn}>Try Again →</button>
@@ -943,7 +943,7 @@ Please provide a Care Compass Insight Report with these sections:
               ) : (
                 <button onClick={handleAnalyze} disabled={loading} style={s.analyzeBtn}>
                   {loading ? (
-                    <span>Analyzing your symptoms… <span style={s.spinner}>🌿</span></span>
+                    <span style={{ display:"inline-flex", alignItems:"center", gap:"0.5rem" }}>Analyzing your symptoms… <span style={{...s.spinner, display:"inline-flex", color:"#7a9e87"}}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M3 13c1-4 2-8 9-10-3 5-4 8-9 10z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><path d="M3 13c2-3 4-5 6-7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg></span></span>
                   ) : guidance ? (
                     "Re-run Analysis →"
                   ) : (
