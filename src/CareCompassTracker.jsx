@@ -1139,6 +1139,23 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
               {saved && <div style={s.savedBanner}>🌿 {editingEntry ? "Entry updated!" : "Entry saved!"}</div>}
               {checkinSaved && <div style={{ ...s.savedBanner, background: TEAL_LIGHT, color: TEAL }}>{checkinSaved}</div>}
 
+              {/* ── Logging philosophy tip — shown until dismissed ── */}
+              {!localStorage.getItem("cc-log-tip-dismissed") && (
+                <div style={{ background: "#fff", border: "1px solid rgba(0,0,0,0.07)", borderRadius: "0.875rem", padding: "0.875rem 1rem 0.875rem 1.25rem", marginBottom: "0.75rem", display: "flex", alignItems: "flex-start", gap: "0.75rem" }}>
+                  <span style={{ fontSize: "1.1rem", flexShrink: 0, marginTop: "0.05rem" }}>💡</span>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontSize: "0.82rem", fontWeight: 600, color: INK, margin: "0 0 0.2rem" }}>Two ways to track — both work</p>
+                    <p style={{ fontSize: "0.78rem", color: WARM_GRAY, margin: 0, lineHeight: 1.6 }}>
+                      <strong>Log as it happens</strong> for the most accurate patterns — tap "+ Log Entry" whenever you notice something. Or use <strong>morning & evening check-ins</strong> for a daily rhythm. If you logged throughout the day, your evening check-in is just a quick reflection — no need to re-enter what you already noted.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => { localStorage.setItem("cc-log-tip-dismissed", "1"); }}
+                    style={{ background: "none", border: "none", color: "#ccc", cursor: "pointer", fontSize: "1rem", padding: "0 0.25rem", flexShrink: 0, lineHeight: 1 }}
+                  >×</button>
+                </div>
+              )}
+
               {/* ── Morning check-in banner ── */}
               {shouldShowMorning && !showMorningCheckin && (
                 <div style={{ background: `linear-gradient(135deg, #fff8e8, #fff3d4)`, borderRadius: "1rem", border: "1px solid #f0d58a", padding: "1rem 1.25rem", marginBottom: "1rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
@@ -2120,7 +2137,7 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
                 <label style={s.label}>Any symptoms on waking? <span style={s.optional}>(optional)</span></label>
                 <textarea value={morningForm.symptoms}
                   onChange={e => setMorningForm(f => ({ ...f, symptoms: e.target.value }))}
-                  placeholder="e.g. stiff joints, headache, racing heart on standing..."
+                  placeholder="e.g. stiff joints on waking (hands and knees), throbbing headache behind right eye — louder with movement, heart racing when I stood up from bed..."
                   style={s.textarea} rows={2}/>
               </div>
               {/* Notes */}
@@ -2146,88 +2163,143 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
         </div>
       )}
 
-      {/* ── Evening check-in modal ── */}
-      {showEveningCheckin && (
-        <div style={s.modalOverlay} onClick={() => setShowEveningCheckin(false)}>
-          <div style={s.modal} onClick={e => e.stopPropagation()}>
-            <div style={s.modalHeader}>
-              <h2 style={s.modalTitle}>🌙 Evening check-in</h2>
-              <button onClick={() => setShowEveningCheckin(false)} style={s.modalClose}>✕</button>
-            </div>
-            <div style={s.modalBody}>
-              {/* Day severity */}
-              <div style={s.formGroup}>
-                <label style={s.label}>How was your day overall? <span style={s.sevValue}>{eveningForm.severity}/10</span></label>
-                <SeveritySlider value={eveningForm.severity} onChange={v => setEveningForm(f => ({ ...f, severity: v }))}/>
+      {/* ── Evening check-in modal — smart: adapts based on today's logged entries ── */}
+      {showEveningCheckin && (() => {
+        const todayEntries = entries.filter(e => new Date(e.timestamp).toDateString() === new Date().toDateString() && e.tag !== "🌙 Evening check-in");
+        const hasLoggedToday = todayEntries.length > 0;
+        const todaySymptoms = [...new Set(todayEntries.map(e => e.symptoms).filter(Boolean))].join("; ");
+        const todayActivity = [...new Set(todayEntries.map(e => e.activity).filter(Boolean))].join("; ");
+        const todayFood = [...new Set(todayEntries.map(e => e.food).filter(Boolean))].join("; ");
+        const avgSeverity = hasLoggedToday ? Math.round(todayEntries.reduce((s, e) => s + e.severity, 0) / todayEntries.length) : 5;
+        return (
+          <div style={s.modalOverlay} onClick={() => setShowEveningCheckin(false)}>
+            <div style={s.modal} onClick={e => e.stopPropagation()}>
+              <div style={s.modalHeader}>
+                <h2 style={s.modalTitle}>🌙 Evening check-in</h2>
+                <button onClick={() => setShowEveningCheckin(false)} style={s.modalClose}>✕</button>
               </div>
-              {/* Symptoms */}
-              <div style={s.formGroup}>
-                <label style={s.label}>Symptoms today <span style={s.optional}>(optional)</span></label>
-                <textarea value={eveningForm.symptoms}
-                  onChange={e => setEveningForm(f => ({ ...f, symptoms: e.target.value }))}
-                  placeholder="Describe how you felt today — symptoms, flares, good moments..."
-                  style={s.textarea} rows={3}/>
+              <div style={s.modalBody}>
+
+                {/* Context banner — adapts to whether user logged today */}
+                {hasLoggedToday ? (
+                  <div style={{ background: SAGE_LIGHT, borderRadius: "0.75rem", padding: "0.75rem 1rem", marginBottom: "0.25rem" }}>
+                    <p style={{ fontSize: "0.78rem", fontWeight: 600, color: SAGE_DARK, margin: "0 0 0.2rem" }}>
+                      You logged {todayEntries.length} {todayEntries.length === 1 ? "entry" : "entries"} today 👍
+                    </p>
+                    <p style={{ fontSize: "0.75rem", color: SAGE_DARK, margin: 0, lineHeight: 1.6 }}>
+                      This is just a reflection — no need to repeat what you already noted. Add anything you missed or want to capture overall.
+                    </p>
+                  </div>
+                ) : (
+                  <div style={{ background: "#fff8e8", borderRadius: "0.75rem", padding: "0.75rem 1rem", marginBottom: "0.25rem", border: "1px solid #f0d58a" }}>
+                    <p style={{ fontSize: "0.78rem", fontWeight: 600, color: "#9a7a00", margin: "0 0 0.2rem" }}>No entries logged today yet</p>
+                    <p style={{ fontSize: "0.75rem", color: "#9a7a00", margin: 0, lineHeight: 1.6 }}>
+                      This is a great opportunity to capture your full day in one go.
+                    </p>
+                  </div>
+                )}
+
+                {/* Day severity */}
+                <div style={s.formGroup}>
+                  <label style={s.label}>How was your day overall? <span style={s.sevValue}>{eveningForm.severity}/10</span></label>
+                  <SeveritySlider value={hasLoggedToday && eveningForm.severity === 5 ? avgSeverity : eveningForm.severity} onChange={v => setEveningForm(f => ({ ...f, severity: v }))}/>
+                  {hasLoggedToday && <p style={{ fontSize: "0.72rem", color: "#aaa", margin: "0.3rem 0 0", fontStyle: "italic" }}>Pre-set from your logged entries — adjust if your overall day felt different</p>}
+                </div>
+
+                {/* Symptoms — guided prompt for depth */}
+                <div style={s.formGroup}>
+                  <label style={s.label}>
+                    {hasLoggedToday ? "Anything to add about your symptoms?" : "How did you feel today?"}
+                    <span style={s.optional}> (optional)</span>
+                  </label>
+                  {hasLoggedToday && todaySymptoms && (
+                    <div style={{ background: OFF_WHITE, borderRadius: "0.5rem", padding: "0.5rem 0.75rem", marginBottom: "0.5rem", fontSize: "0.75rem", color: WARM_GRAY, fontStyle: "italic", lineHeight: 1.5 }}>
+                      Already noted: {todaySymptoms.length > 120 ? todaySymptoms.slice(0, 120) + "..." : todaySymptoms}
+                    </div>
+                  )}
+                  <textarea value={eveningForm.symptoms}
+                    onChange={e => setEveningForm(f => ({ ...f, symptoms: e.target.value }))}
+                    placeholder={hasLoggedToday
+                      ? "Anything that changed as the day went on, or symptoms you didn't capture earlier?"
+                      : "Describe each symptom with as much detail as you can — where in your body, what it felt like (throbbing, stabbing, dull), what triggered or worsened it, what helped..."}
+                    style={s.textarea} rows={hasLoggedToday ? 2 : 3}/>
+                </div>
+
+                {/* Functional impact — always shown, key for doctor reports */}
+                <div style={s.formGroup}>
+                  <label style={s.label}>What did your symptoms stop or limit you from doing? <span style={s.optional}>(optional)</span></label>
+                  <textarea value={eveningForm.activity}
+                    onChange={e => setEveningForm(f => ({ ...f, activity: e.target.value }))}
+                    placeholder="e.g. couldn't drive due to dizziness, had to sit while cooking, skipped the gym, needed help getting dressed, light sensitivity made screen use painful..."
+                    style={s.textarea} rows={2}/>
+                  {hasLoggedToday && todayActivity && (
+                    <p style={{ fontSize: "0.72rem", color: "#aaa", margin: "0.3rem 0 0", fontStyle: "italic" }}>Already noted: {todayActivity.length > 80 ? todayActivity.slice(0,80)+"..." : todayActivity}</p>
+                  )}
+                </div>
+
+                {/* Only show food/meds if they haven't logged today */}
+                {!hasLoggedToday && (
+                  <>
+                    <div style={s.formGroup}>
+                      <label style={s.label}>Medications today</label>
+                      <MedPicker
+                        medications={medications}
+                        selectedIds={eveningForm.selectedMedIds || []}
+                        onToggle={id => setEveningForm(f => ({ ...f, selectedMedIds: f.selectedMedIds.includes(id) ? f.selectedMedIds.filter(i => i !== id) : [...f.selectedMedIds, id] }))}
+                        onAddAll={() => setEveningForm(f => ({ ...f, selectedMedIds: medications.map(m => m.id) }))}
+                        manualText={eveningForm.medications}
+                        onManualChange={val => setEveningForm(f => ({ ...f, medications: val }))}
+                      />
+                    </div>
+                    <div style={s.formGroup}>
+                      <label style={s.label}>Food & drink today <span style={s.optional}>(optional)</span></label>
+                      <textarea value={eveningForm.food}
+                        onChange={e => setEveningForm(f => ({ ...f, food: e.target.value }))}
+                        placeholder="Anything notable about what you ate or drank today?"
+                        style={s.textarea} rows={2}/>
+                    </div>
+                  </>
+                )}
+
+                {/* Stress */}
+                <div style={s.formGroup}>
+                  <label style={s.label}>Stress level today <span style={s.sevValue}>{eveningForm.stress}/10</span></label>
+                  <input type="range" min="1" max="10" step="1" value={eveningForm.stress}
+                    onChange={e => setEveningForm(f => ({ ...f, stress: Number(e.target.value) }))}
+                    style={{ width: "100%", accentColor: SAGE_DARK }}/>
+                  <div style={s.sevLabels}><span style={s.sevLabel}>Low</span><span style={s.sevLabel}>High</span></div>
+                </div>
+
+                {/* Reflections */}
+                <div style={s.formGroup}>
+                  <label style={s.label}>
+                    {hasLoggedToday ? "Anything else to reflect on?" : "Reflections"}
+                    <span style={s.optional}> (optional)</span>
+                  </label>
+                  <textarea value={eveningForm.notes}
+                    onChange={e => setEveningForm(f => ({ ...f, notes: e.target.value }))}
+                    placeholder={hasLoggedToday
+                      ? "Overall thoughts on today — any patterns you noticed, how the day compared to others, anything worth remembering..."
+                      : "Anything you want to remember or reflect on from today..."}
+                    style={s.textarea} rows={2}/>
+                </div>
               </div>
-              {/* Medications */}
-              <div style={s.formGroup}>
-                <label style={s.label}>Medications today</label>
-                <MedPicker
-                  medications={medications}
-                  selectedIds={eveningForm.selectedMedIds || []}
-                  onToggle={id => setEveningForm(f => ({ ...f, selectedMedIds: f.selectedMedIds.includes(id) ? f.selectedMedIds.filter(i => i !== id) : [...f.selectedMedIds, id] }))}
-                  onAddAll={() => setEveningForm(f => ({ ...f, selectedMedIds: medications.map(m => m.id) }))}
-                  manualText={eveningForm.medications}
-                  onManualChange={val => setEveningForm(f => ({ ...f, medications: val }))}
-                />
+              <div style={s.modalFooter}>
+                <button onClick={() => setShowEveningCheckin(false)} style={s.cancelBtn}>Cancel</button>
+                <button onClick={() => {
+                  const selectedMedsStr = buildMedString(eveningForm.selectedMedIds || []);
+                  const finalMeds = [selectedMedsStr, eveningForm.medications].filter(Boolean).join(", ");
+                  saveCheckin("evening", { ...eveningForm, medications: finalMeds });
+                  setShowEveningCheckin(false);
+                  setCheckinSaved("🌙 Evening check-in saved!");
+                  setTimeout(() => setCheckinSaved(""), 3000);
+                  setEveningForm({ severity: 5, symptoms: "", food: "", medications: "", selectedMedIds: [], activity: "", stress: 5, notes: "" });
+                }} style={s.saveBtn}>Save check-in →</button>
               </div>
-              {/* Food */}
-              <div style={s.formGroup}>
-                <label style={s.label}>Food & drink today <span style={s.optional}>(optional)</span></label>
-                <textarea value={eveningForm.food}
-                  onChange={e => setEveningForm(f => ({ ...f, food: e.target.value }))}
-                  placeholder="Anything notable about what you ate or drank today?"
-                  style={s.textarea} rows={2}/>
-              </div>
-              {/* Activity */}
-              <div style={s.formGroup}>
-                <label style={s.label}>Activity today <span style={s.optional}>(optional)</span></label>
-                <input value={eveningForm.activity}
-                  onChange={e => setEveningForm(f => ({ ...f, activity: e.target.value }))}
-                  placeholder="e.g. 20 min walk, mostly resting, physical therapy..."
-                  style={s.input}/>
-              </div>
-              {/* Stress */}
-              <div style={s.formGroup}>
-                <label style={s.label}>Stress level today <span style={s.sevValue}>{eveningForm.stress}/10</span></label>
-                <input type="range" min="1" max="10" step="1" value={eveningForm.stress}
-                  onChange={e => setEveningForm(f => ({ ...f, stress: Number(e.target.value) }))}
-                  style={{ width: "100%", accentColor: SAGE_DARK }}/>
-                <div style={s.sevLabels}><span style={s.sevLabel}>Low</span><span style={s.sevLabel}>High</span></div>
-              </div>
-              {/* Notes */}
-              <div style={s.formGroup}>
-                <label style={s.label}>Reflections <span style={s.optional}>(optional)</span></label>
-                <textarea value={eveningForm.notes}
-                  onChange={e => setEveningForm(f => ({ ...f, notes: e.target.value }))}
-                  placeholder="Anything you want to remember or reflect on from today..."
-                  style={s.textarea} rows={2}/>
-              </div>
-            </div>
-            <div style={s.modalFooter}>
-              <button onClick={() => setShowEveningCheckin(false)} style={s.cancelBtn}>Cancel</button>
-              <button onClick={() => {
-                const selectedMedsStr = buildMedString(eveningForm.selectedMedIds || []);
-                const finalMeds = [selectedMedsStr, eveningForm.medications].filter(Boolean).join(", ");
-                saveCheckin("evening", { ...eveningForm, medications: finalMeds });
-                setShowEveningCheckin(false);
-                setCheckinSaved("🌙 Evening check-in saved!");
-                setTimeout(() => setCheckinSaved(""), 3000);
-                setEveningForm({ severity: 5, symptoms: "", food: "", medications: "", selectedMedIds: [], activity: "", stress: 5, notes: "" });
-              }} style={s.saveBtn}>Save check-in →</button>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ── Delete confirmation ── */}
       {confirmDeleteId && (
@@ -2255,7 +2327,23 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
           <div style={s.modal} onClick={e => e.stopPropagation()}>
             <div style={s.modalHeader}><h2 style={s.modalTitle}>{editingEntry ? "Edit entry" : "Log an entry"}</h2><button onClick={() => setShowForm(false)} style={s.modalClose}>✕</button></div>
             <div style={s.modalBody}>
-              <div style={s.formGroup}><label style={s.label}>What symptoms are you experiencing?</label><textarea value={form.symptoms} onChange={e => setForm(f => ({ ...f, symptoms: e.target.value }))} placeholder="Describe what you're feeling right now…" style={s.textarea} rows={3}/></div>
+              <div style={s.formGroup}>
+                <label style={s.label}>What symptoms are you experiencing?</label>
+                <textarea
+                  value={form.symptoms}
+                  onChange={e => setForm(f => ({ ...f, symptoms: e.target.value }))}
+                  placeholder={"The more detail, the better your insights. Try to include:
+• Where exactly (e.g. behind right eye, left hip, base of skull)
+• What it feels like (throbbing, stabbing, dull ache, burning, pressure)
+• What triggered or worsened it
+• e.g. "Throbbing headache behind right eye, worse with light, started after standing for 20 min""}
+                  style={s.textarea}
+                  rows={4}
+                />
+                <p style={{ fontSize: "0.72rem", color: "#aaa", margin: "0.3rem 0 0", fontStyle: "italic" }}>
+                  Tip: specific details help the AI find patterns and help your doctor understand severity
+                </p>
+              </div>
               <div style={s.formGroup}><label style={s.label}>Symptom severity right now</label><SeveritySlider value={form.severity} onChange={v => setForm(f => ({ ...f, severity: v }))}/></div>
               <div style={s.formGroup}><label style={s.label}>Food & Drink</label><textarea value={form.food} onChange={e => setForm(f => ({ ...f, food: e.target.value }))} placeholder="Have you eaten or had anything to drink?" style={s.textarea} rows={2}/></div>
 
@@ -2280,7 +2368,15 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
                 />
               </div>
               <div style={s.formRow}>
-                <div style={s.formGroup}><label style={s.label}>Activity</label><input value={form.activity} onChange={e => setForm(f => ({ ...f, activity: e.target.value }))} placeholder="e.g. 30 min walk, rest day…" style={s.input}/></div>
+                <div style={s.formGroup}>
+                  <label style={s.label}>Activity & what symptoms limited</label>
+                  <input
+                    value={form.activity}
+                    onChange={e => setForm(f => ({ ...f, activity: e.target.value }))}
+                    placeholder="e.g. couldn't drive due to dizziness, sat while cooking, short walk then rested…"
+                    style={s.input}
+                  />
+                </div>
                 <div style={s.formGroup}><label style={s.label}>Weather / environment</label><input value={form.weather} onChange={e => setForm(f => ({ ...f, weather: e.target.value }))} placeholder="e.g. hot, humid, cold, indoors…" style={s.input}/></div>
               </div>
               <div style={s.formGroup}>
