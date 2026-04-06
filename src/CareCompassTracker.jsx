@@ -802,14 +802,11 @@ Close with a brief, warm paragraph empowering the patient to advocate for follow
   // ── Render markdown-like analysis ────────────────────────────────────────
   const renderAnalysis = (text) => {
     if (!text) return null;
-    const sections = text.split(/
-(?=## )/);
+    const sections = text.split(/\n(?=## )/);
     return sections.map((section, i) => {
-      const lines = section.split("
-");
+      const lines = section.split("\n");
       const heading = lines[0].replace(/^## /, "").trim();
-      const body = lines.slice(1).join("
-").trim();
+      const body = lines.slice(1).join("\n").trim();
       if (!heading) return null;
 
       const sectionColor = {
