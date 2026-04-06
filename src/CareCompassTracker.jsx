@@ -723,7 +723,8 @@ function LabResultsTab({ entries }) {
         "SPECIALISTS WHO MAY HELP\n" +
         "Based on these results and their symptom picture, suggest relevant specialists and explain the connection to what these results show.\n\n" +
         "A NOTE ON ADVOCATING FOR YOURSELF\n" +
-        "Close with a warm, empowering paragraph reminding the patient that normal on a lab report is a statistical range, not a personal guarantee of optimal health — and that they have every right to ask for follow-up, second opinions, and further investigation.";
+        "Close with a warm, empowering paragraph reminding the patient that normal on a lab report is a statistical range, not a personal guarantee of optimal health — and that they have every right to ask for follow-up, second opinions, and further investigation.\n\n" +
+        "IMPORTANT: Always complete every section fully. Never cut off mid-section. If the response is running long, write less detail in earlier sections rather than leaving later sections incomplete. Always end with the full A NOTE ON ADVOCATING FOR YOURSELF section.";
 
       const messageContent = isImage
         ? [{ type: "image", source: { type: "base64", media_type: file.type, data: base64 } }, { type: "text", text: userPrompt }]
@@ -739,7 +740,7 @@ function LabResultsTab({ entries }) {
         },
         body: JSON.stringify({
           model: "claude-opus-4-6",
-          max_tokens: 3000,
+          max_tokens: 8000,
           system: systemPrompt,
           messages: [{ role: "user", content: messageContent }],
         }),
@@ -1346,7 +1347,7 @@ APPOINTMENT CONTEXT: This report is being generated to prepare for an upcoming $
 
 Please tailor your analysis specifically for a ${apptContext.specialty} visit. Focus on symptoms, patterns, and findings most relevant to ${apptContext.specialty} conditions. Prioritize insights the ${apptContext.specialty} would find most actionable. Add a ## Questions to Raise with Your ${apptContext.specialty} section at the end with specific, targeted questions based on the data.` : "";
 
-      const response = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" }, body: JSON.stringify({ model: "claude-opus-4-6", max_tokens: 4000, messages: [{ role: "user", content: `You are Care Compass, a compassionate health navigation assistant. Analyze these symptom tracker entries and identify patterns, triggers, and insights to discuss with a doctor.
+      const response = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" }, body: JSON.stringify({ model: "claude-opus-4-6", max_tokens: 8000, messages: [{ role: "user", content: `You are Care Compass, a compassionate health navigation assistant. Analyze these symptom tracker entries and identify patterns, triggers, and insights to discuss with a doctor.
 
 CORE PHILOSOPHY — WEIGHT SYMPTOMS OVER LABELS:
 Your analysis must be grounded primarily in what the user actually logs — their symptoms, timing, triggers, and patterns across days. Existing diagnoses and family history are context, not conclusions. Complex conditions are frequently misdiagnosed or incompletely diagnosed. A symptom pattern that doesn't fully align with a listed diagnosis is a signal worth noting, not ignoring. Let the data speak first, then layer in context.
@@ -1377,6 +1378,8 @@ FUNCTIONAL IMPACT INSTRUCTIONS — CRITICAL:
 Scan every entry's activity field and symptom descriptions for mentions of activities that were difficult, modified, avoided, or impossible due to symptoms. These include (but are not limited to): driving, cooking, showering, getting dressed, blow-drying hair, laundry, grocery shopping, walking, climbing stairs, lifting, writing, typing, phone use, working, attending appointments, caring for children/pets, exercise, socialising, sleeping in a bed vs couch, and any other daily task. 
 
 When you find these, compile them into a dedicated ## Daily Life Impact section. This section is one of the most important things a doctor can see — it translates abstract severity scores into real-world consequences. Be specific: quote or closely paraphrase what the user wrote. Group by activity type if multiple entries mention the same task.
+
+IMPORTANT: Always complete every section fully. Do not cut off mid-section. If the response is running long, trim the detail in earlier sections rather than leaving later sections incomplete. Always end with a full "Questions to Bring to Your Doctor" section.
 
 Please provide a warm, specific analysis:
 ## Patterns We Notice

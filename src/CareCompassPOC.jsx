@@ -639,6 +639,8 @@ ${familyHistoryStr ? `\nFAMILY HISTORY:\n${familyHistoryStr}\n\nNote: Use family
 FUNCTIONAL IMPACT INSTRUCTIONS:
 Scan the symptom descriptions and daily variable notes for any mention of activities that were difficult, modified, avoided, or impossible due to symptoms. These include driving, cooking, showering, dressing, hair care, laundry, grocery shopping, walking, stairs, lifting, working, typing, social activities, caregiving, and any other daily task. If found, include a dedicated ## Daily Life Impact section. This is critically important — it helps doctors understand real-world severity rather than abstract numbers.
 
+IMPORTANT: Always complete every section fully. Do not truncate, summarize, or abbreviate due to length. It is better to write less per section than to cut a section short. End every response with the full "A Note From Care Compass" section — if you find yourself running long, trim earlier sections slightly rather than leaving the final ones incomplete.
+
 Please provide a Care Compass Insight Report with these sections:
 ## What We Notice
 ## Daily Life Impact
@@ -658,7 +660,7 @@ Please provide a Care Compass Insight Report with these sections:
         },
         body: JSON.stringify({
           model: "claude-opus-4-6",
-          max_tokens: 2000,
+          max_tokens: 8000,
           messages: [{ role: "user", content: prompt }],
         }),
       });
