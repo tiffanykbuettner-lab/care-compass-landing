@@ -899,11 +899,9 @@ function LabResultsTab({ entries }) {
                       const clean = line.replace(/^\d+[.)]\s*/, "").replace(/^[-•*]\s*/, "").trim();
                       if (!clean) return null;
                       return (
-                        <div key={k} style={{ background: "rgba(255,255,255,0.7)", border: "1px solid " + col.border, borderRadius: "0.625rem", padding: "0.75rem 1rem", fontSize: "0.875rem", color: INK, lineHeight: 1.7 }}>
-                          <span style={{ color: col.head, fontWeight: 700, marginRight: "0.5rem", fontSize: "0.75rem" }}>
-                            {String(k + 1).padStart(2, "0")}
-                          </span>
-                          {clean}
+                        <div key={k} style={{ background: "rgba(255,255,255,0.7)", border: "1px solid " + col.border, borderRadius: "0.625rem", padding: "0.75rem 1rem", fontSize: "0.875rem", color: INK, lineHeight: 1.7, display: "flex", gap: "0.625rem", alignItems: "flex-start" }}>
+                          <div style={{ width: 7, height: 7, borderRadius: "50%", background: col.head, flexShrink: 0, marginTop: "0.55rem" }}/>
+                          <span>{clean}</span>
                         </div>
                       );
                     })}
@@ -2048,7 +2046,7 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
                                         if (!clean) return null;
                                         if (isQuestions) return (
                                           <div key={li} style={{ background: "rgba(255,255,255,0.7)", border: "1px solid " + col.border, borderRadius: "0.625rem", padding: "0.75rem 1rem", display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
-                                            <span style={{ color: col.head, fontWeight: 700, fontSize: "0.72rem", flexShrink: 0, marginTop: "0.15rem" }}>{String(li + 1).padStart(2, "0")}</span>
+                                            <div style={{ width: 7, height: 7, borderRadius: "50%", background: col.head, flexShrink: 0, marginTop: "0.55rem" }}/>
                                             <span style={{ fontSize: "0.875rem", color: INK, lineHeight: 1.7 }}>{clean}</span>
                                           </div>
                                         );
