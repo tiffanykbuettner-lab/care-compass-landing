@@ -17,6 +17,7 @@ const SAGE       = "#7a9e87";
 const SAGE_LIGHT = "#e8f0eb";
 const SAGE_DARK  = "#4a7058";
 const TEAL       = "#4a9fa5";
+const TEAL_LIGHT = "#e0f2f4";
 const WARM_GRAY  = "#6b6560";
 const OFF_WHITE  = "#fafaf8";
 const CREAM      = "#f4f1ec";
@@ -436,7 +437,7 @@ function GuidanceOutput({ guidance, onReset, onEdit, userName }) {
                             if (!clean) return null;
                             if (isQuestions) return (
                               <div key={li} style={{ background: "rgba(255,255,255,0.7)", border: "1px solid " + col.border, borderRadius: "0.625rem", padding: "0.75rem 1rem", display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
-                                <span style={{ color: col.head, fontWeight: 700, fontSize: "0.72rem", flexShrink: 0, marginTop: "0.15rem" }}>{String(li + 1).padStart(2, "0")}</span>
+                                <div style={{ width: 7, height: 7, borderRadius: "50%", background: col.head, flexShrink: 0, marginTop: "0.55rem" }}/>
                                 <span style={{ fontSize: "0.875rem", color: INK, lineHeight: 1.7 }}>{clean}</span>
                               </div>
                             );
