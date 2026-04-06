@@ -651,8 +651,11 @@ function LabResultsTab({ entries }) {
     try { localStorage.setItem(LABS_STORAGE, JSON.stringify(updated)); } catch {}
   };
 
-  const deleteLab = (id) => {
-    if (window.confirm("Delete this result?")) saveLabs(savedLabs.filter(l => l.id !== id));
+  const [confirmDeleteLabId, setConfirmDeleteLabId] = React.useState(null);
+  const deleteLab = (id) => setConfirmDeleteLabId(id);
+  const confirmDeleteLab = () => {
+    saveLabs(savedLabs.filter(l => l.id !== confirmDeleteLabId));
+    setConfirmDeleteLabId(null);
   };
 
   const getUserContext = () => {
@@ -1196,6 +1199,22 @@ function LabResultsTab({ entries }) {
           Your lab results are sent to the Anthropic AI to generate your analysis, then saved privately on this device only. They are never stored on our servers, sold, or shared.
         </p>
       </div>
+
+      {confirmDeleteLabId && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }} onClick={() => setConfirmDeleteLabId(null)}>
+          <div style={{ background: "#fff", borderRadius: "1.25rem", padding: "2rem", maxWidth: 360, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }} onClick={e => e.stopPropagation()}>
+            <div style={{ display:"flex", justifyContent:"center", marginBottom:"0.75rem", color:"#c0392b" }}>
+              <svg width="32" height="32" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M5 4V2h6v2M3 4l1 10h8l1-10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><path d="M6 7v5M10 7v5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
+            </div>
+            <h3 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.15rem", fontWeight: 700, color: INK, margin: "0 0 0.5rem", textAlign: "center" }}>Delete this result?</h3>
+            <p style={{ fontSize: "0.85rem", color: WARM_GRAY, textAlign: "center", margin: "0 0 1.5rem", lineHeight: 1.6 }}>This result and its analysis will be permanently removed. This cannot be undone.</p>
+            <div style={{ display: "flex", gap: "0.75rem" }}>
+              <button onClick={() => setConfirmDeleteLabId(null)} style={{ flex: 1, background: "transparent", border: "1.5px solid rgba(0,0,0,0.12)", borderRadius: "100px", padding: "0.7rem", fontSize: "0.875rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit", fontWeight: 500 }}>Keep result</button>
+              <button onClick={confirmDeleteLab} style={{ flex: 1, background: "#c0392b", color: "#fff", border: "none", borderRadius: "100px", padding: "0.7rem", fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Yes, delete</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1216,6 +1235,7 @@ export default function CareCompassTracker() {
   const [loadingInsights, setLoadingInsights] = useState(false);
   const [saved, setSaved]               = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [confirmDeleteLabId, setConfirmDeleteLabId] = useState(null);
   const [showMorningCheckin, setShowMorningCheckin] = useState(false);
   const [showEveningCheckin, setShowEveningCheckin] = useState(false);
   const [morningForm, setMorningForm] = useState({ sleep: 7, severity: 5, symptoms: "", energy: 5, notes: "" });
