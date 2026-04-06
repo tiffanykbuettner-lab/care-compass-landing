@@ -713,7 +713,7 @@ Go through each test result found. For each one: give the test name, the value, 
 ## Results to Pay Attention To
 Flag any results that are: out of range, borderline (within 15% of the upper or lower limit), or technically "normal" but potentially significant given this patient's symptoms or conditions. For each flagged result explain WHY it may be significant in their context. This is the most important section — do not skip borderline values just because they fall within the printed reference range.
 
-## What "Normal" Doesn't Always Mean
+## What Normal Doesn't Always Mean
 If any results were likely dismissed as normal, explain what the result actually indicates and why it might still be relevant to explore further, especially in the context of their reported symptoms.
 
 ## Questions to Ask Your Doctor
@@ -811,7 +811,7 @@ Close with a brief, warm paragraph empowering the patient to advocate for follow
 
       const sectionColor = {
         "Results to Pay Attention To": { bg: "#fff8e8", border: "#f0d58a", head: "#9a6f00" },
-        "What "Normal" Doesn't Always Mean": { bg: "#fff0f0", border: "#f5c0c0", head: "#9b2c2c" },
+        "What Normal Doesn't Always Mean": { bg: "#fff0f0", border: "#f5c0c0", head: "#9b2c2c" },
         "Questions to Ask Your Doctor": { bg: "#f0f4ff", border: "#c0caf5", head: "#2c3d9b" },
       }[heading] || { bg: "#fff", border: BORDER, head: SAGE_DARK };
 
