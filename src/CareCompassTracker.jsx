@@ -639,9 +639,11 @@ function LabResultsTab({ entries }) {
   });
   const [analyzing, setAnalyzing]     = React.useState(false);
   const [selectedLab, setSelectedLab] = React.useState(null);
-  const [view, setView]               = React.useState("list");
+  const [view, setView]               = React.useState("list"); // list | context | analyzing | detail
   const [dragOver, setDragOver]       = React.useState(false);
   const [uploadError, setUploadError] = React.useState("");
+  const [pendingFile, setPendingFile] = React.useState(null);
+  const [labContext, setLabContext]   = React.useState({ name: "", date: "", orderedBy: "", questions: "", background: "" });
   const fileInputRef = React.useRef(null);
 
   const saveLabs = (updated) => {
@@ -654,7 +656,6 @@ function LabResultsTab({ entries }) {
   };
 
   const getUserContext = () => {
-    const displayName = localStorage.getItem("cc-display-name") || "";
     const profile = (() => { try { return JSON.parse(localStorage.getItem("cc-profile") || "{}"); } catch { return {}; } })();
     const meds = (() => { try { return JSON.parse(localStorage.getItem("care-compass-medications-v1") || "[]"); } catch { return []; } })();
     const family = (() => { try { return JSON.parse(localStorage.getItem("cc-family-history") || "[]"); } catch { return []; } })();
@@ -663,15 +664,23 @@ function LabResultsTab({ entries }) {
     const conditionsStr = (profile.conditions || []).join(", ");
     const familyStr = family.filter(e => e.member && e.conditions && e.conditions.length).map(e => e.member + ": " + e.conditions.join(", ")).join("; ");
     const symptomSummary = recentEntries.length
-      ? "Recent symptoms (last " + recentEntries.length + " log entries): " + recentEntries.slice(0, 5).map(e => "[Sev " + e.severity + "/10] " + (e.symptoms || "no symptoms noted")).join(" | ")
+      ? "Recent symptom log summary (" + recentEntries.length + " entries): " + recentEntries.slice(0, 5).map(e => "[Severity " + e.severity + "/10] " + (e.symptoms || "no symptoms noted")).join(" | ")
       : "";
-    return { displayName, medsStr, conditionsStr, familyStr, symptomSummary };
+    return { medsStr, conditionsStr, familyStr, symptomSummary };
   };
 
-  const analyzeLabResult = async (file) => {
+  const runAnalysis = async (file, ctx) => {
+    setView("analyzing");
     setAnalyzing(true);
-    setUploadError("");
-    const ctx = getUserContext();
+
+    // Inject loading animation
+    const styleEl = document.getElementById("labs-loading-styles") || document.createElement("style");
+    styleEl.id = "labs-loading-styles";
+    styleEl.innerHTML = "@keyframes labProgress { 0%{width:0%} 10%{width:8%} 30%{width:30%} 60%{width:58%} 80%{width:75%} 95%{width:90%} 100%{width:94%} }";
+    if (!document.getElementById("labs-loading-styles")) document.head.appendChild(styleEl);
+
+    const uctx = getUserContext();
+
     try {
       const base64 = await new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -682,28 +691,39 @@ function LabResultsTab({ entries }) {
 
       const isImage = file.type.startsWith("image/");
 
-      const systemPrompt = "You are a compassionate health navigation assistant for Care Compass. Your role is to help people with chronic and complex illness understand their lab results in plain language and know how to advocate for themselves. CRITICAL: Normal range does not always mean optimal for this individual. Flag values that are technically within range but at the edges, or that are commonly suboptimal for people with certain conditions. Be an advocate, not just a translator. Never diagnose. Be warm, clear, and empowering.";
+      const systemPrompt = "You are a compassionate health navigation assistant for Care Compass, helping people with chronic and complex illness understand their lab results and advocate for themselves. Your tone is warm, clear, and empowering. You write for patients, not clinicians — no jargon, plain language throughout. Never diagnose. Use language like 'may be worth discussing', 'some practitioners consider', 'worth asking your doctor about'. CRITICAL PHILOSOPHY: Normal range does not always mean optimal for this individual. Borderline values, patterns across multiple results, and results that conflict with reported symptoms all deserve attention even if technically within range. Many patients are told their labs are normal and dismissed — your job is to help them see the full picture and ask better questions.";
 
-      const userPrompt = "Please analyze the attached lab result for this patient.\n\nPATIENT CONTEXT (use this to give personalised insights):\n" +
-        (ctx.conditionsStr ? "Existing conditions: " + ctx.conditionsStr + "\n" : "No formal diagnoses listed\n") +
-        (ctx.medsStr ? "Current medications: " + ctx.medsStr + "\n" : "") +
-        (ctx.familyStr ? "Family history: " + ctx.familyStr + "\n" : "") +
-        (ctx.symptomSummary ? ctx.symptomSummary + "\n" : "") +
-        "\nPlease provide your analysis in these sections:\n\n" +
-        "## What These Results Show\n" +
-        "Go through each test result. For each: test name, value, reference range, plain-language explanation of what it measures and what this result means.\n\n" +
-        "## Results to Pay Attention To\n" +
-        "Flag any results that are out of range, borderline (within 15% of the limit), or technically normal but potentially significant given this patient's symptoms. Explain WHY each flagged result may be significant in their context. This is the most important section.\n\n" +
-        "## What Normal Does Not Always Mean\n" +
-        "If any results were likely dismissed as normal, explain what the result actually indicates and why it might still be relevant to explore further given their reported symptoms.\n\n" +
-        "## Questions to Ask Your Doctor\n" +
-        "Give 5-8 specific, assertive questions this patient can bring to their next appointment. Make them concrete and ready to use verbatim.\n\n" +
-        "## Further Tests Worth Requesting\n" +
-        "Based on these results AND the patient's symptom context, suggest specific additional tests that may be valuable. Explain why each is relevant.\n\n" +
-        "## Specialists Who May Help\n" +
-        "Based on these results and the patient's symptom picture, suggest specialists who might offer useful perspective. Explain the connection.\n\n" +
-        "## Advocating for Yourself\n" +
-        "Close with a brief, warm paragraph empowering the patient to advocate for follow-up if their concerns are not being addressed.";
+      const contextBlock = [
+        ctx.name ? "Test name: " + ctx.name : "",
+        ctx.date ? "Test date: " + ctx.date : "",
+        ctx.orderedBy ? "Ordered by: " + ctx.orderedBy : "",
+        ctx.background ? "Patient background on this test: " + ctx.background : "",
+        ctx.questions ? "Patient's specific questions: " + ctx.questions : "",
+      ].filter(Boolean).join("\n");
+
+      const userPrompt = "Please analyze the attached lab result for this patient.\n\n" +
+        "PATIENT-PROVIDED CONTEXT:\n" + (contextBlock || "No additional context provided") + "\n\n" +
+        "PATIENT HEALTH PROFILE (use to give personalised, contextual insights):\n" +
+        (uctx.conditionsStr ? "Existing conditions: " + uctx.conditionsStr + "\n" : "") +
+        (uctx.medsStr ? "Current medications: " + uctx.medsStr + "\n" : "") +
+        (uctx.familyStr ? "Family history: " + uctx.familyStr + "\n" : "") +
+        (uctx.symptomSummary ? uctx.symptomSummary + "\n" : "") +
+        "\nPlease structure your response with these sections. Write in clear paragraphs — no bullet points, no markdown symbols, no asterisks or dashes. Use plain conversational prose throughout.\n\n" +
+        "WHAT THESE RESULTS SHOW\n" +
+        "Go through each test result found. For each one explain in plain language what it measures, what the value is, what the reference range is, and what this result means. Write it as if explaining to a friend.\n\n" +
+        "RESULTS WORTH PAYING ATTENTION TO\n" +
+        "Highlight any results that are out of range, borderline, or technically normal but potentially significant given this patient's symptoms or conditions. Explain clearly why each matters in their specific context. Do not skip borderline values just because they fall within the printed range.\n\n" +
+        "WHY NORMAL IS NOT ALWAYS ENOUGH\n" +
+        "If any results would likely be dismissed as normal, explain what the result actually tells us and why it may still warrant further discussion, especially given their reported symptoms.\n\n" +
+        "QUESTIONS TO BRING TO YOUR DOCTOR\n" +
+        (ctx.questions ? "Make sure to address the patient's specific questions above. Also include " : "Include ") +
+        "5 to 8 specific, ready-to-use questions for their next appointment. Write them out in full, as if the patient is speaking.\n\n" +
+        "FURTHER TESTS WORTH REQUESTING\n" +
+        "Based on these results and the patient's symptom history, suggest specific additional tests. Explain why each one is relevant to their situation.\n\n" +
+        "SPECIALISTS WHO MAY HELP\n" +
+        "Based on these results and their symptom picture, suggest relevant specialists and explain the connection to what these results show.\n\n" +
+        "A NOTE ON ADVOCATING FOR YOURSELF\n" +
+        "Close with a warm, empowering paragraph reminding the patient that normal on a lab report is a statistical range, not a personal guarantee of optimal health — and that they have every right to ask for follow-up, second opinions, and further investigation.";
 
       const messageContent = isImage
         ? [{ type: "image", source: { type: "base64", media_type: file.type, data: base64 } }, { type: "text", text: userPrompt }]
@@ -727,16 +747,22 @@ function LabResultsTab({ entries }) {
 
       if (!response.ok) throw new Error("API error " + response.status);
       const data = await response.json();
-      const analysis = data.content?.[0]?.text || "";
+      const analysis = data.content && data.content[0] ? data.content[0].text : "";
 
       const newLab = {
         id: Date.now(),
-        name: file.name.replace(/\.[^.]+$/, ""),
+        name: ctx.name || file.name.replace(/\.[^.]+$/, ""),
         fileName: file.name,
         fileType: file.type,
         uploadedAt: new Date().toISOString(),
+        testDate: ctx.date || "",
+        orderedBy: ctx.orderedBy || "",
         analysis,
-        contextSnapshot: { conditions: ctx.conditionsStr, medications: ctx.medsStr },
+        contextSnapshot: {
+          conditions: uctx.conditionsStr,
+          medications: uctx.medsStr,
+          questions: ctx.questions,
+        },
       };
 
       const updated = [newLab, ...savedLabs];
@@ -745,7 +771,8 @@ function LabResultsTab({ entries }) {
       setView("detail");
     } catch (err) {
       console.error(err);
-      setUploadError("We had trouble analyzing this result. Please try again or check your file format.");
+      setUploadError("We had trouble analyzing this result. Please try again.");
+      setView("list");
     }
     setAnalyzing(false);
   };
@@ -762,74 +789,191 @@ function LabResultsTab({ entries }) {
       return;
     }
     setUploadError("");
-    analyzeLabResult(file);
+    setPendingFile(file);
+    setLabContext({ name: "", date: "", orderedBy: "", questions: "", background: "" });
+    setView("context");
+  };
+
+  // ── Clean output renderer — no markdown symbols ───────────────────────────
+  const SECTION_STYLES = {
+    "RESULTS WORTH PAYING ATTENTION TO":  { bg: "#fff8e8", border: "#f0d58a", head: "#9a6f00" },
+    "WHY NORMAL IS NOT ALWAYS ENOUGH":    { bg: "#fff0f0", border: "#f5c0c0", head: "#9b2c2c" },
+    "QUESTIONS TO BRING TO YOUR DOCTOR":  { bg: "#f0f4ff", border: "#c0caf5", head: "#2c3d9b" },
+    "A NOTE ON ADVOCATING FOR YOURSELF":  { bg: SAGE_LIGHT, border: SAGE, head: SAGE_DARK },
   };
 
   const renderAnalysis = (text) => {
     if (!text) return null;
-    const sections = text.split(/\n(?=## )/);
-    return sections.map((section, i) => {
-      const newlineIdx = section.indexOf("\n");
-      const heading = newlineIdx > 0 ? section.slice(0, newlineIdx).replace(/^## /, "").trim() : section.replace(/^## /, "").trim();
-      const body = newlineIdx > 0 ? section.slice(newlineIdx + 1).trim() : "";
-      if (!heading) return null;
+    // Split on uppercase section headings
+    const sectionRegex = /\n(?=[A-Z][A-Z ]{5,}\n)/g;
+    const parts = text.split(sectionRegex);
 
-      const highlights = {
-        "Results to Pay Attention To":   { bg: "#fff8e8", border: "#f0d58a", head: "#9a6f00" },
-        "What Normal Does Not Always Mean": { bg: "#fff0f0", border: "#f5c0c0", head: "#9b2c2c" },
-        "Questions to Ask Your Doctor":  { bg: "#f0f4ff", border: "#c0caf5", head: "#2c3d9b" },
-        "Advocating for Yourself":       { bg: SAGE_LIGHT, border: SAGE, head: SAGE_DARK },
-      };
-      const col = highlights[heading] || { bg: "#fff", border: "rgba(0,0,0,0.08)", head: SAGE_DARK };
+    return parts.map((part, i) => {
+      const firstNewline = part.indexOf("\n");
+      const heading = firstNewline > 0 ? part.slice(0, firstNewline).trim() : part.trim();
+      const body = firstNewline > 0 ? part.slice(firstNewline + 1).trim() : "";
 
-      const bodyLines = body.split("\n");
-      const renderedLines = bodyLines.map((line, j) => {
-        if (!line.trim()) return null;
-        const isBullet = line.startsWith("- ") || line.startsWith("* ") || line.startsWith("• ");
-        const isBold = /^\*\*(.+)\*\*/.test(line.trim());
-        if (isBullet) {
-          return (
-            <div key={j} style={{ display: "flex", gap: "0.5rem", marginBottom: "0.375rem" }}>
-              <span style={{ color: col.head, flexShrink: 0, marginTop: "0.1rem", fontSize: "0.75rem" }}>&#9670;</span>
-              <span style={{ fontSize: "0.875rem", color: INK, lineHeight: 1.7 }}>{line.replace(/^[-*•]\s*/, "").replace(/\*\*/g, "")}</span>
-            </div>
-          );
-        }
-        if (isBold) {
-          return <p key={j} style={{ fontSize: "0.875rem", fontWeight: 700, color: INK, margin: "0.5rem 0 0.1rem" }}>{line.replace(/\*\*/g, "")}</p>;
-        }
-        return <p key={j} style={{ fontSize: "0.875rem", color: INK, lineHeight: 1.75, margin: "0.2rem 0" }}>{line}</p>;
-      });
+      if (!heading || heading.length < 4) return null;
+
+      // Clean body — remove markdown artifacts
+      const cleanBody = body
+        .replace(/^#{1,3}\s*/gm, "")
+        .replace(/\*\*/g, "")
+        .replace(/^[-*•|]\s*/gm, "")
+        .replace(/^\d+\.\s*/gm, "")
+        .trim();
+
+      const col = SECTION_STYLES[heading] || { bg: "#fff", border: "rgba(0,0,0,0.08)", head: SAGE_DARK };
+
+      // Split into paragraphs for clean display
+      const paragraphs = cleanBody.split(/\n\n+/).filter(p => p.trim());
 
       return (
-        <div key={i} style={{ background: col.bg, border: "1px solid " + col.border, borderRadius: "0.875rem", padding: "1rem 1.25rem", marginBottom: "0.875rem" }}>
-          <h3 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1rem", fontWeight: 700, color: col.head, margin: "0 0 0.625rem" }}>{heading}</h3>
-          <div>{renderedLines}</div>
+        <div key={i} style={{ background: col.bg, border: "1px solid " + col.border, borderRadius: "1rem", padding: "1.25rem 1.5rem", marginBottom: "0.875rem" }}>
+          <h3 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1rem", fontWeight: 700, color: col.head, margin: "0 0 0.75rem", letterSpacing: "-0.01em" }}>
+            {heading.charAt(0) + heading.slice(1).toLowerCase()}
+          </h3>
+          {paragraphs.map((para, j) => {
+            const lines = para.split("\n").filter(l => l.trim());
+            // Numbered question format — style each as a callout
+            const isQuestions = heading.includes("QUESTION");
+            if (isQuestions && lines.length > 0) {
+              return (
+                <div key={j} style={{ marginBottom: j < paragraphs.length - 1 ? "0.75rem" : 0 }}>
+                  {lines.map((line, k) => (
+                    <div key={k} style={{ background: "rgba(255,255,255,0.6)", borderRadius: "0.5rem", padding: "0.625rem 0.875rem", marginBottom: k < lines.length - 1 ? "0.4rem" : 0, fontSize: "0.875rem", color: INK, lineHeight: 1.7 }}>
+                      {line.replace(/^\d+[.):]?\s*/, "")}
+                    </div>
+                  ))}
+                </div>
+              );
+            }
+            return (
+              <p key={j} style={{ fontSize: "0.875rem", color: INK, lineHeight: 1.8, margin: j < paragraphs.length - 1 ? "0 0 0.625rem" : 0 }}>
+                {para.replace(/\n/g, " ")}
+              </p>
+            );
+          })}
         </div>
       );
-    });
+    }).filter(Boolean);
   };
 
-  const LOCK_ICON = <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0 }}><rect x="3" y="7" width="10" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M5 7V5a3 3 0 016 0v2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="8" cy="10.5" r="1" fill="currentColor"/></svg>;
-  const CLIP_ICON = <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0 }}><rect x="3" y="3" width="10" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M6 3V2h4v1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M5.5 8h5M5.5 11h3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>;
-  const ATTACH_ICON = <svg width="22" height="22" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle" }}><path d="M13 7.5l-5.5 5.5a4 4 0 01-5.7-5.6L7 2.3a2.5 2.5 0 013.5 3.5L5.3 11a1 1 0 01-1.4-1.4l4.8-4.9" stroke={SAGE_DARK} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>;
-  const TIP_ICON = <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0 }}><path d="M8 2a4 4 0 00-1.5 7.7V11h3V9.7A4 4 0 008 2z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><path d="M6.5 11v1.5a1.5 1.5 0 003 0V11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>;
-  const WARN_ICON = <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0 }}><path d="M8 2L1 14h14L8 2z" stroke="#9b2c2c" strokeWidth="1.4" strokeLinejoin="round"/><path d="M8 7v3" stroke="#9b2c2c" strokeWidth="1.4" strokeLinecap="round"/><circle cx="8" cy="12" r="0.7" fill="#9b2c2c"/></svg>;
-  const BACK_ICON = <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle" }}><path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>;
-  const TRASH_ICON = <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle" }}><path d="M2 4h12M5 4V2h6v2M3 4l1 10h8l1-10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><path d="M6 7v5M10 7v5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>;
+  // ── Icons ──────────────────────────────────────────────────────────────────
+  const LOCK_ICON  = <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0 }}><rect x="3" y="7" width="10" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M5 7V5a3 3 0 016 0v2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="8" cy="10.5" r="1" fill="currentColor"/></svg>;
+  const CLIP_ICON  = <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0 }}><rect x="3" y="3" width="10" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M6 3V2h4v1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M5.5 8h5M5.5 11h3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>;
+  const ATTACH_ICO = <svg width="22" height="22" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle" }}><path d="M13 7.5l-5.5 5.5a4 4 0 01-5.7-5.6L7 2.3a2.5 2.5 0 013.5 3.5L5.3 11a1 1 0 01-1.4-1.4l4.8-4.9" stroke={SAGE_DARK} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+  const TIP_ICON   = <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0 }}><path d="M8 2a4 4 0 00-1.5 7.7V11h3V9.7A4 4 0 008 2z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><path d="M6.5 11v1.5a1.5 1.5 0 003 0V11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>;
+  const BACK_ICO   = <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle" }}><path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+  const TRASH_ICO  = <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle" }}><path d="M2 4h12M5 4V2h6v2M3 4l1 10h8l1-10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><path d="M6 7v5M10 7v5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>;
 
+  const inputStyle = { width: "100%", boxSizing: "border-box", padding: "0.65rem 0.9rem", borderRadius: "0.65rem", border: "1.5px solid rgba(0,0,0,0.12)", fontSize: "0.875rem", color: INK, background: OFF_WHITE, outline: "none", fontFamily: "inherit" };
+  const labelStyle = { fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: WARM_GRAY, display: "block", marginBottom: "0.35rem", fontFamily: "sans-serif" };
+
+  // ── Context form view ─────────────────────────────────────────────────────
+  if (view === "context") {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          <button onClick={() => { setView("list"); setPendingFile(null); }} style={{ background: "none", border: "1px solid rgba(0,0,0,0.12)", borderRadius: "8px", padding: "0.4rem 0.75rem", fontSize: "0.8rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: "0.35rem" }}>
+            {BACK_ICO} Back
+          </button>
+          <div>
+            <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.15rem", fontWeight: 700, color: INK, margin: 0 }}>Add context before analyzing</h2>
+            <p style={{ fontSize: "0.75rem", color: WARM_GRAY, margin: 0 }}>
+              {pendingFile ? pendingFile.name : ""}
+            </p>
+          </div>
+        </div>
+
+        <div style={{ background: SAGE_LIGHT, borderRadius: "0.875rem", padding: "0.875rem 1.1rem", display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
+          <span style={{ color: SAGE_DARK }}>{TIP_ICON}</span>
+          <p style={{ fontSize: "0.8rem", color: SAGE_DARK, lineHeight: 1.65, margin: 0 }}>
+            The more context you provide, the more personalised and useful your analysis will be. All fields are optional — fill in what you know.
+          </p>
+        </div>
+
+        <div style={{ background: "#fff", borderRadius: "1rem", border: "1px solid rgba(0,0,0,0.08)", padding: "1.25rem 1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+            <div>
+              <label style={labelStyle}>Test or report name</label>
+              <input style={inputStyle} value={labContext.name} onChange={e => setLabContext(c => ({ ...c, name: e.target.value }))} placeholder="e.g. Thyroid panel, CBC, MRI report"/>
+            </div>
+            <div>
+              <label style={labelStyle}>Test date <span style={{ textTransform: "none", fontWeight: 400, color: "#bbb" }}>(optional)</span></label>
+              <input type="date" style={inputStyle} value={labContext.date} onChange={e => setLabContext(c => ({ ...c, date: e.target.value }))}/>
+            </div>
+          </div>
+
+          <div>
+            <label style={labelStyle}>Ordered by <span style={{ textTransform: "none", fontWeight: 400, color: "#bbb" }}>(optional)</span></label>
+            <input style={inputStyle} value={labContext.orderedBy} onChange={e => setLabContext(c => ({ ...c, orderedBy: e.target.value }))} placeholder="e.g. Dr. Patel, Endocrinologist"/>
+          </div>
+
+          <div>
+            <label style={labelStyle}>Why was this test ordered? What were you hoping to find out?</label>
+            <textarea style={{ ...inputStyle, resize: "vertical" }} rows={3} value={labContext.background} onChange={e => setLabContext(c => ({ ...c, background: e.target.value }))} placeholder="e.g. I have been experiencing extreme fatigue and hair loss for 8 months. My doctor ordered this to check my thyroid. I was previously told my results were normal but my symptoms have continued."/>
+          </div>
+
+          <div>
+            <label style={labelStyle}>Do you have specific questions about these results?</label>
+            <textarea style={{ ...inputStyle, resize: "vertical" }} rows={3} value={labContext.questions} onChange={e => setLabContext(c => ({ ...c, questions: e.target.value }))} placeholder="e.g. My TSH came back at 3.8 — is that actually optimal for me? What is the difference between TSH, T3, and T4? Should I ask for additional thyroid tests?"/>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
+          <button
+            onClick={() => runAnalysis(pendingFile, labContext)}
+            style={{ background: SAGE_DARK, color: "#fff", border: "none", borderRadius: "100px", padding: "1rem", fontSize: "1rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+            Analyze my results
+          </button>
+          <button
+            onClick={() => runAnalysis(pendingFile, { name: "", date: "", orderedBy: "", questions: "", background: "" })}
+            style={{ background: "none", border: "none", color: WARM_GRAY, fontSize: "0.82rem", cursor: "pointer", fontFamily: "inherit", textDecoration: "underline", textDecorationColor: "rgba(0,0,0,0.2)" }}>
+            Skip and analyze without context
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Loading view ──────────────────────────────────────────────────────────
+  if (view === "analyzing") {
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 400 }}>
+        <div style={{ background: "#fff", borderRadius: "1.5rem", padding: "2.5rem 2rem", maxWidth: 440, width: "100%", border: "1px solid rgba(0,0,0,0.08)", boxShadow: "0 4px 32px rgba(0,0,0,0.06)", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem" }}>
+          <BotanicalMark size={52}/>
+          <div>
+            <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.3rem", fontWeight: 700, color: INK, margin: "0 0 0.4rem" }}>Analyzing your results</h2>
+            <p style={{ fontSize: "0.875rem", color: WARM_GRAY, lineHeight: 1.7, margin: 0 }}>
+              Care Compass is reading your results alongside your symptom history, medications, and health profile — looking for what the numbers really mean for you.
+            </p>
+          </div>
+          <div style={{ width: "100%", height: 6, background: SAGE_LIGHT, borderRadius: 100, overflow: "hidden" }}>
+            <div style={{ height: "100%", borderRadius: 100, background: SAGE_DARK, animation: "labProgress 28s ease-in-out forwards" }}/>
+          </div>
+          <p style={{ fontSize: "0.78rem", color: "#aaa", margin: 0, fontStyle: "italic" }}>
+            This usually takes 20-30 seconds. Please don't close this tab.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Detail view ───────────────────────────────────────────────────────────
   if (view === "detail" && selectedLab) {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
           <button onClick={() => setView("list")} style={{ background: "none", border: "1px solid rgba(0,0,0,0.12)", borderRadius: "8px", padding: "0.4rem 0.75rem", fontSize: "0.8rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: "0.35rem" }}>
-            {BACK_ICON} All results
+            {BACK_ICO} All results
           </button>
           <div style={{ flex: 1 }}>
             <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.1rem", fontWeight: 700, color: INK, margin: 0 }}>{selectedLab.name}</h2>
             <p style={{ fontSize: "0.72rem", color: WARM_GRAY, margin: 0 }}>
               {"Uploaded " + new Date(selectedLab.uploadedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
-              {selectedLab.contextSnapshot && selectedLab.contextSnapshot.conditions ? " · " + selectedLab.contextSnapshot.conditions : ""}
+              {selectedLab.testDate ? " · Test date: " + new Date(selectedLab.testDate + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : ""}
+              {selectedLab.orderedBy ? " · Ordered by: " + selectedLab.orderedBy : ""}
             </p>
           </div>
           <button onClick={() => window.print()} style={{ background: SAGE_DARK, color: "#fff", border: "none", borderRadius: "8px", padding: "0.5rem 1rem", fontSize: "0.8rem", cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>
@@ -844,6 +988,12 @@ function LabResultsTab({ entries }) {
           </div>
         )}
 
+        {selectedLab.contextSnapshot && selectedLab.contextSnapshot.questions && (
+          <div style={{ background: "#f0f4ff", borderRadius: "0.75rem", padding: "0.625rem 1rem", fontSize: "0.75rem", color: "#2c3d9b", lineHeight: 1.6 }}>
+            <strong>Your questions: </strong>{selectedLab.contextSnapshot.questions}
+          </div>
+        )}
+
         <div>{renderAnalysis(selectedLab.analysis)}</div>
 
         <div style={{ background: "#fafaf8", border: "1px solid rgba(0,0,0,0.08)", borderRadius: "0.75rem", padding: "0.875rem 1rem", fontSize: "0.75rem", color: WARM_GRAY, lineHeight: 1.65 }}>
@@ -851,13 +1001,14 @@ function LabResultsTab({ entries }) {
           This analysis is for informational purposes only and does not constitute medical advice, diagnosis, or treatment. Always discuss your results with a qualified healthcare provider.
         </div>
 
-        <button onClick={() => setView("list")} style={{ background: SAGE_DARK, color: "#fff", border: "none", borderRadius: "100px", padding: "0.875rem", fontSize: "0.9rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+        <button onClick={() => { setView("list"); setPendingFile(null); }} style={{ background: SAGE_DARK, color: "#fff", border: "none", borderRadius: "100px", padding: "0.875rem", fontSize: "0.9rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
           Upload another result
         </button>
       </div>
     );
   }
 
+  // ── List view ─────────────────────────────────────────────────────────────
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
 
@@ -865,7 +1016,7 @@ function LabResultsTab({ entries }) {
         <div style={{ padding: "1.25rem 1.5rem", borderBottom: "1px solid rgba(0,0,0,0.08)" }}>
           <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.2rem", fontWeight: 700, color: INK, margin: "0 0 0.3rem" }}>Lab Results</h2>
           <p style={{ fontSize: "0.82rem", color: WARM_GRAY, margin: 0, lineHeight: 1.6 }}>
-            Upload lab results, imaging reports, or test results for a plain-language breakdown and next-step guidance — cross-referenced with your symptoms and health profile.
+            Upload lab results, imaging reports, or test results for a plain-language breakdown and personalised next-step guidance — cross-referenced with your symptoms and health profile.
           </p>
         </div>
         <div style={{ padding: "0.875rem 1.5rem", background: SAGE_LIGHT, display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
@@ -883,38 +1034,27 @@ function LabResultsTab({ entries }) {
         onDragOver={e => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
         onDrop={e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
-        onClick={() => !analyzing && fileInputRef.current && fileInputRef.current.click()}
-        style={{ border: "2px dashed " + (dragOver ? SAGE_DARK : analyzing ? SAGE : "rgba(0,0,0,0.12)"), borderRadius: "1rem", padding: "2.5rem 1.5rem", textAlign: "center", cursor: analyzing ? "default" : "pointer", background: dragOver ? SAGE_LIGHT : "#fff", transition: "all 0.15s", display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem" }}
+        onClick={() => fileInputRef.current && fileInputRef.current.click()}
+        style={{ border: "2px dashed " + (dragOver ? SAGE_DARK : "rgba(0,0,0,0.12)"), borderRadius: "1rem", padding: "2.5rem 1.5rem", textAlign: "center", cursor: "pointer", background: dragOver ? SAGE_LIGHT : "#fff", transition: "all 0.15s", display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem" }}
       >
         <input ref={fileInputRef} type="file" accept="image/*,.pdf" style={{ display:"none" }} onChange={e => { if (e.target.files[0]) handleFile(e.target.files[0]); e.target.value = ""; }}/>
-
-        {analyzing ? (
-          <>
-            <div style={{ width: 40, height: 40, borderRadius: "50%", border: "3px solid " + SAGE, borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }}/>
-            <p style={{ fontSize: "0.95rem", fontWeight: 600, color: SAGE_DARK, margin: 0 }}>Analyzing your results...</p>
-            <p style={{ fontSize: "0.8rem", color: WARM_GRAY, margin: 0 }}>Reading your results in the context of your health profile. This takes about 20-30 seconds.</p>
-          </>
-        ) : (
-          <>
-            <div style={{ width: 48, height: 48, borderRadius: "50%", background: SAGE_LIGHT, display: "flex", alignItems: "center", justifyContent: "center", color: SAGE_DARK }}>
-              {ATTACH_ICON}
-            </div>
-            <div>
-              <p style={{ fontSize: "0.95rem", fontWeight: 600, color: INK, margin: "0 0 0.25rem" }}>Upload a lab result or report</p>
-              <p style={{ fontSize: "0.8rem", color: WARM_GRAY, margin: 0 }}>Photo, scan, or PDF · JPG, PNG, HEIC, PDF · up to 20MB</p>
-            </div>
-            <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap", justifyContent: "center" }}>
-              {["Blood work", "Thyroid panel", "Metabolic panel", "CBC", "Imaging report", "Hormone panel", "Urinalysis", "Genetic test"].map(type => (
-                <span key={type} style={{ fontSize: "0.72rem", background: CREAM, color: WARM_GRAY, borderRadius: "100px", padding: "0.2rem 0.7rem" }}>{type}</span>
-              ))}
-            </div>
-          </>
-        )}
+        <div style={{ width: 48, height: 48, borderRadius: "50%", background: SAGE_LIGHT, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          {ATTACH_ICO}
+        </div>
+        <div>
+          <p style={{ fontSize: "0.95rem", fontWeight: 600, color: INK, margin: "0 0 0.25rem" }}>Upload a lab result or report</p>
+          <p style={{ fontSize: "0.8rem", color: WARM_GRAY, margin: 0 }}>Photo, scan, or PDF · JPG, PNG, HEIC, PDF · up to 20MB</p>
+        </div>
+        <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap", justifyContent: "center" }}>
+          {["Blood work", "Thyroid panel", "Metabolic panel", "CBC", "Imaging report", "Hormone panel", "Urinalysis", "Genetic test"].map(type => (
+            <span key={type} style={{ fontSize: "0.72rem", background: CREAM, color: WARM_GRAY, borderRadius: "100px", padding: "0.2rem 0.7rem" }}>{type}</span>
+          ))}
+        </div>
       </div>
 
       {uploadError && (
-        <div style={{ background: "#fff0f0", border: "1px solid #f5c0c0", borderRadius: "0.75rem", padding: "0.75rem 1rem", fontSize: "0.82rem", color: "#9b2c2c", display: "flex", gap: "0.5rem", alignItems: "flex-start" }}>
-          {WARN_ICON} <span style={{ marginLeft: "0.25rem" }}>{uploadError}</span>
+        <div style={{ background: "#fff0f0", border: "1px solid #f5c0c0", borderRadius: "0.75rem", padding: "0.75rem 1rem", fontSize: "0.82rem", color: "#9b2c2c" }}>
+          {uploadError}
         </div>
       )}
 
@@ -922,8 +1062,8 @@ function LabResultsTab({ entries }) {
         <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
           <h3 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1rem", fontWeight: 700, color: INK, margin: 0 }}>Previous results</h3>
           {savedLabs.map(lab => (
-            <div key={lab.id} style={{ background: "#fff", borderRadius: "1rem", border: "1px solid rgba(0,0,0,0.08)", padding: "1rem 1.25rem", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem", cursor: "pointer" }}
-              onClick={() => { setSelectedLab(lab); setView("detail"); }}>
+            <div key={lab.id} onClick={() => { setSelectedLab(lab); setView("detail"); }}
+              style={{ background: "#fff", borderRadius: "1rem", border: "1px solid rgba(0,0,0,0.08)", padding: "1rem 1.25rem", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem", cursor: "pointer" }}>
               <div style={{ display: "flex", gap: "0.875rem", alignItems: "flex-start", flex: 1 }}>
                 <div style={{ width: 36, height: 36, borderRadius: "0.5rem", background: SAGE_LIGHT, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: SAGE_DARK }}>
                   {CLIP_ICON}
@@ -931,7 +1071,8 @@ function LabResultsTab({ entries }) {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "0.95rem", fontWeight: 700, color: INK, margin: "0 0 0.2rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{lab.name}</p>
                   <p style={{ fontSize: "0.75rem", color: WARM_GRAY, margin: 0 }}>
-                    {"Uploaded " + new Date(lab.uploadedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) + " · " + lab.fileName}
+                    {"Uploaded " + new Date(lab.uploadedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    {lab.testDate ? " · Test date: " + new Date(lab.testDate + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : ""}
                   </p>
                   {lab.contextSnapshot && lab.contextSnapshot.conditions && (
                     <p style={{ fontSize: "0.72rem", color: SAGE_DARK, margin: "0.2rem 0 0", fontStyle: "italic" }}>{"Analyzed with: " + lab.contextSnapshot.conditions}</p>
@@ -945,7 +1086,7 @@ function LabResultsTab({ entries }) {
                 </button>
                 <button onClick={e => { e.stopPropagation(); deleteLab(lab.id); }}
                   style={{ background: "none", border: "1px solid #f5c0c0", borderRadius: "6px", padding: "0.3rem 0.5rem", cursor: "pointer", color: "#c0392b", display: "flex", alignItems: "center" }}>
-                  {TRASH_ICON}
+                  {TRASH_ICO}
                 </button>
               </div>
             </div>
@@ -953,7 +1094,7 @@ function LabResultsTab({ entries }) {
         </div>
       )}
 
-      {savedLabs.length === 0 && !analyzing && (
+      {savedLabs.length === 0 && (
         <p style={{ textAlign: "center", fontSize: "0.82rem", color: WARM_GRAY, fontStyle: "italic", margin: 0 }}>
           No results uploaded yet. Upload your first lab result above to get started.
         </p>
