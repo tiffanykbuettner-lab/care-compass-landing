@@ -386,23 +386,78 @@ function GuidanceOutput({ guidance, onReset, onEdit, userName }) {
 
       {/* Report content */}
       <div style={s.guidanceContent}>
-        {guidance.split("\n").filter(l => l.trim()).map((line, i) => {
-          if (line.startsWith("#") && !line.startsWith("##")) return null;
-          if (line.startsWith("##")) return (
-            <h3 key={i} style={s.guidanceSection}>{line.replace(/^##\s*/, "")}</h3>
-          );
-          if (line.startsWith("**") && line.endsWith("**")) return (
-            <h4 key={i} style={s.guidanceSubSection}>{line.replace(/\*\*/g, "")}</h4>
-          );
-          if (line.startsWith("- ")) return (
-            <div key={i} style={s.guidanceBullet}>
-              <span style={s.bulletDot}>•</span>
-              <span>{line.replace(/^- /, "").replace(/\*\*(.*?)\*\*/g, "$1")}</span>
-            </div>
-          );
-          if (line === "---") return <hr key={i} style={{ border: "none", borderTop: `1px solid ${SAGE_LIGHT}`, margin: "0.5rem 0" }}/>;
-          return <p key={i} style={s.guidancePara}>{line.replace(/\*\*(.*?)\*\*/g, "$1")}</p>;
-        })}
+        {(() => {
+          const ASSESS_SECTION_STYLES = {
+            "what we notice":          { border: SAGE,     head: SAGE_DARK,  bg: "#fff" },
+            "daily life impact":       { border: "#f0d58a", head: "#9a6f00", bg: "#fff8e8" },
+            "patterns worth exploring":{ border: TEAL,     head: "#2c6e72",  bg: TEAL_LIGHT },
+            "specialists who may help":{ border: "#d4bfff", head: "#5b3d9e", bg: "#f5f0ff" },
+            "questions to bring to your doctor": { border: "#c0caf5", head: "#2c3d9b", bg: "#f0f4ff" },
+            "a note from care compass":{ border: SAGE,     head: SAGE_DARK,  bg: SAGE_LIGHT },
+          };
+
+          const sections = guidance.split(/\n(?=## )/).filter(Boolean);
+
+          return sections.map((section, si) => {
+            const lines = section.split("\n");
+            const heading = lines[0].replace(/^##\s*/, "").trim();
+            const body = lines.slice(1).join("\n").trim();
+            if (!heading || !body) return null;
+
+            const key = heading.toLowerCase().replace(/[^a-z\s']/g, "").trim();
+            const col = ASSESS_SECTION_STYLES[key] || { border: SAGE, head: SAGE_DARK, bg: "#fff" };
+            const isQuestions = key.includes("question");
+
+            const bodyLines = body.split("\n").map(l => l.trim()).filter(Boolean);
+            const blocks = [];
+            let cur = { type: "para", lines: [] };
+            bodyLines.forEach(line => {
+              const isBullet = /^[-*•]\s/.test(line) || /^\d+[.)]\s/.test(line);
+              const type = isBullet ? "bullet" : "para";
+              if (type !== cur.type && cur.lines.length) { blocks.push({ ...cur }); cur = { type, lines: [] }; }
+              cur.type = type;
+              cur.lines.push(line);
+            });
+            if (cur.lines.length) blocks.push(cur);
+
+            return (
+              <div key={si} style={{ background: col.bg, border: "1.5px solid " + col.border, borderRadius: "1.25rem", overflow: "hidden", marginBottom: "1rem" }}>
+                <div style={{ padding: "0.875rem 1.5rem", borderBottom: "1.5px solid " + col.border, display: "flex", alignItems: "center", gap: "0.625rem" }}>
+                  <div style={{ width: 4, height: 20, borderRadius: 2, background: col.head, flexShrink: 0 }}/>
+                  <h3 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.05rem", fontWeight: 700, color: col.head, margin: 0 }}>{heading}</h3>
+                </div>
+                <div style={{ padding: "1.1rem 1.5rem", display: "flex", flexDirection: "column", gap: "0.625rem" }}>
+                  {blocks.map((block, bi) => {
+                    if (block.type === "bullet" || isQuestions) {
+                      return (
+                        <div key={bi} style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
+                          {block.lines.map((line, li) => {
+                            const clean = line.replace(/^[-*•]\s*/, "").replace(/^\d+[.)]\s*/, "").replace(/\*\*(.*?)\*\*/g, "$1").trim();
+                            if (!clean) return null;
+                            if (isQuestions) return (
+                              <div key={li} style={{ background: "rgba(255,255,255,0.7)", border: "1px solid " + col.border, borderRadius: "0.625rem", padding: "0.75rem 1rem", display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
+                                <span style={{ color: col.head, fontWeight: 700, fontSize: "0.72rem", flexShrink: 0, marginTop: "0.15rem" }}>{String(li + 1).padStart(2, "0")}</span>
+                                <span style={{ fontSize: "0.875rem", color: INK, lineHeight: 1.7 }}>{clean}</span>
+                              </div>
+                            );
+                            return (
+                              <div key={li} style={{ display: "flex", gap: "0.625rem", alignItems: "flex-start" }}>
+                                <div style={{ width: 6, height: 6, borderRadius: "50%", background: col.head, flexShrink: 0, marginTop: "0.6rem" }}/>
+                                <p style={{ fontSize: "0.875rem", color: INK, lineHeight: 1.75, margin: 0 }}>{clean}</p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    }
+                    const text = block.lines.join(" ").replace(/\*\*(.*?)\*\*/g, "$1");
+                    return <p key={bi} style={{ fontSize: "0.875rem", color: INK, lineHeight: 1.85, margin: 0 }}>{text}</p>;
+                  })}
+                </div>
+              </div>
+            );
+          }).filter(Boolean);
+        })()}
       </div>
 
       {/* Footer */}

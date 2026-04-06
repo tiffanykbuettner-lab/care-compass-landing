@@ -795,69 +795,159 @@ function LabResultsTab({ entries }) {
     setView("context");
   };
 
-  // ── Clean output renderer — no markdown symbols ───────────────────────────
-  const SECTION_STYLES = {
-    "RESULTS WORTH PAYING ATTENTION TO":  { bg: "#fff8e8", border: "#f0d58a", head: "#9a6f00" },
-    "WHY NORMAL IS NOT ALWAYS ENOUGH":    { bg: "#fff0f0", border: "#f5c0c0", head: "#9b2c2c" },
-    "QUESTIONS TO BRING TO YOUR DOCTOR":  { bg: "#f0f4ff", border: "#c0caf5", head: "#2c3d9b" },
-    "A NOTE ON ADVOCATING FOR YOURSELF":  { bg: SAGE_LIGHT, border: SAGE, head: SAGE_DARK },
+  // ── Lab results renderer — handles any markdown the model returns ──────────
+  const LAB_SECTION_STYLES = {
+    "results worth paying attention to": { bg: "#fff8e8", border: "#f0d58a", head: "#9a6f00", accent: "#f0d58a" },
+    "why normal is not always enough":   { bg: "#fff0f0", border: "#f5c0c0", head: "#9b2c2c", accent: "#f5c0c0" },
+    "questions to bring to your doctor": { bg: "#f0f4ff", border: "#c0caf5", head: "#2c3d9b", accent: "#c0caf5" },
+    "a note on advocating for yourself": { bg: SAGE_LIGHT, border: SAGE,     head: SAGE_DARK, accent: SAGE },
+    "further tests worth requesting":    { bg: "#f5f0ff", border: "#d4bfff", head: "#5b3d9e", accent: "#d4bfff" },
+    "specialists who may help":          { bg: TEAL_LIGHT, border: TEAL,     head: "#2c6e72", accent: TEAL },
   };
 
   const renderAnalysis = (text) => {
     if (!text) return null;
-    // Split on uppercase section headings
-    const sectionRegex = /\n(?=[A-Z][A-Z ]{5,}\n)/g;
-    const parts = text.split(sectionRegex);
 
-    return parts.map((part, i) => {
-      const firstNewline = part.indexOf("\n");
-      const heading = firstNewline > 0 ? part.slice(0, firstNewline).trim() : part.trim();
-      const body = firstNewline > 0 ? part.slice(firstNewline + 1).trim() : "";
+    // Normalize — strip markdown artifacts, preamble, dividers
+    const normalized = text
+      .replace(/^#{1,4}\s*/gm, "")
+      .replace(/^[-]{2,}\s*$/gm, "")
+      .replace(/^\*\*([^*]+)\*\*\s*$/gm, "$1")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
 
-      if (!heading || heading.length < 4) return null;
+    // Known section headings the model uses
+    const KNOWN_HEADS = [
+      "WHAT THESE RESULTS SHOW", "RESULTS WORTH PAYING",
+      "WHY NORMAL", "WHAT NORMAL", "QUESTIONS TO BRING",
+      "FURTHER TESTS", "SPECIALISTS WHO", "A NOTE ON ADVOCATING",
+    ];
 
-      // Clean body — remove markdown artifacts
+    // Scan lines to build sections — discard preamble before first heading
+    const rawLines = normalized.split("\n");
+    const sections = [];
+    let curSection = null;
+    for (const line of rawLines) {
+      const t = line.trim();
+      const isKnown = KNOWN_HEADS.some(h => t.toUpperCase().startsWith(h));
+      const isAllCaps = /^[A-Z][A-Z\s&]{5,}$/.test(t) && t.length < 80;
+      if ((isKnown || isAllCaps) && t.length > 5) {
+        if (curSection) sections.push(curSection);
+        curSection = { heading: t, bodyLines: [] };
+      } else if (curSection) {
+        curSection.bodyLines.push(line);
+      }
+    }
+    if (curSection) sections.push(curSection);
+
+    const parts = sections.map(s => s.heading + "\n" + s.bodyLines.join("\n"));
+
+    const rendered = parts.map((part, i) => {
+      const newlineIdx = part.indexOf("\n");
+      if (newlineIdx < 0) return null;
+
+      const rawHeading = part.slice(0, newlineIdx).trim().replace(/\*\*/g, "");
+      const body = part.slice(newlineIdx + 1).trim();
+      if (!rawHeading || rawHeading.length < 3 || !body) return null;
+
+      const headingKey = rawHeading.toLowerCase().replace(/[^a-z\s]/g, "").trim();
+      const col = LAB_SECTION_STYLES[headingKey] || { bg: "#fff", border: "rgba(0,0,0,0.08)", head: SAGE_DARK, accent: SAGE_LIGHT };
+
+      // Clean body text
       const cleanBody = body
-        .replace(/^#{1,3}\s*/gm, "")
         .replace(/\*\*/g, "")
-        .replace(/^[-*•|]\s*/gm, "")
-        .replace(/^\d+\.\s*/gm, "")
+        .replace(/\*([^*]+)\*/g, "$1")
         .trim();
 
-      const col = SECTION_STYLES[heading] || { bg: "#fff", border: "rgba(0,0,0,0.08)", head: SAGE_DARK };
+      // Split into blocks — paragraphs separated by blank lines, or lines starting with numbers/bullets
+      const isQuestionSection = headingKey.includes("question");
+      const isBulletSection   = headingKey.includes("test") || headingKey.includes("specialist") || headingKey.includes("further");
 
-      // Split into paragraphs for clean display
-      const paragraphs = cleanBody.split(/\n\n+/).filter(p => p.trim());
+      const blocks = cleanBody.split(/\n\n+/);
+
+      // Title-case the heading nicely
+      const displayHeading = rawHeading
+        .toLowerCase()
+        .replace(/\b\w/g, c => c.toUpperCase())
+        .replace(/\bIs\b|\bAnd\b|\bOr\b|\bFor\b|\bTo\b|\bThe\b|\bA\b|\bOf\b/g, w => w.toLowerCase())
+        .replace(/^./, c => c.toUpperCase());
 
       return (
-        <div key={i} style={{ background: col.bg, border: "1px solid " + col.border, borderRadius: "1rem", padding: "1.25rem 1.5rem", marginBottom: "0.875rem" }}>
-          <h3 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1rem", fontWeight: 700, color: col.head, margin: "0 0 0.75rem", letterSpacing: "-0.01em" }}>
-            {heading.charAt(0) + heading.slice(1).toLowerCase()}
-          </h3>
-          {paragraphs.map((para, j) => {
-            const lines = para.split("\n").filter(l => l.trim());
-            // Numbered question format — style each as a callout
-            const isQuestions = heading.includes("QUESTION");
-            if (isQuestions && lines.length > 0) {
+        <div key={i} style={{ background: col.bg, border: "1.5px solid " + col.border, borderRadius: "1.25rem", overflow: "hidden", marginBottom: "1rem" }}>
+          {/* Section header bar */}
+          <div style={{ borderBottom: "1.5px solid " + col.border, padding: "0.875rem 1.5rem", display: "flex", alignItems: "center", gap: "0.625rem" }}>
+            <div style={{ width: 4, height: 20, borderRadius: 2, background: col.head, flexShrink: 0 }}/>
+            <h3 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.05rem", fontWeight: 700, color: col.head, margin: 0, letterSpacing: "-0.01em" }}>
+              {displayHeading}
+            </h3>
+          </div>
+          {/* Section body */}
+          <div style={{ padding: "1.1rem 1.5rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+            {blocks.map((block, j) => {
+              const lines = block.split("\n").map(l => l.trim()).filter(Boolean);
+              if (!lines.length) return null;
+
+              // Detect if block contains numbered items or bullet items
+              const hasNumbers = lines.some(l => /^\d+[.)]\s/.test(l));
+              const hasBullets = lines.some(l => /^[-•*]\s/.test(l));
+
+              if (isQuestionSection || hasNumbers) {
+                // Each question as its own pill
+                return (
+                  <div key={j} style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                    {lines.map((line, k) => {
+                      const clean = line.replace(/^\d+[.)]\s*/, "").replace(/^[-•*]\s*/, "").trim();
+                      if (!clean) return null;
+                      return (
+                        <div key={k} style={{ background: "rgba(255,255,255,0.7)", border: "1px solid " + col.border, borderRadius: "0.625rem", padding: "0.75rem 1rem", fontSize: "0.875rem", color: INK, lineHeight: 1.7 }}>
+                          <span style={{ color: col.head, fontWeight: 700, marginRight: "0.5rem", fontSize: "0.75rem" }}>
+                            {String(k + 1).padStart(2, "0")}
+                          </span>
+                          {clean}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              }
+
+              if (hasBullets || isBulletSection) {
+                return (
+                  <div key={j} style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
+                    {lines.map((line, k) => {
+                      const clean = line.replace(/^[-•*]\s*/, "").trim();
+                      if (!clean) return null;
+                      return (
+                        <div key={k} style={{ display: "flex", gap: "0.625rem", alignItems: "flex-start" }}>
+                          <div style={{ width: 6, height: 6, borderRadius: "50%", background: col.head, flexShrink: 0, marginTop: "0.55rem" }}/>
+                          <p style={{ fontSize: "0.875rem", color: INK, lineHeight: 1.75, margin: 0 }}>{clean}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              }
+
+              // Plain paragraph — join lines into flowing text
               return (
-                <div key={j} style={{ marginBottom: j < paragraphs.length - 1 ? "0.75rem" : 0 }}>
-                  {lines.map((line, k) => (
-                    <div key={k} style={{ background: "rgba(255,255,255,0.6)", borderRadius: "0.5rem", padding: "0.625rem 0.875rem", marginBottom: k < lines.length - 1 ? "0.4rem" : 0, fontSize: "0.875rem", color: INK, lineHeight: 1.7 }}>
-                      {line.replace(/^\d+[.):]?\s*/, "")}
-                    </div>
-                  ))}
-                </div>
+                <p key={j} style={{ fontSize: "0.875rem", color: INK, lineHeight: 1.85, margin: 0 }}>
+                  {lines.join(" ")}
+                </p>
               );
-            }
-            return (
-              <p key={j} style={{ fontSize: "0.875rem", color: INK, lineHeight: 1.8, margin: j < paragraphs.length - 1 ? "0 0 0.625rem" : 0 }}>
-                {para.replace(/\n/g, " ")}
-              </p>
-            );
-          })}
+            })}
+          </div>
         </div>
       );
     }).filter(Boolean);
+
+    return rendered.length > 0 ? rendered : (
+      // Fallback: plain text if no sections detected
+      <div style={{ background: "#fff", border: "1px solid rgba(0,0,0,0.08)", borderRadius: "1.25rem", padding: "1.5rem" }}>
+        {normalized.split("\n\n").filter(Boolean).map((p, i) => (
+          <p key={i} style={{ fontSize: "0.875rem", color: INK, lineHeight: 1.85, margin: i > 0 ? "0.75rem 0 0" : 0 }}>{p}</p>
+        ))}
+      </div>
+    );
   };
 
   // ── Icons ──────────────────────────────────────────────────────────────────
@@ -1900,25 +1990,89 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
                   )}
 
                   <div style={s.insightsContent}>
-                    {insights.split("\n").map((line, i) => {
-                      const trimmed = line.trim();
-                      if (!trimmed) return null;
-                      // Single # = main title (skip — we already show a header)
-                      if (/^# [^#]/.test(trimmed)) return null;
-                      // ## = section heading
-                      if (trimmed.startsWith("##")) return <h3 key={i} style={s.insightSection}>{trimmed.replace(/^##\s*/, "")}</h3>;
-                      // --- = divider
-                      if (trimmed === "---" || trimmed === "—--" || trimmed === "- --") return <hr key={i} style={s.insightDivider}/>;
-                      // Bullet points
-                      if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
-                        const text = trimmed.replace(/^[-*]\s/, "").replace(/\*\*(.*?)\*\*/g, "$1");
-                        return <div key={i} style={s.insightBullet}><span style={s.bulletDot}>•</span><span>{text}</span></div>;
-                      }
-                      // Bold inline text handling
-                      const parts = trimmed.split(/\*\*(.*?)\*\*/g);
-                      const rendered = parts.map((part, j) => j % 2 === 1 ? <strong key={j} style={{ fontWeight: 700, color: INK }}>{part}</strong> : part);
-                      return <p key={i} style={s.insightPara}>{rendered}</p>;
-                    })}
+                    {(() => {
+                      const INSIGHT_SECTION_STYLES = {
+                        "patterns we notice":                     { border: SAGE,     head: SAGE_DARK,  bg: "#fff" },
+                        "daily life impact":                      { border: "#f0d58a", head: "#9a6f00", bg: "#fff8e8" },
+                        "time-based correlations worth exploring": { border: TEAL,     head: "#2c6e72",  bg: TEAL_LIGHT },
+                        "potential triggers":                     { border: "#f5c0c0", head: "#9b2c2c", bg: "#fff0f0" },
+                        "what's improving vs worsening":          { border: SAGE,     head: SAGE_DARK,  bg: SAGE_LIGHT },
+                        "questions to bring to your doctor":      { border: "#c0caf5", head: "#2c3d9b", bg: "#f0f4ff" },
+                        "blood pressure patterns":                { border: TEAL,     head: "#2c6e72",  bg: TEAL_LIGHT },
+                      };
+
+                      // Split on ## headings
+                      const sections = insights.split(/\n(?=## )/).filter(Boolean);
+
+                      return sections.map((section, si) => {
+                        const lines = section.split("\n");
+                        const heading = lines[0].replace(/^##\s*/, "").trim();
+                        const body = lines.slice(1).join("\n").trim();
+                        if (!heading || !body) return null;
+
+                        const key = heading.toLowerCase().replace(/[^a-z\s']/g, "").trim();
+                        const col = INSIGHT_SECTION_STYLES[key] || { border: SAGE, head: SAGE_DARK, bg: "#fff" };
+                        const isQuestions = key.includes("question");
+
+                        // Parse body into blocks
+                        const bodyLines = body.split("\n").map(l => l.trim()).filter(Boolean);
+
+                        // Group consecutive bullet lines and paragraph lines
+                        const blocks = [];
+                        let currentBlock = { type: "para", lines: [] };
+                        bodyLines.forEach(line => {
+                          const isBullet = /^[-*•]\s/.test(line) || /^\d+[.)]\s/.test(line);
+                          const type = isBullet ? "bullet" : "para";
+                          if (type !== currentBlock.type && currentBlock.lines.length) {
+                            blocks.push({ ...currentBlock });
+                            currentBlock = { type, lines: [] };
+                          }
+                          currentBlock.type = type;
+                          currentBlock.lines.push(line);
+                        });
+                        if (currentBlock.lines.length) blocks.push(currentBlock);
+
+                        return (
+                          <div key={si} style={{ background: col.bg, border: "1.5px solid " + col.border, borderRadius: "1.25rem", overflow: "hidden", marginBottom: "1rem" }}>
+                            <div style={{ padding: "0.875rem 1.5rem", borderBottom: "1.5px solid " + col.border, display: "flex", alignItems: "center", gap: "0.625rem" }}>
+                              <div style={{ width: 4, height: 20, borderRadius: 2, background: col.head, flexShrink: 0 }}/>
+                              <h3 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.05rem", fontWeight: 700, color: col.head, margin: 0 }}>{heading}</h3>
+                            </div>
+                            <div style={{ padding: "1.1rem 1.5rem", display: "flex", flexDirection: "column", gap: "0.625rem" }}>
+                              {blocks.map((block, bi) => {
+                                if (block.type === "bullet" || isQuestions) {
+                                  return (
+                                    <div key={bi} style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
+                                      {block.lines.map((line, li) => {
+                                        const clean = line.replace(/^[-*•]\s*/, "").replace(/^\d+[.)]\s*/, "").replace(/\*\*(.*?)\*\*/g, "$1").trim();
+                                        if (!clean) return null;
+                                        if (isQuestions) return (
+                                          <div key={li} style={{ background: "rgba(255,255,255,0.7)", border: "1px solid " + col.border, borderRadius: "0.625rem", padding: "0.75rem 1rem", display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
+                                            <span style={{ color: col.head, fontWeight: 700, fontSize: "0.72rem", flexShrink: 0, marginTop: "0.15rem" }}>{String(li + 1).padStart(2, "0")}</span>
+                                            <span style={{ fontSize: "0.875rem", color: INK, lineHeight: 1.7 }}>{clean}</span>
+                                          </div>
+                                        );
+                                        return (
+                                          <div key={li} style={{ display: "flex", gap: "0.625rem", alignItems: "flex-start" }}>
+                                            <div style={{ width: 6, height: 6, borderRadius: "50%", background: col.head, flexShrink: 0, marginTop: "0.6rem" }}/>
+                                            <p style={{ fontSize: "0.875rem", color: INK, lineHeight: 1.75, margin: 0 }}>
+                                              {line.replace(/^[-*•]\s*/, "").replace(/\*\*(.*?)\*\*/g, "$1")}
+                                            </p>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  );
+                                }
+                                // Paragraph block
+                                const text = block.lines.join(" ").replace(/\*\*(.*?)\*\*/g, "$1");
+                                return <p key={bi} style={{ fontSize: "0.875rem", color: INK, lineHeight: 1.85, margin: 0 }}>{text}</p>;
+                              })}
+                            </div>
+                          </div>
+                        );
+                      }).filter(Boolean);
+                    })()}
                   </div>
                   <div style={s.insightsFooter} className="no-print">
                     <p style={{...s.insightsFooterNote, display:"flex", alignItems:"center", gap:"0.4rem"}}><span style={{ color:"#7a9e87" }}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M3 13c1-4 2-8 9-10-3 5-4 8-9 10z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><path d="M3 13c2-3 4-5 6-7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg></span> Bring this report to your next appointment and ask your provider to help you explore these patterns.</p>
