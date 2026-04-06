@@ -633,51 +633,46 @@ function TrendsTab({ entries, dateFilter }) {
 
 
 function LabResultsTab({ entries }) {
+  const LABS_STORAGE = "care-compass-labs-v1";
   const [savedLabs, setSavedLabs] = React.useState(() => {
-    try { const s = localStorage.getItem(LABS_KEY); return s ? JSON.parse(s) : []; } catch { return []; }
+    try { const s = localStorage.getItem(LABS_STORAGE); return s ? JSON.parse(s) : []; } catch { return []; }
   });
-  const [uploading, setUploading]     = React.useState(false);
   const [analyzing, setAnalyzing]     = React.useState(false);
   const [selectedLab, setSelectedLab] = React.useState(null);
-  const [view, setView]               = React.useState("list"); // list | detail | upload
+  const [view, setView]               = React.useState("list");
   const [dragOver, setDragOver]       = React.useState(false);
   const [uploadError, setUploadError] = React.useState("");
   const fileInputRef = React.useRef(null);
 
   const saveLabs = (updated) => {
     setSavedLabs(updated);
-    try { localStorage.setItem(LABS_KEY, JSON.stringify(updated)); } catch {}
+    try { localStorage.setItem(LABS_STORAGE, JSON.stringify(updated)); } catch {}
   };
 
-  const deleteLab = (id) => saveLabs(savedLabs.filter(l => l.id !== id));
+  const deleteLab = (id) => {
+    if (window.confirm("Delete this result?")) saveLabs(savedLabs.filter(l => l.id !== id));
+  };
 
-  // ── Get user context for AI prompt ────────────────────────────────────────
   const getUserContext = () => {
     const displayName = localStorage.getItem("cc-display-name") || "";
     const profile = (() => { try { return JSON.parse(localStorage.getItem("cc-profile") || "{}"); } catch { return {}; } })();
     const meds = (() => { try { return JSON.parse(localStorage.getItem("care-compass-medications-v1") || "[]"); } catch { return []; } })();
     const family = (() => { try { return JSON.parse(localStorage.getItem("cc-family-history") || "[]"); } catch { return []; } })();
-    const recentEntries = entries.slice(0, 14);
-
-    const medsStr = meds.filter(m => m.name).map(m => `${m.name}${m.dose ? " " + m.dose : ""}${m.frequency ? " ("+m.frequency+")" : ""}`).join(", ");
+    const recentEntries = (entries || []).slice(0, 14);
+    const medsStr = meds.filter(m => m.name).map(m => m.name + (m.dose ? " " + m.dose : "") + (m.frequency ? " (" + m.frequency + ")" : "")).join(", ");
     const conditionsStr = (profile.conditions || []).join(", ");
-    const familyStr = family.filter(e => e.member && e.conditions.length).map(e => `${e.member}: ${e.conditions.join(", ")}`).join("; ");
+    const familyStr = family.filter(e => e.member && e.conditions && e.conditions.length).map(e => e.member + ": " + e.conditions.join(", ")).join("; ");
     const symptomSummary = recentEntries.length
-      ? `Recent symptoms (last ${recentEntries.length} log entries): ` + recentEntries.map(e => `[Sev ${e.severity}/10] ${e.symptoms || "no symptoms noted"}`).slice(0, 5).join(" | ")
+      ? "Recent symptoms (last " + recentEntries.length + " log entries): " + recentEntries.slice(0, 5).map(e => "[Sev " + e.severity + "/10] " + (e.symptoms || "no symptoms noted")).join(" | ")
       : "";
-
     return { displayName, medsStr, conditionsStr, familyStr, symptomSummary };
   };
 
-  // ── Analyze a lab result image/PDF with Claude ────────────────────────────
-  const analyzeLabResult = async (file, labName) => {
+  const analyzeLabResult = async (file) => {
     setAnalyzing(true);
     setUploadError("");
-
     const ctx = getUserContext();
-
     try {
-      // Convert file to base64
       const base64 = await new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(reader.result.split(",")[1]);
@@ -686,57 +681,33 @@ function LabResultsTab({ entries }) {
       });
 
       const isImage = file.type.startsWith("image/");
-      const isPDF   = file.type === "application/pdf";
 
-      const systemPrompt = `You are a compassionate health navigation assistant for Care Compass. Your role is to help people with chronic and complex illness understand their lab results in plain language and know how to advocate for themselves.
+      const systemPrompt = "You are a compassionate health navigation assistant for Care Compass. Your role is to help people with chronic and complex illness understand their lab results in plain language and know how to advocate for themselves. CRITICAL: Normal range does not always mean optimal for this individual. Flag values that are technically within range but at the edges, or that are commonly suboptimal for people with certain conditions. Be an advocate, not just a translator. Never diagnose. Be warm, clear, and empowering.";
 
-CRITICAL PHILOSOPHY:
-- "Normal range" does not always mean "optimal for this individual." Flag values that are technically within range but at the edges, or that are commonly suboptimal for people with certain conditions.
-- Many chronic illness patients receive results labeled "normal" and are told there is nothing wrong, when in fact their results warrant further investigation in the context of their symptoms.
-- Be an advocate, not just a translator. Your job is to help the user ask better questions and push for appropriate next steps.
-- Never diagnose. Use language like "may be worth discussing," "some practitioners consider," "worth asking your doctor about."
-- Be warm, clear, and empowering. Many of these patients have felt dismissed. Validate that their symptoms are real and that lab results are just one piece of the picture.`;
-
-      const userPrompt = `Please analyze the attached lab result${isPDF ? " (PDF)" : " (image)"} for this patient.
-
-PATIENT CONTEXT (use this to give personalised insights — symptoms and lived experience take priority over labels):
-${ctx.conditionsStr ? "Existing conditions: " + ctx.conditionsStr : "No formal diagnoses listed"}
-${ctx.medsStr ? "Current medications: " + ctx.medsStr : "No medications listed"}
-${ctx.familyStr ? "Family history: " + ctx.familyStr : ""}
-${ctx.symptomSummary ? ctx.symptomSummary : "No recent symptom logs available"}
-
-Please provide your analysis in these sections:
-
-## What These Results Show
-Go through each test result found. For each one: give the test name, the value, the reference range, and a plain-language explanation of what it measures and what this result means. Use simple language — no jargon.
-
-## Results to Pay Attention To
-Flag any results that are: out of range, borderline (within 15% of the upper or lower limit), or technically "normal" but potentially significant given this patient's symptoms or conditions. For each flagged result explain WHY it may be significant in their context. This is the most important section — do not skip borderline values just because they fall within the printed reference range.
-
-## What Normal Doesn't Always Mean
-If any results were likely dismissed as normal, explain what the result actually indicates and why it might still be relevant to explore further, especially in the context of their reported symptoms.
-
-## Questions to Ask Your Doctor
-Give 5–8 specific, assertive questions this patient can bring to their next appointment. Make them concrete — e.g. "My ferritin is 14 which is within range but I'm experiencing significant fatigue and hair loss — can we discuss whether this level is optimal for me?" not just "Ask about ferritin."
-
-## Further Tests Worth Requesting
-Based on what these results show AND the patient's symptom context, suggest specific additional tests that may be valuable. Explain why each one is relevant.
-
-## Specialists Who May Help
-Based on these results and the patient's symptom picture, suggest specialists who might offer useful perspective. Explain the connection.
-
-## A Note on Advocating for Yourself
-Close with a brief, warm paragraph empowering the patient to advocate for follow-up if they feel their concerns aren't being addressed. Remind them that "normal" is a statistical range, not a personal guarantee of optimal health.`;
+      const userPrompt = "Please analyze the attached lab result for this patient.\n\nPATIENT CONTEXT (use this to give personalised insights):\n" +
+        (ctx.conditionsStr ? "Existing conditions: " + ctx.conditionsStr + "\n" : "No formal diagnoses listed\n") +
+        (ctx.medsStr ? "Current medications: " + ctx.medsStr + "\n" : "") +
+        (ctx.familyStr ? "Family history: " + ctx.familyStr + "\n" : "") +
+        (ctx.symptomSummary ? ctx.symptomSummary + "\n" : "") +
+        "\nPlease provide your analysis in these sections:\n\n" +
+        "## What These Results Show\n" +
+        "Go through each test result. For each: test name, value, reference range, plain-language explanation of what it measures and what this result means.\n\n" +
+        "## Results to Pay Attention To\n" +
+        "Flag any results that are out of range, borderline (within 15% of the limit), or technically normal but potentially significant given this patient's symptoms. Explain WHY each flagged result may be significant in their context. This is the most important section.\n\n" +
+        "## What Normal Does Not Always Mean\n" +
+        "If any results were likely dismissed as normal, explain what the result actually indicates and why it might still be relevant to explore further given their reported symptoms.\n\n" +
+        "## Questions to Ask Your Doctor\n" +
+        "Give 5-8 specific, assertive questions this patient can bring to their next appointment. Make them concrete and ready to use verbatim.\n\n" +
+        "## Further Tests Worth Requesting\n" +
+        "Based on these results AND the patient's symptom context, suggest specific additional tests that may be valuable. Explain why each is relevant.\n\n" +
+        "## Specialists Who May Help\n" +
+        "Based on these results and the patient's symptom picture, suggest specialists who might offer useful perspective. Explain the connection.\n\n" +
+        "## Advocating for Yourself\n" +
+        "Close with a brief, warm paragraph empowering the patient to advocate for follow-up if their concerns are not being addressed.";
 
       const messageContent = isImage
-        ? [
-            { type: "image", source: { type: "base64", media_type: file.type, data: base64 } },
-            { type: "text", text: userPrompt }
-          ]
-        : [
-            { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } },
-            { type: "text", text: userPrompt }
-          ];
+        ? [{ type: "image", source: { type: "base64", media_type: file.type, data: base64 } }, { type: "text", text: userPrompt }]
+        : [{ type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } }, { type: "text", text: userPrompt }];
 
       const response = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
@@ -754,22 +725,18 @@ Close with a brief, warm paragraph empowering the patient to advocate for follow
         }),
       });
 
-      if (!response.ok) throw new Error("API error: " + response.status);
+      if (!response.ok) throw new Error("API error " + response.status);
       const data = await response.json();
       const analysis = data.content?.[0]?.text || "";
 
       const newLab = {
         id: Date.now(),
-        name: labName || file.name.replace(/\.[^.]+$/, ""),
+        name: file.name.replace(/\.[^.]+$/, ""),
         fileName: file.name,
         fileType: file.type,
         uploadedAt: new Date().toISOString(),
         analysis,
-        contextSnapshot: {
-          conditions: ctx.conditionsStr,
-          medications: ctx.medsStr,
-          recentSymptoms: ctx.symptomSummary,
-        },
+        contextSnapshot: { conditions: ctx.conditionsStr, medications: ctx.medsStr },
       };
 
       const updated = [newLab, ...savedLabs];
@@ -783,7 +750,6 @@ Close with a brief, warm paragraph empowering the patient to advocate for follow
     setAnalyzing(false);
   };
 
-  // ── Handle file selection ─────────────────────────────────────────────────
   const handleFile = (file) => {
     if (!file) return;
     const allowed = ["image/jpeg", "image/png", "image/webp", "image/heic", "application/pdf"];
@@ -795,234 +761,216 @@ Close with a brief, warm paragraph empowering the patient to advocate for follow
       setUploadError("File is too large. Please use a file under 20MB.");
       return;
     }
-    analyzeLabResult(file, "");
-    setView("list");
+    setUploadError("");
+    analyzeLabResult(file);
   };
 
-  // ── Render markdown-like analysis ────────────────────────────────────────
   const renderAnalysis = (text) => {
     if (!text) return null;
     const sections = text.split(/\n(?=## )/);
     return sections.map((section, i) => {
-      const lines = section.split("\n");
-      const heading = lines[0].replace(/^## /, "").trim();
-      const body = lines.slice(1).join("\n").trim();
+      const newlineIdx = section.indexOf("\n");
+      const heading = newlineIdx > 0 ? section.slice(0, newlineIdx).replace(/^## /, "").trim() : section.replace(/^## /, "").trim();
+      const body = newlineIdx > 0 ? section.slice(newlineIdx + 1).trim() : "";
       if (!heading) return null;
 
-      const sectionColor = {
-        "Results to Pay Attention To": { bg: "#fff8e8", border: "#f0d58a", head: "#9a6f00" },
-        "What Normal Doesn't Always Mean": { bg: "#fff0f0", border: "#f5c0c0", head: "#9b2c2c" },
-        "Questions to Ask Your Doctor": { bg: "#f0f4ff", border: "#c0caf5", head: "#2c3d9b" },
-      }[heading] || { bg: "#fff", border: BORDER, head: SAGE_DARK };
+      const highlights = {
+        "Results to Pay Attention To":   { bg: "#fff8e8", border: "#f0d58a", head: "#9a6f00" },
+        "What Normal Does Not Always Mean": { bg: "#fff0f0", border: "#f5c0c0", head: "#9b2c2c" },
+        "Questions to Ask Your Doctor":  { bg: "#f0f4ff", border: "#c0caf5", head: "#2c3d9b" },
+        "Advocating for Yourself":       { bg: SAGE_LIGHT, border: SAGE, head: SAGE_DARK },
+      };
+      const col = highlights[heading] || { bg: "#fff", border: "rgba(0,0,0,0.08)", head: SAGE_DARK };
 
-      const renderBody = (text) => text.split("
-").map((line, j) => {
+      const bodyLines = body.split("\n");
+      const renderedLines = bodyLines.map((line, j) => {
         if (!line.trim()) return null;
-        if (line.startsWith("- ") || line.startsWith("• ")) {
-          return <li key={j} style={{ fontSize: "0.875rem", color: INK, lineHeight: 1.7, marginBottom: "0.3rem" }}>{line.replace(/^[-•]\s*/, "")}</li>;
+        const isBullet = line.startsWith("- ") || line.startsWith("* ") || line.startsWith("• ");
+        const isBold = /^\*\*(.+)\*\*/.test(line.trim());
+        if (isBullet) {
+          return (
+            <div key={j} style={{ display: "flex", gap: "0.5rem", marginBottom: "0.375rem" }}>
+              <span style={{ color: col.head, flexShrink: 0, marginTop: "0.1rem", fontSize: "0.75rem" }}>&#9670;</span>
+              <span style={{ fontSize: "0.875rem", color: INK, lineHeight: 1.7 }}>{line.replace(/^[-*•]\s*/, "").replace(/\*\*/g, "")}</span>
+            </div>
+          );
         }
-        if (/^\*\*(.+)\*\*/.test(line)) {
+        if (isBold) {
           return <p key={j} style={{ fontSize: "0.875rem", fontWeight: 700, color: INK, margin: "0.5rem 0 0.1rem" }}>{line.replace(/\*\*/g, "")}</p>;
         }
-        return <p key={j} style={{ fontSize: "0.875rem", color: INK, lineHeight: 1.75, margin: "0.25rem 0" }}>{line}</p>;
+        return <p key={j} style={{ fontSize: "0.875rem", color: INK, lineHeight: 1.75, margin: "0.2rem 0" }}>{line}</p>;
       });
 
       return (
-        <div key={i} style={{ background: sectionColor.bg, border: `1px solid ${sectionColor.border}`, borderRadius: "0.875rem", padding: "1rem 1.25rem", marginBottom: "0.875rem" }}>
-          <h3 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1rem", fontWeight: 700, color: sectionColor.head, margin: "0 0 0.625rem" }}>{heading}</h3>
-          <ul style={{ margin: 0, paddingLeft: "1.2rem", listStyle: "none" }}>
-            {renderBody(body)}
-          </ul>
+        <div key={i} style={{ background: col.bg, border: "1px solid " + col.border, borderRadius: "0.875rem", padding: "1rem 1.25rem", marginBottom: "0.875rem" }}>
+          <h3 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1rem", fontWeight: 700, color: col.head, margin: "0 0 0.625rem" }}>{heading}</h3>
+          <div>{renderedLines}</div>
         </div>
       );
     });
   };
 
-  const ATTACH_ICON = <svg width="20" height="20" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle" }}><path d="M13 7.5l-5.5 5.5a4 4 0 01-5.7-5.6L7 2.3a2.5 2.5 0 013.5 3.5L5.3 11a1 1 0 01-1.4-1.4l4.8-4.9" stroke={SAGE_DARK} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>;
-  const CLIPBOARD_ICON = <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle" }}><rect x="3" y="3" width="10" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M6 3V2h4v1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M5.5 8h5M5.5 11h3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>;
+  const LOCK_ICON = <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0 }}><rect x="3" y="7" width="10" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M5 7V5a3 3 0 016 0v2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="8" cy="10.5" r="1" fill="currentColor"/></svg>;
+  const CLIP_ICON = <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0 }}><rect x="3" y="3" width="10" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M6 3V2h4v1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M5.5 8h5M5.5 11h3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>;
+  const ATTACH_ICON = <svg width="22" height="22" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle" }}><path d="M13 7.5l-5.5 5.5a4 4 0 01-5.7-5.6L7 2.3a2.5 2.5 0 013.5 3.5L5.3 11a1 1 0 01-1.4-1.4l4.8-4.9" stroke={SAGE_DARK} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+  const TIP_ICON = <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0 }}><path d="M8 2a4 4 0 00-1.5 7.7V11h3V9.7A4 4 0 008 2z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><path d="M6.5 11v1.5a1.5 1.5 0 003 0V11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>;
+  const WARN_ICON = <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0 }}><path d="M8 2L1 14h14L8 2z" stroke="#9b2c2c" strokeWidth="1.4" strokeLinejoin="round"/><path d="M8 7v3" stroke="#9b2c2c" strokeWidth="1.4" strokeLinecap="round"/><circle cx="8" cy="12" r="0.7" fill="#9b2c2c"/></svg>;
+  const BACK_ICON = <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle" }}><path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+  const TRASH_ICON = <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle" }}><path d="M2 4h12M5 4V2h6v2M3 4l1 10h8l1-10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><path d="M6 7v5M10 7v5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>;
 
-  // ── List view ─────────────────────────────────────────────────────────────
-  if (view === "list" || view === "upload") {
+  if (view === "detail" && selectedLab) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-
-        {/* Header */}
-        <div style={{ background: "#fff", borderRadius: "1rem", border: `1px solid ${BORDER}`, overflow: "hidden" }}>
-          <div style={{ padding: "1.25rem 1.5rem", borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem" }}>
-            <div>
-              <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.2rem", fontWeight: 700, color: INK, margin: "0 0 0.3rem" }}>Lab Results</h2>
-              <p style={{ fontSize: "0.82rem", color: WARM_GRAY, margin: 0, lineHeight: 1.6 }}>
-                Upload lab results, imaging reports, or test results for a plain-language breakdown and next-step guidance — cross-referenced with your symptoms and health profile.
-              </p>
-            </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+          <button onClick={() => setView("list")} style={{ background: "none", border: "1px solid rgba(0,0,0,0.12)", borderRadius: "8px", padding: "0.4rem 0.75rem", fontSize: "0.8rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: "0.35rem" }}>
+            {BACK_ICON} All results
+          </button>
+          <div style={{ flex: 1 }}>
+            <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.1rem", fontWeight: 700, color: INK, margin: 0 }}>{selectedLab.name}</h2>
+            <p style={{ fontSize: "0.72rem", color: WARM_GRAY, margin: 0 }}>
+              {"Uploaded " + new Date(selectedLab.uploadedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+              {selectedLab.contextSnapshot && selectedLab.contextSnapshot.conditions ? " · " + selectedLab.contextSnapshot.conditions : ""}
+            </p>
           </div>
-
-          {/* Why this matters callout */}
-          <div style={{ padding: "1rem 1.5rem", background: SAGE_LIGHT, display: "flex", gap: "0.875rem", alignItems: "flex-start" }}>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink:0, marginTop:"0.1rem", color:SAGE_DARK }}><path d="M8 2a4 4 0 00-1.5 7.7V11h3V9.7A4 4 0 008 2z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><path d="M6.5 11v1.5a1.5 1.5 0 003 0V11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
-            <div>
-              <p style={{ fontSize: "0.82rem", fontWeight: 600, color: SAGE_DARK, margin: "0 0 0.2rem" }}>Your results, in full context</p>
-              <p style={{ fontSize: "0.78rem", color: SAGE_DARK, lineHeight: 1.65, margin: 0 }}>
-                "Normal" on a lab report doesn't always mean normal for you. Care Compass reads your results alongside your symptom patterns, medications, and health history — and helps you know what questions to ask next.
-              </p>
-            </div>
-          </div>
+          <button onClick={() => window.print()} style={{ background: SAGE_DARK, color: "#fff", border: "none", borderRadius: "8px", padding: "0.5rem 1rem", fontSize: "0.8rem", cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>
+            Save as PDF
+          </button>
         </div>
 
-        {/* Upload zone */}
-        <div
-          onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
-          onClick={() => !analyzing && fileInputRef.current?.click()}
-          style={{
-            border: `2px dashed ${dragOver ? SAGE_DARK : analyzing ? SAGE : BORDER}`,
-            borderRadius: "1rem",
-            padding: "2.5rem 1.5rem",
-            textAlign: "center",
-            cursor: analyzing ? "default" : "pointer",
-            background: dragOver ? SAGE_LIGHT : analyzing ? "#fafaf8" : "#fff",
-            transition: "all 0.15s",
-            display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem",
-          }}
-        >
-          <input ref={fileInputRef} type="file" accept="image/*,.pdf" style={{ display:"none" }} onChange={e => { if (e.target.files[0]) handleFile(e.target.files[0]); e.target.value = ""; }}/>
-
-          {analyzing ? (
-            <>
-              <div style={{ width: 40, height: 40, borderRadius: "50%", border: `3px solid ${SAGE}`, borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }}/>
-              <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-              <p style={{ fontSize: "0.95rem", fontWeight: 600, color: SAGE_DARK, margin: 0 }}>Analyzing your results…</p>
-              <p style={{ fontSize: "0.8rem", color: WARM_GRAY, margin: 0 }}>Reading your results in the context of your health profile. This takes about 20–30 seconds.</p>
-            </>
-          ) : (
-            <>
-              <div style={{ width: 48, height: 48, borderRadius: "50%", background: SAGE_LIGHT, display: "flex", alignItems: "center", justifyContent: "center", color: SAGE_DARK }}>
-                {ATTACH_ICON}
-              </div>
-              <div>
-                <p style={{ fontSize: "0.95rem", fontWeight: 600, color: INK, margin: "0 0 0.25rem" }}>Upload a lab result or report</p>
-                <p style={{ fontSize: "0.8rem", color: WARM_GRAY, margin: 0 }}>Photo, scan, or PDF · JPG, PNG, HEIC, PDF · up to 20MB</p>
-              </div>
-              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", justifyContent: "center" }}>
-                {["Blood work", "Thyroid panel", "Metabolic panel", "CBC", "Imaging report", "Hormone panel", "Urinalysis", "Genetic test"].map(type => (
-                  <span key={type} style={{ fontSize: "0.72rem", background: CREAM, color: WARM_GRAY, borderRadius: "100px", padding: "0.2rem 0.7rem" }}>{type}</span>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-
-        {uploadError && (
-          <div style={{ background: "#fff0f0", border: "1px solid #f5c0c0", borderRadius: "0.75rem", padding: "0.75rem 1rem", fontSize: "0.82rem", color: "#9b2c2c", display: "flex", gap: "0.5rem", alignItems: "flex-start" }}>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink:0, marginTop:"0.1rem" }}><path d="M8 2L1 14h14L8 2z" stroke="#9b2c2c" strokeWidth="1.4" strokeLinejoin="round"/><path d="M8 7v3" stroke="#9b2c2c" strokeWidth="1.4" strokeLinecap="round"/><circle cx="8" cy="12" r="0.7" fill="#9b2c2c"/></svg>
-            {uploadError}
+        {selectedLab.contextSnapshot && (selectedLab.contextSnapshot.conditions || selectedLab.contextSnapshot.medications) && (
+          <div style={{ background: SAGE_LIGHT, borderRadius: "0.75rem", padding: "0.625rem 1rem", fontSize: "0.75rem", color: SAGE_DARK, lineHeight: 1.6 }}>
+            <strong>Analyzed in context of: </strong>
+            {[selectedLab.contextSnapshot.conditions, selectedLab.contextSnapshot.medications].filter(Boolean).join(" · ")}
           </div>
         )}
 
-        {/* Saved results list */}
-        {savedLabs.length > 0 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
-            <h3 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1rem", fontWeight: 700, color: INK, margin: 0 }}>Previous results</h3>
-            {savedLabs.map(lab => (
-              <div key={lab.id} style={{ background: "#fff", borderRadius: "1rem", border: `1px solid ${BORDER}`, padding: "1rem 1.25rem", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem", cursor: "pointer" }}
-                onClick={() => { setSelectedLab(lab); setView("detail"); }}>
-                <div style={{ display: "flex", gap: "0.875rem", alignItems: "flex-start", flex: 1 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: "0.5rem", background: SAGE_LIGHT, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: SAGE_DARK }}>
-                    {CLIPBOARD_ICON}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "0.95rem", fontWeight: 700, color: INK, margin: "0 0 0.2rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{lab.name}</p>
-                    <p style={{ fontSize: "0.75rem", color: WARM_GRAY, margin: 0 }}>
-                      Uploaded {new Date(lab.uploadedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} · {lab.fileName}
-                    </p>
-                    {lab.contextSnapshot?.conditions && (
-                      <p style={{ fontSize: "0.72rem", color: SAGE_DARK, margin: "0.2rem 0 0", fontStyle: "italic" }}>Analyzed with: {lab.contextSnapshot.conditions}</p>
-                    )}
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: "0.4rem", flexShrink: 0 }}>
-                  <button
-                    onClick={e => { e.stopPropagation(); setSelectedLab(lab); setView("detail"); }}
-                    style={{ background: SAGE_LIGHT, border: "none", borderRadius: "6px", padding: "0.3rem 0.8rem", fontSize: "0.72rem", color: SAGE_DARK, cursor: "pointer", fontWeight: 600 }}>
-                    View →
-                  </button>
-                  <button
-                    onClick={e => { e.stopPropagation(); if (window.confirm("Delete this result?")) deleteLab(lab.id); }}
-                    style={{ background: "none", border: "1px solid #f5c0c0", borderRadius: "6px", padding: "0.3rem 0.5rem", cursor: "pointer", color: "#c0392b", display: "flex", alignItems: "center" }}>
-                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M5 4V2h6v2M3 4l1 10h8l1-10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><path d="M6 7v5M10 7v5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        <div>{renderAnalysis(selectedLab.analysis)}</div>
 
-        {savedLabs.length === 0 && !analyzing && (
-          <div style={{ textAlign: "center", padding: "1.5rem", color: WARM_GRAY }}>
-            <p style={{ fontSize: "0.82rem", fontStyle: "italic", margin: 0 }}>No results uploaded yet. Upload your first lab result above to get started.</p>
-          </div>
-        )}
-
-        {/* Privacy note */}
-        <div style={{ display: "flex", gap: "0.625rem", alignItems: "flex-start", padding: "0.875rem 1rem", background: "#fafaf8", borderRadius: "0.75rem", border: `1px solid ${BORDER}` }}>
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ flexShrink:0, marginTop:"0.15rem", color:SAGE_DARK }}><rect x="3" y="7" width="10" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M5 7V5a3 3 0 016 0v2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="8" cy="10.5" r="1" fill="currentColor"/></svg>
-          <p style={{ fontSize: "0.75rem", color: WARM_GRAY, lineHeight: 1.65, margin: 0 }}>
-            <strong style={{ color: INK }}>Privacy:</strong> Your lab results are sent to the Anthropic AI to generate your analysis, then saved privately on this device only. They are never stored on our servers, sold, or shared. Results are processed and immediately discarded by the AI — not retained or used for training.
-          </p>
+        <div style={{ background: "#fafaf8", border: "1px solid rgba(0,0,0,0.08)", borderRadius: "0.75rem", padding: "0.875rem 1rem", fontSize: "0.75rem", color: WARM_GRAY, lineHeight: 1.65 }}>
+          <strong style={{ color: INK }}>Important: </strong>
+          This analysis is for informational purposes only and does not constitute medical advice, diagnosis, or treatment. Always discuss your results with a qualified healthcare provider.
         </div>
+
+        <button onClick={() => setView("list")} style={{ background: SAGE_DARK, color: "#fff", border: "none", borderRadius: "100px", padding: "0.875rem", fontSize: "0.9rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+          Upload another result
+        </button>
       </div>
     );
   }
 
-  // ── Detail view ───────────────────────────────────────────────────────────
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-      {/* Back button + header */}
-      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-        <button onClick={() => setView("list")} style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: "8px", padding: "0.4rem 0.75rem", fontSize: "0.8rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: "0.35rem" }}>
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          All results
-        </button>
-        <div style={{ flex: 1 }}>
-          <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.1rem", fontWeight: 700, color: INK, margin: 0 }}>{selectedLab?.name}</h2>
-          <p style={{ fontSize: "0.72rem", color: WARM_GRAY, margin: 0 }}>
-            Uploaded {selectedLab && new Date(selectedLab.uploadedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
-            {selectedLab?.contextSnapshot?.conditions ? " · Analyzed with: " + selectedLab.contextSnapshot.conditions : ""}
+    <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+
+      <div style={{ background: "#fff", borderRadius: "1rem", border: "1px solid rgba(0,0,0,0.08)", overflow: "hidden" }}>
+        <div style={{ padding: "1.25rem 1.5rem", borderBottom: "1px solid rgba(0,0,0,0.08)" }}>
+          <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.2rem", fontWeight: 700, color: INK, margin: "0 0 0.3rem" }}>Lab Results</h2>
+          <p style={{ fontSize: "0.82rem", color: WARM_GRAY, margin: 0, lineHeight: 1.6 }}>
+            Upload lab results, imaging reports, or test results for a plain-language breakdown and next-step guidance — cross-referenced with your symptoms and health profile.
           </p>
         </div>
-        <button
-          onClick={() => window.print()}
-          style={{ background: SAGE_DARK, color: "#fff", border: "none", borderRadius: "8px", padding: "0.5rem 1rem", fontSize: "0.8rem", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, flexShrink: 0 }}>
-          ↓ Save as PDF
-        </button>
+        <div style={{ padding: "0.875rem 1.5rem", background: SAGE_LIGHT, display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
+          <span style={{ color: SAGE_DARK, marginTop: "0.1rem" }}>{TIP_ICON}</span>
+          <div>
+            <p style={{ fontSize: "0.82rem", fontWeight: 600, color: SAGE_DARK, margin: "0 0 0.15rem" }}>Your results, in full context</p>
+            <p style={{ fontSize: "0.78rem", color: SAGE_DARK, lineHeight: 1.65, margin: 0 }}>
+              Normal on a lab report does not always mean normal for you. Care Compass reads your results alongside your symptom patterns, medications, and health history — and helps you know what questions to ask next.
+            </p>
+          </div>
+        </div>
       </div>
 
-      {/* Context snapshot — shows what profile data was used */}
-      {selectedLab?.contextSnapshot && (selectedLab.contextSnapshot.conditions || selectedLab.contextSnapshot.medications) && (
-        <div style={{ background: SAGE_LIGHT, borderRadius: "0.75rem", padding: "0.75rem 1rem", fontSize: "0.75rem", color: SAGE_DARK, lineHeight: 1.6 }}>
-          <strong>Analyzed in context of:</strong>{" "}
-          {[selectedLab.contextSnapshot.conditions, selectedLab.contextSnapshot.medications].filter(Boolean).join(" · ")}
+      <div
+        onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
+        onClick={() => !analyzing && fileInputRef.current && fileInputRef.current.click()}
+        style={{ border: "2px dashed " + (dragOver ? SAGE_DARK : analyzing ? SAGE : "rgba(0,0,0,0.12)"), borderRadius: "1rem", padding: "2.5rem 1.5rem", textAlign: "center", cursor: analyzing ? "default" : "pointer", background: dragOver ? SAGE_LIGHT : "#fff", transition: "all 0.15s", display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem" }}
+      >
+        <input ref={fileInputRef} type="file" accept="image/*,.pdf" style={{ display:"none" }} onChange={e => { if (e.target.files[0]) handleFile(e.target.files[0]); e.target.value = ""; }}/>
+
+        {analyzing ? (
+          <>
+            <div style={{ width: 40, height: 40, borderRadius: "50%", border: "3px solid " + SAGE, borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }}/>
+            <p style={{ fontSize: "0.95rem", fontWeight: 600, color: SAGE_DARK, margin: 0 }}>Analyzing your results...</p>
+            <p style={{ fontSize: "0.8rem", color: WARM_GRAY, margin: 0 }}>Reading your results in the context of your health profile. This takes about 20-30 seconds.</p>
+          </>
+        ) : (
+          <>
+            <div style={{ width: 48, height: 48, borderRadius: "50%", background: SAGE_LIGHT, display: "flex", alignItems: "center", justifyContent: "center", color: SAGE_DARK }}>
+              {ATTACH_ICON}
+            </div>
+            <div>
+              <p style={{ fontSize: "0.95rem", fontWeight: 600, color: INK, margin: "0 0 0.25rem" }}>Upload a lab result or report</p>
+              <p style={{ fontSize: "0.8rem", color: WARM_GRAY, margin: 0 }}>Photo, scan, or PDF · JPG, PNG, HEIC, PDF · up to 20MB</p>
+            </div>
+            <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap", justifyContent: "center" }}>
+              {["Blood work", "Thyroid panel", "Metabolic panel", "CBC", "Imaging report", "Hormone panel", "Urinalysis", "Genetic test"].map(type => (
+                <span key={type} style={{ fontSize: "0.72rem", background: CREAM, color: WARM_GRAY, borderRadius: "100px", padding: "0.2rem 0.7rem" }}>{type}</span>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      {uploadError && (
+        <div style={{ background: "#fff0f0", border: "1px solid #f5c0c0", borderRadius: "0.75rem", padding: "0.75rem 1rem", fontSize: "0.82rem", color: "#9b2c2c", display: "flex", gap: "0.5rem", alignItems: "flex-start" }}>
+          {WARN_ICON} <span style={{ marginLeft: "0.25rem" }}>{uploadError}</span>
         </div>
       )}
 
-      {/* Analysis */}
-      <div>
-        {renderAnalysis(selectedLab?.analysis)}
-      </div>
+      {savedLabs.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
+          <h3 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1rem", fontWeight: 700, color: INK, margin: 0 }}>Previous results</h3>
+          {savedLabs.map(lab => (
+            <div key={lab.id} style={{ background: "#fff", borderRadius: "1rem", border: "1px solid rgba(0,0,0,0.08)", padding: "1rem 1.25rem", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem", cursor: "pointer" }}
+              onClick={() => { setSelectedLab(lab); setView("detail"); }}>
+              <div style={{ display: "flex", gap: "0.875rem", alignItems: "flex-start", flex: 1 }}>
+                <div style={{ width: 36, height: 36, borderRadius: "0.5rem", background: SAGE_LIGHT, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: SAGE_DARK }}>
+                  {CLIP_ICON}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "0.95rem", fontWeight: 700, color: INK, margin: "0 0 0.2rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{lab.name}</p>
+                  <p style={{ fontSize: "0.75rem", color: WARM_GRAY, margin: 0 }}>
+                    {"Uploaded " + new Date(lab.uploadedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) + " · " + lab.fileName}
+                  </p>
+                  {lab.contextSnapshot && lab.contextSnapshot.conditions && (
+                    <p style={{ fontSize: "0.72rem", color: SAGE_DARK, margin: "0.2rem 0 0", fontStyle: "italic" }}>{"Analyzed with: " + lab.contextSnapshot.conditions}</p>
+                  )}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: "0.4rem", flexShrink: 0 }}>
+                <button onClick={e => { e.stopPropagation(); setSelectedLab(lab); setView("detail"); }}
+                  style={{ background: SAGE_LIGHT, border: "none", borderRadius: "6px", padding: "0.3rem 0.8rem", fontSize: "0.72rem", color: SAGE_DARK, cursor: "pointer", fontWeight: 600 }}>
+                  View
+                </button>
+                <button onClick={e => { e.stopPropagation(); deleteLab(lab.id); }}
+                  style={{ background: "none", border: "1px solid #f5c0c0", borderRadius: "6px", padding: "0.3rem 0.5rem", cursor: "pointer", color: "#c0392b", display: "flex", alignItems: "center" }}>
+                  {TRASH_ICON}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
-      {/* Disclaimer */}
-      <div style={{ background: "#fafaf8", border: `1px solid ${BORDER}`, borderRadius: "0.75rem", padding: "0.875rem 1rem", fontSize: "0.75rem", color: WARM_GRAY, lineHeight: 1.65 }}>
-        <strong style={{ color: INK }}>Important:</strong> This analysis is for informational purposes only and does not constitute medical advice, diagnosis, or treatment. Always discuss your results with a qualified healthcare provider. Use this as a starting point for conversation — not a conclusion.
-      </div>
+      {savedLabs.length === 0 && !analyzing && (
+        <p style={{ textAlign: "center", fontSize: "0.82rem", color: WARM_GRAY, fontStyle: "italic", margin: 0 }}>
+          No results uploaded yet. Upload your first lab result above to get started.
+        </p>
+      )}
 
-      {/* Back to upload */}
-      <button onClick={() => setView("list")} style={{ background: SAGE_DARK, color: "#fff", border: "none", borderRadius: "100px", padding: "0.875rem", fontSize: "0.9rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
-        Upload another result
-      </button>
+      <div style={{ display: "flex", gap: "0.625rem", alignItems: "flex-start", padding: "0.875rem 1rem", background: "#fafaf8", borderRadius: "0.75rem", border: "1px solid rgba(0,0,0,0.08)" }}>
+        <span style={{ color: SAGE_DARK, marginTop: "0.15rem" }}>{LOCK_ICON}</span>
+        <p style={{ fontSize: "0.75rem", color: WARM_GRAY, lineHeight: 1.65, margin: 0 }}>
+          <strong style={{ color: INK }}>Privacy: </strong>
+          Your lab results are sent to the Anthropic AI to generate your analysis, then saved privately on this device only. They are never stored on our servers, sold, or shared.
+        </p>
+      </div>
     </div>
   );
 }
+
+
 
 /* ─── End Lab Results Tab ────────────────────────────────────────────────── */
 
