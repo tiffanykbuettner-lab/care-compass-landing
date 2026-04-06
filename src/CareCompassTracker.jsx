@@ -570,7 +570,9 @@ function SearchableSelect({ value, onChange, options, placeholder = "Select...",
   );
 }
 
-function TrendsTab({ entries, dateFilter }) {
+function TrendsTab({ entries, dateFilter, allEntries }) {
+  const [symptomSearch, setSymptomSearch] = React.useState("");
+
   if (entries.length < 2) return <div style={s.emptyState}><p style={s.emptyDesc}>Add more entries to see symptom trends and frequency reports.</p></div>;
 
   const days = dateFilter === "today" ? 1 : dateFilter === "week" ? 7 : dateFilter === "month" ? 30 : new Set(entries.map(e => new Date(e.timestamp).toDateString())).size;
@@ -622,6 +624,92 @@ function TrendsTab({ entries, dateFilter }) {
       ) : (
         <div style={s.emptyState}><p style={s.emptyDesc}>No recognizable symptom keywords found. Try describing symptoms using common terms like "headache", "fatigue", "pain", or "nausea".</p></div>
       )}
+
+      {/* ── Symptom search ── */}
+      <div style={{ background: "#fff", borderRadius: "1rem", border: "1px solid rgba(0,0,0,0.08)", overflow: "hidden" }}>
+        <div style={{ padding: "1rem 1.25rem", borderBottom: "1px solid rgba(0,0,0,0.08)" }}>
+          <h3 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1rem", fontWeight: 700, color: INK, margin: "0 0 0.25rem" }}>Symptom search</h3>
+          <p style={{ fontSize: "0.78rem", color: WARM_GRAY, margin: 0 }}>Search across all your entries to find every time you logged a specific symptom, activity, or keyword.</p>
+        </div>
+        <div style={{ padding: "1rem 1.25rem" }}>
+          <div style={{ position: "relative", marginBottom: "0.875rem" }}>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ position: "absolute", left: "0.75rem", top: "50%", transform: "translateY(-50%)", color: WARM_GRAY, pointerEvents: "none" }}><circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.4"/><path d="M11 11l3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
+            <input
+              value={symptomSearch}
+              onChange={e => setSymptomSearch(e.target.value)}
+              placeholder="e.g. dizziness, driving, shoulder, headache behind eye..."
+              style={{ width: "100%", boxSizing: "border-box", padding: "0.65rem 0.75rem 0.65rem 2.25rem", borderRadius: "0.75rem", border: "1.5px solid " + (symptomSearch ? SAGE : "rgba(0,0,0,0.12)"), fontSize: "0.875rem", color: INK, background: OFF_WHITE, outline: "none", fontFamily: "inherit", transition: "border-color 0.15s" }}
+            />
+          </div>
+
+          {symptomSearch.trim() && (() => {
+            const q = symptomSearch.toLowerCase().trim();
+            const searchPool = allEntries || entries;
+            const matches = searchPool.filter(e => {
+              const text = ((e.symptoms || "") + " " + (e.notes || "") + " " + (e.activity || "") + " " + (e.food || "")).toLowerCase();
+              return text.includes(q);
+            });
+
+            if (!matches.length) return (
+              <p style={{ fontSize: "0.82rem", color: WARM_GRAY, fontStyle: "italic", textAlign: "center", padding: "1rem 0" }}>
+                No entries found for "{symptomSearch}"
+              </p>
+            );
+
+            const avgSev = (matches.reduce((s, e) => s + e.severity, 0) / matches.length).toFixed(1);
+            const days = new Set(matches.map(e => new Date(e.timestamp).toDateString())).size;
+
+            return (
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
+                {/* Summary */}
+                <div style={{ display: "flex", gap: "0.75rem", marginBottom: "0.25rem", flexWrap: "wrap" }}>
+                  <div style={{ background: SAGE_LIGHT, borderRadius: "0.625rem", padding: "0.5rem 0.875rem", textAlign: "center" }}>
+                    <p style={{ fontSize: "1.1rem", fontWeight: 700, color: SAGE_DARK, margin: 0 }}>{matches.length}</p>
+                    <p style={{ fontSize: "0.7rem", color: SAGE_DARK, margin: 0 }}>entries</p>
+                  </div>
+                  <div style={{ background: SAGE_LIGHT, borderRadius: "0.625rem", padding: "0.5rem 0.875rem", textAlign: "center" }}>
+                    <p style={{ fontSize: "1.1rem", fontWeight: 700, color: SAGE_DARK, margin: 0 }}>{days}</p>
+                    <p style={{ fontSize: "0.7rem", color: SAGE_DARK, margin: 0 }}>days</p>
+                  </div>
+                  <div style={{ background: SAGE_LIGHT, borderRadius: "0.625rem", padding: "0.5rem 0.875rem", textAlign: "center" }}>
+                    <p style={{ fontSize: "1.1rem", fontWeight: 700, color: SAGE_DARK, margin: 0 }}>{avgSev}</p>
+                    <p style={{ fontSize: "0.7rem", color: SAGE_DARK, margin: 0 }}>avg severity</p>
+                  </div>
+                  <div style={{ flex: 1, minWidth: 120, background: "#f5f5f3", borderRadius: "0.625rem", padding: "0.5rem 0.875rem", display: "flex", alignItems: "center" }}>
+                    <p style={{ fontSize: "0.78rem", color: WARM_GRAY, margin: 0, lineHeight: 1.5 }}>
+                      First: {new Date(matches[matches.length - 1].timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Matching entries */}
+                {matches.map(e => {
+                  const date = new Date(e.timestamp);
+                  const highlight = (text) => {
+                    if (!text) return null;
+                    const idx = text.toLowerCase().indexOf(q);
+                    if (idx < 0) return <span style={{ fontSize: "0.82rem", color: WARM_GRAY }}>{text}</span>;
+                    return <span style={{ fontSize: "0.82rem", color: INK }}>
+                      {text.slice(0, idx)}<mark style={{ background: SAGE_LIGHT, color: SAGE_DARK, borderRadius: "2px", padding: "0 2px" }}>{text.slice(idx, idx + q.length)}</mark>{text.slice(idx + q.length)}
+                    </span>;
+                  };
+                  return (
+                    <div key={e.id} style={{ background: "#fafaf8", borderRadius: "0.75rem", border: "1px solid rgba(0,0,0,0.06)", padding: "0.75rem 1rem" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.35rem" }}>
+                        <span style={{ fontSize: "0.72rem", color: WARM_GRAY }}>{date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} · {date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</span>
+                        <span style={{ fontSize: "0.7rem", fontWeight: 700, background: severityColor(e.severity), color: "#fff", borderRadius: "100px", padding: "0.1rem 0.5rem" }}>{e.severity}/10</span>
+                      </div>
+                      {e.symptoms && <div style={{ marginBottom: "0.2rem" }}>{highlight(e.symptoms)}</div>}
+                      {e.activity && <div style={{ marginBottom: "0.2rem" }}>{highlight(e.activity)}</div>}
+                      {e.notes && <div>{highlight(e.notes)}</div>}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+        </div>
+      </div>
     </div>
   );
 }
@@ -1244,6 +1332,8 @@ export default function CareCompassTracker() {
   const [saveError, setSaveError]         = useState("");
   const [chartField, setChartField]     = useState("severity");
   const [dateFilter, setDateFilter]     = useState("all");
+  const [showAdvFilter, setShowAdvFilter] = useState(false);
+  const [advFilter, setAdvFilter] = useState({ symptomQuery: "", severityMin: 1, severityMax: 10, tags: [] });
 
   // ── Blood pressure state ──────────────────────────────────────────────────
   const [bpReadings, setBpReadings]       = useState([]);
@@ -1633,17 +1723,30 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
 
     const avgSeverity = entries.length ? (entries.reduce((sum, e) => sum + e.severity, 0) / entries.length).toFixed(1) : "—";
   const todayCount = entries.filter(e => new Date(e.timestamp).toDateString() === new Date().toDateString()).length;
-  const filteredEntries = dateFilter === "all" ? entries : entries.filter(e => {
+  const filteredEntries = entries.filter(e => {
+    // Date filter
     const entryDate = new Date(e.timestamp);
     const now = new Date();
-    if (dateFilter === "today") return entryDate.toDateString() === now.toDateString();
-    if (dateFilter === "week") return entryDate >= new Date(now - 7 * 86400000);
-    if (dateFilter === "month") return entryDate >= new Date(now - 30 * 86400000);
+    if (dateFilter === "today" && entryDate.toDateString() !== now.toDateString()) return false;
+    if (dateFilter === "week" && entryDate < new Date(now - 7 * 86400000)) return false;
+    if (dateFilter === "month" && entryDate < new Date(now - 30 * 86400000)) return false;
+    // Advanced filters
+    if (advFilter.symptomQuery) {
+      const q = advFilter.symptomQuery.toLowerCase();
+      const text = ((e.symptoms || "") + " " + (e.notes || "") + " " + (e.activity || "")).toLowerCase();
+      if (!text.includes(q)) return false;
+    }
+    if (e.severity < advFilter.severityMin || e.severity > advFilter.severityMax) return false;
+    if (advFilter.tags.length > 0) {
+      const tag = e.tag || "";
+      if (!advFilter.tags.some(t => t === "morning" ? tag.includes("Morning") : t === "evening" ? tag.includes("Evening") : true)) return false;
+    }
     return true;
   });
+  const hasActiveFilter = dateFilter !== "all" || advFilter.symptomQuery || advFilter.severityMin > 1 || advFilter.severityMax < 10 || advFilter.tags.length > 0;
 
   const CHART_OPTIONS = [{ field: "severity", label: "Overall severity", color: SAGE }, { field: "stress", label: "Stress level", color: "#e8a838" }, { field: "sleep", label: "Sleep quality", color: TEAL }];
-  const tabs = [{ id: "log", label: "Log" }, { id: "history", label: "History" }, { id: "trends", label: "Trends" }, { id: "insights", label: "AI Insights" }, { id: "report", label: "Doctor Report" }, { id: "bp", label: "Blood Pressure" }, { id: "labs", label: "Lab Results" }];
+  const tabs = [{ id: "log", label: "Log" }, { id: "trends", label: "Trends" }, { id: "insights", label: "AI Insights" }, { id: "report", label: "Doctor Report" }, { id: "bp", label: "Blood Pressure" }, { id: "labs", label: "Lab Results" }];
 
   if (!hasSeenOnboarding) {
     return (
@@ -1824,21 +1927,71 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
                     <LineChart entries={filteredEntries} field={chartField} color={CHART_OPTIONS.find(o => o.field === chartField)?.color}/>
                   </div>
                   <div style={s.recentEntries}>
-                    <div style={s.recentHeader}>
-                      <p style={s.sectionLabel}>Recent entries</p>
-                      <div style={s.dateFilterWrap}>
-                        {[{val:"all",label:"All"},{val:"today",label:"Today"},{val:"week",label:"7 days"},{val:"month",label:"30 days"}].map(opt => (
-                          <button key={opt.val} onClick={() => setDateFilter(opt.val)} style={{ ...s.dateFilterBtn, background: dateFilter === opt.val ? SAGE_DARK : "transparent", color: dateFilter === opt.val ? "#fff" : WARM_GRAY, borderColor: dateFilter === opt.val ? SAGE_DARK : "rgba(0,0,0,0.12)" }}>{opt.label}</button>
-                        ))}
+                    {/* ── Advanced filter panel ── */}
+                    <div style={{ marginBottom: "0.875rem" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.625rem", flexWrap: "wrap" }}>
+                        <div style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap" }}>
+                          {[{val:"all",label:"All time"},{val:"today",label:"Today"},{val:"week",label:"7 days"},{val:"month",label:"30 days"}].map(opt => (
+                            <button key={opt.val} onClick={() => setDateFilter(opt.val)} style={{ ...s.dateFilterBtn, background: dateFilter === opt.val ? SAGE_DARK : "transparent", color: dateFilter === opt.val ? "#fff" : WARM_GRAY, borderColor: dateFilter === opt.val ? SAGE_DARK : "rgba(0,0,0,0.12)" }}>{opt.label}</button>
+                          ))}
+                        </div>
+                        <button onClick={() => setShowAdvFilter(f => !f)}
+                          style={{ display: "flex", alignItems: "center", gap: "0.35rem", background: hasActiveFilter ? SAGE_LIGHT : "none", border: "1px solid " + (hasActiveFilter ? SAGE : "rgba(0,0,0,0.12)"), borderRadius: "100px", padding: "0.3rem 0.75rem", fontSize: "0.78rem", color: hasActiveFilter ? SAGE_DARK : WARM_GRAY, cursor: "pointer", fontFamily: "inherit", fontWeight: hasActiveFilter ? 600 : 400 }}>
+                          <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                          {showAdvFilter ? "Hide filters" : "More filters"}{hasActiveFilter ? " · active" : ""}
+                        </button>
                       </div>
+
+                      {showAdvFilter && (
+                        <div style={{ background: "#fff", border: "1px solid rgba(0,0,0,0.08)", borderRadius: "0.875rem", padding: "1rem 1.25rem", marginTop: "0.625rem", display: "flex", flexDirection: "column", gap: "0.875rem" }}>
+                          <div>
+                            <label style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: WARM_GRAY, display: "block", marginBottom: "0.35rem" }}>Search symptoms &amp; notes</label>
+                            <div style={{ position: "relative" }}>
+                              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ position: "absolute", left: "0.75rem", top: "50%", transform: "translateY(-50%)", color: WARM_GRAY, pointerEvents: "none" }}><circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.4"/><path d="M11 11l3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
+                              <input value={advFilter.symptomQuery} onChange={e => setAdvFilter(f => ({ ...f, symptomQuery: e.target.value }))}
+                                placeholder="e.g. headache, dizziness, shoulder pain..."
+                                style={{ width: "100%", boxSizing: "border-box", padding: "0.55rem 0.75rem 0.55rem 2.25rem", borderRadius: "0.625rem", border: "1.5px solid rgba(0,0,0,0.12)", fontSize: "0.875rem", color: INK, background: OFF_WHITE, outline: "none", fontFamily: "inherit" }}/>
+                            </div>
+                          </div>
+                          <div>
+                            <label style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: WARM_GRAY, display: "block", marginBottom: "0.35rem" }}>
+                              Severity — {advFilter.severityMin} to {advFilter.severityMax}/10
+                            </label>
+                            <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+                              <span style={{ fontSize: "0.72rem", color: WARM_GRAY, width: 16 }}>{advFilter.severityMin}</span>
+                              <input type="range" min="1" max="10" value={advFilter.severityMin} onChange={e => setAdvFilter(f => ({ ...f, severityMin: Math.min(Number(e.target.value), f.severityMax) }))} style={{ flex: 1, accentColor: SAGE_DARK }}/>
+                              <input type="range" min="1" max="10" value={advFilter.severityMax} onChange={e => setAdvFilter(f => ({ ...f, severityMax: Math.max(Number(e.target.value), f.severityMin) }))} style={{ flex: 1, accentColor: SAGE_DARK }}/>
+                              <span style={{ fontSize: "0.72rem", color: WARM_GRAY, width: 16, textAlign: "right" }}>{advFilter.severityMax}</span>
+                            </div>
+                          </div>
+                          <div>
+                            <label style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: WARM_GRAY, display: "block", marginBottom: "0.35rem" }}>Entry type</label>
+                            <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                              {[{val:"morning",label:"Morning check-in"},{val:"evening",label:"Evening check-in"}].map(tag => {
+                                const active = advFilter.tags.includes(tag.val);
+                                return <button key={tag.val} onClick={() => setAdvFilter(f => ({ ...f, tags: active ? f.tags.filter(t => t !== tag.val) : [...f.tags, tag.val] }))}
+                                  style={{ background: active ? SAGE_DARK : "transparent", color: active ? "#fff" : WARM_GRAY, border: "1px solid " + (active ? SAGE_DARK : "rgba(0,0,0,0.12)"), borderRadius: "100px", padding: "0.3rem 0.75rem", fontSize: "0.78rem", cursor: "pointer", fontFamily: "inherit", fontWeight: active ? 600 : 400 }}>{tag.label}</button>;
+                              })}
+                            </div>
+                          </div>
+                          {hasActiveFilter && (
+                            <button onClick={() => { setDateFilter("all"); setAdvFilter({ symptomQuery: "", severityMin: 1, severityMax: 10, tags: [] }); }}
+                              style={{ background: "none", border: "none", color: WARM_GRAY, fontSize: "0.78rem", cursor: "pointer", fontFamily: "inherit", textDecoration: "underline", textDecorationColor: "rgba(0,0,0,0.2)", textAlign: "left", padding: 0 }}>
+                              Clear all filters
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      <p style={{ fontSize: "0.72rem", color: WARM_GRAY, margin: "0.4rem 0 0", fontStyle: "italic" }}>
+                        {hasActiveFilter ? filteredEntries.length + " of " + entries.length + " entries match" : entries.length + " total entries"}
+                      </p>
                     </div>
+
                     {filteredEntries.length === 0 ? (
-                      <p style={s.noEntriesMsg}>No entries for this period.</p>
+                      <p style={s.noEntriesMsg}>{hasActiveFilter ? "No entries match your filters." : "No entries yet."}</p>
                     ) : (
-                      <>
-                        {filteredEntries.slice(0, 5).map(e => <EntryCard key={e.id} entry={e} onDelete={handleDelete} onEdit={openEdit}/>)}
-                        {filteredEntries.length > 5 && <button onClick={() => setView("history")} style={s.viewAllBtn}>View all {filteredEntries.length} entries →</button>}
-                      </>
+                      filteredEntries.map(e => <EntryCard key={e.id} entry={e} onDelete={handleDelete} onEdit={openEdit}/>)
                     )}
                   </div>
                 </>
@@ -1846,26 +1999,7 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
             </div>
           )}
 
-          {view === "history" && (
-            <div style={s.tabContent}>
-              {entries.length === 0 ? <div style={s.emptyState}><p style={s.emptyDesc}>No entries yet.</p></div> : (
-                <div style={s.recentEntries}>
-                  <div style={s.recentHeader}>
-                    <p style={s.sectionLabel}>All entries — {filteredEntries.length} of {entries.length}</p>
-                    <div style={s.dateFilterWrap}>
-                      {[{val:"all",label:"All"},{val:"today",label:"Today"},{val:"week",label:"7 days"},{val:"month",label:"30 days"}].map(opt => (
-                        <button key={opt.val} onClick={() => setDateFilter(opt.val)} style={{ ...s.dateFilterBtn, background: dateFilter === opt.val ? SAGE_DARK : "transparent", color: dateFilter === opt.val ? "#fff" : WARM_GRAY, borderColor: dateFilter === opt.val ? SAGE_DARK : "rgba(0,0,0,0.12)" }}>{opt.label}</button>
-                      ))}
-                    </div>
-                  </div>
-                  {filteredEntries.length === 0
-                    ? <p style={s.noEntriesMsg}>No entries for this period.</p>
-                    : filteredEntries.map(e => <EntryCard key={e.id} entry={e} onDelete={handleDelete} onEdit={openEdit}/>)
-                  }
-                </div>
-              )}
-            </div>
-          )}
+
 
           {view === "trends" && (
             <div style={s.tabContent}>
@@ -1877,7 +2011,7 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
                   ))}
                 </div>
               </div>
-              <TrendsTab entries={filteredEntries} dateFilter={dateFilter}/>
+              <TrendsTab entries={filteredEntries} dateFilter={dateFilter} allEntries={entries}/>
             </div>
           )}
 
