@@ -1333,7 +1333,7 @@ export default function CareCompassTracker() {
   const [chartField, setChartField]     = useState("severity");
   const [dateFilter, setDateFilter]     = useState("all");
   const [showAdvFilter, setShowAdvFilter] = useState(false);
-  const [advFilter, setAdvFilter] = useState({ symptomQuery: "", severityMin: 1, severityMax: 10, tags: [] });
+  const [advFilter, setAdvFilter] = useState({ symptomQuery: "", severity: null, tags: [] }); // severity: null = disabled, 1-10 = filter
 
   // ── Blood pressure state ──────────────────────────────────────────────────
   const [bpReadings, setBpReadings]       = useState([]);
@@ -1731,19 +1731,26 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
     if (dateFilter === "week" && entryDate < new Date(now - 7 * 86400000)) return false;
     if (dateFilter === "month" && entryDate < new Date(now - 30 * 86400000)) return false;
     // Advanced filters
+    // Symptom/keyword search — optional, only applied if user typed something
     if (advFilter.symptomQuery) {
       const q = advFilter.symptomQuery.toLowerCase();
-      const text = ((e.symptoms || "") + " " + (e.notes || "") + " " + (e.activity || "")).toLowerCase();
+      const text = ((e.symptoms || "") + " " + (e.notes || "") + " " + (e.activity || "") + " " + (e.food || "")).toLowerCase();
       if (!text.includes(q)) return false;
     }
-    if (e.severity < advFilter.severityMin || e.severity > advFilter.severityMax) return false;
+    // Severity — optional, only applied if user selected a value
+    if (advFilter.severity !== null && e.severity !== advFilter.severity) return false;
+    // Entry type — optional, only applied if user selected types
     if (advFilter.tags.length > 0) {
       const tag = e.tag || "";
-      if (!advFilter.tags.some(t => t === "morning" ? tag.includes("Morning") : t === "evening" ? tag.includes("Evening") : true)) return false;
+      const isManual = !tag.includes("Morning") && !tag.includes("Evening");
+      const matchesMorning = advFilter.tags.includes("morning") && tag.includes("Morning");
+      const matchesEvening = advFilter.tags.includes("evening") && tag.includes("Evening");
+      const matchesManual  = advFilter.tags.includes("manual")  && isManual;
+      if (!matchesMorning && !matchesEvening && !matchesManual) return false;
     }
     return true;
   });
-  const hasActiveFilter = dateFilter !== "all" || advFilter.symptomQuery || advFilter.severityMin > 1 || advFilter.severityMax < 10 || advFilter.tags.length > 0;
+  const hasActiveFilter = dateFilter !== "all" || advFilter.symptomQuery || advFilter.severity !== null || advFilter.tags.length > 0;
 
   const CHART_OPTIONS = [{ field: "severity", label: "Overall severity", color: SAGE }, { field: "stress", label: "Stress level", color: "#e8a838" }, { field: "sleep", label: "Sleep quality", color: TEAL }];
   const tabs = [{ id: "log", label: "Log" }, { id: "trends", label: "Trends" }, { id: "insights", label: "AI Insights" }, { id: "report", label: "Doctor Report" }, { id: "bp", label: "Blood Pressure" }, { id: "labs", label: "Lab Results" }];
@@ -1955,19 +1962,32 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
                           </div>
                           <div>
                             <label style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: WARM_GRAY, display: "block", marginBottom: "0.35rem" }}>
-                              Severity — {advFilter.severityMin} to {advFilter.severityMax}/10
+                              Severity <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>{advFilter.severity !== null ? "— showing " + advFilter.severity + "/10" : "— optional"}</span>
                             </label>
-                            <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
-                              <span style={{ fontSize: "0.72rem", color: WARM_GRAY, width: 16 }}>{advFilter.severityMin}</span>
-                              <input type="range" min="1" max="10" value={advFilter.severityMin} onChange={e => setAdvFilter(f => ({ ...f, severityMin: Math.min(Number(e.target.value), f.severityMax) }))} style={{ flex: 1, accentColor: SAGE_DARK }}/>
-                              <input type="range" min="1" max="10" value={advFilter.severityMax} onChange={e => setAdvFilter(f => ({ ...f, severityMax: Math.max(Number(e.target.value), f.severityMin) }))} style={{ flex: 1, accentColor: SAGE_DARK }}/>
-                              <span style={{ fontSize: "0.72rem", color: WARM_GRAY, width: 16, textAlign: "right" }}>{advFilter.severityMax}</span>
+                            <div style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap" }}>
+                              {advFilter.severity !== null && (
+                                <button onClick={() => setAdvFilter(f => ({ ...f, severity: null }))}
+                                  style={{ background: "rgba(0,0,0,0.06)", color: WARM_GRAY, border: "1px solid rgba(0,0,0,0.12)", borderRadius: "100px", padding: "0.25rem 0.65rem", fontSize: "0.75rem", cursor: "pointer", fontFamily: "inherit" }}>
+                                  Any
+                                </button>
+                              )}
+                              {[1,2,3,4,5,6,7,8,9,10].map(n => {
+                                const active = advFilter.severity === n;
+                                const col = n >= 7 ? "#c0392b" : n >= 4 ? "#e8a838" : SAGE_DARK;
+                                return (
+                                  <button key={n} onClick={() => setAdvFilter(f => ({ ...f, severity: active ? null : n }))}
+                                    style={{ background: active ? col : "transparent", color: active ? "#fff" : col, border: "1.5px solid " + (active ? col : "rgba(0,0,0,0.12)"), borderRadius: "100px", padding: "0.25rem 0", width: 34, fontSize: "0.82rem", cursor: "pointer", fontFamily: "inherit", fontWeight: active ? 700 : 500, textAlign: "center" }}>
+                                    {n}
+                                  </button>
+                                );
+                              })}
                             </div>
+                            <p style={{ fontSize: "0.7rem", color: "#aaa", margin: "0.3rem 0 0", fontStyle: "italic" }}>Tap a number to filter by exact severity. Leave unselected to show all.</p>
                           </div>
                           <div>
                             <label style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: WARM_GRAY, display: "block", marginBottom: "0.35rem" }}>Entry type</label>
                             <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
-                              {[{val:"morning",label:"Morning check-in"},{val:"evening",label:"Evening check-in"}].map(tag => {
+                              {[{val:"morning",label:"Morning check-in"},{val:"evening",label:"Evening check-in"},{val:"manual",label:"Symptom log"}].map(tag => {
                                 const active = advFilter.tags.includes(tag.val);
                                 return <button key={tag.val} onClick={() => setAdvFilter(f => ({ ...f, tags: active ? f.tags.filter(t => t !== tag.val) : [...f.tags, tag.val] }))}
                                   style={{ background: active ? SAGE_DARK : "transparent", color: active ? "#fff" : WARM_GRAY, border: "1px solid " + (active ? SAGE_DARK : "rgba(0,0,0,0.12)"), borderRadius: "100px", padding: "0.3rem 0.75rem", fontSize: "0.78rem", cursor: "pointer", fontFamily: "inherit", fontWeight: active ? 600 : 400 }}>{tag.label}</button>;
@@ -1975,7 +1995,7 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
                             </div>
                           </div>
                           {hasActiveFilter && (
-                            <button onClick={() => { setDateFilter("all"); setAdvFilter({ symptomQuery: "", severityMin: 1, severityMax: 10, tags: [] }); }}
+                            <button onClick={() => { setDateFilter("all"); setAdvFilter({ symptomQuery: "", severity: null, tags: [] }); }}
                               style={{ background: "none", border: "none", color: WARM_GRAY, fontSize: "0.78rem", cursor: "pointer", fontFamily: "inherit", textDecoration: "underline", textDecorationColor: "rgba(0,0,0,0.2)", textAlign: "left", padding: 0 }}>
                               Clear all filters
                             </button>
