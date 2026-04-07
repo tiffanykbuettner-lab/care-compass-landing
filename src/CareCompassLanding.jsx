@@ -39,35 +39,89 @@ function FadeIn({ children, delay = 0, className = "" }) {
   );
 }
 
+/* ─── Firefly keyframes ───────────────────────────────────────────────────── */
+const FIREFLY_KEYFRAMES = `
+  @keyframes ffDrift {
+    0%,100% { transform: translate(0,0); }
+    33%      { transform: translate(0.6px,-0.8px); }
+    66%      { transform: translate(-0.5px,0.6px); }
+  }
+  @keyframes ffWingL {
+    0%,100% { transform-origin:50% 50%; transform: rotate(0deg) scaleY(1); opacity:0.55; }
+    50%      { transform-origin:50% 50%; transform: rotate(-18deg) scaleY(0.82); opacity:0.8; }
+  }
+  @keyframes ffWingR {
+    0%,100% { transform-origin:50% 50%; transform: rotate(0deg) scaleY(1); opacity:0.55; }
+    50%      { transform-origin:50% 50%; transform: rotate(18deg) scaleY(0.82); opacity:0.8; }
+  }
+  @keyframes ffLeaf {
+    0%,100% { transform-origin:36px 36px; transform:scale(1); }
+    50%      { transform-origin:36px 36px; transform:scale(1.03); }
+  }
+  @keyframes ffAntL {
+    0%,100% { transform: rotate(0deg); }
+    50%      { transform: rotate(-5deg); }
+  }
+  @keyframes ffAntR {
+    0%,100% { transform: rotate(0deg); }
+    50%      { transform: rotate(5deg); }
+  }
+`;
+
 /* ─── Icons ──────────────────────────────────────────────────────────────── */
-const IconCompass = () => (
-  <svg width="36" height="36" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+const IconCompass = ({ size = 36 }) => (
+  <svg width={size} height={size} viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg"
+    style={{ animation: "ffDrift 4s ease-in-out infinite", display: "block" }}>
     {/* Outer ring */}
     <circle cx="36" cy="36" r="34" fill="#e8f0eb" stroke="#7a9e87" strokeWidth="1"/>
-    {/* North leaf — tallest, darkest */}
-    <ellipse cx="36" cy="17" rx="7" ry="17" fill="#4a7058"/>
-    {/* South leaf */}
-    <ellipse cx="36" cy="55" rx="5.5" ry="13" fill="#7a9e87" opacity="0.55"/>
-    {/* East leaf */}
-    <ellipse cx="55" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.8"/>
-    {/* West leaf */}
-    <ellipse cx="17" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.45"/>
-    {/* NE diagonal */}
-    <ellipse cx="36" cy="36" rx="4.5" ry="11" fill="#4a7058" opacity="0.4" transform="rotate(42 36 36) translate(0 -14)"/>
-    {/* NW diagonal */}
-    <ellipse cx="36" cy="36" rx="4.5" ry="11" fill="#4a7058" opacity="0.4" transform="rotate(-42 36 36) translate(0 -14)"/>
-    {/* SE diagonal */}
-    <ellipse cx="36" cy="36" rx="3.5" ry="9" fill="#4a9fa5" opacity="0.6" transform="rotate(135 36 36) translate(0 -14)"/>
-    {/* SW diagonal */}
-    <ellipse cx="36" cy="36" rx="3.5" ry="9" fill="#4a9fa5" opacity="0.6" transform="rotate(-135 36 36) translate(0 -14)"/>
-    {/* Center dot */}
-    <circle cx="36" cy="36" r="7" fill="#4a7058"/>
-    <circle cx="36" cy="36" r="3" fill="#e8f0eb"/>
-    {/* Stem lines */}
-    <line x1="36" y1="29" x2="36" y2="17" stroke="#e8f0eb" strokeWidth="0.8" opacity="0.6"/>
-    <line x1="36" y1="43" x2="36" y2="53" stroke="#e8f0eb" strokeWidth="0.8" opacity="0.4"/>
-    <line x1="43" y1="36" x2="55" y2="36" stroke="#e8f0eb" strokeWidth="0.8" opacity="0.5"/>
-    <line x1="29" y1="36" x2="17" y2="36" stroke="#e8f0eb" strokeWidth="0.8" opacity="0.35"/>
+    {/* Compass leaves — breathing */}
+    <g style={{ animation: "ffLeaf 3.5s ease-in-out infinite" }}>
+      <ellipse cx="36" cy="17" rx="7" ry="17" fill="#4a7058"/>
+      <ellipse cx="36" cy="55" rx="5.5" ry="13" fill="#7a9e87" opacity="0.55"/>
+      <ellipse cx="55" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.8"/>
+      <ellipse cx="17" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.45"/>
+      <ellipse cx="36" cy="36" rx="4.5" ry="11" fill="#4a7058" opacity="0.35" transform="rotate(42 36 36) translate(0 -14)"/>
+      <ellipse cx="36" cy="36" rx="4.5" ry="11" fill="#4a7058" opacity="0.35" transform="rotate(-42 36 36) translate(0 -14)"/>
+      <ellipse cx="36" cy="36" rx="3.5" ry="9" fill="#4a9fa5" opacity="0.5" transform="rotate(135 36 36) translate(0 -14)"/>
+      <ellipse cx="36" cy="36" rx="3.5" ry="9" fill="#4a9fa5" opacity="0.5" transform="rotate(-135 36 36) translate(0 -14)"/>
+    </g>
+    {/* Firefly body */}
+    <ellipse cx="36" cy="36" rx="4" ry="6.5" fill="#2d4a35"/>
+    {/* Wings */}
+    <ellipse cx="28" cy="34" rx="8" ry="3.5" fill="#a8d4b0" opacity="0.55"
+      style={{ animation: "ffWingL 0.6s ease-in-out infinite" }}/>
+    <ellipse cx="44" cy="34" rx="8" ry="3.5" fill="#a8d4b0" opacity="0.55"
+      style={{ animation: "ffWingR 0.6s ease-in-out infinite", animationDelay: "0.05s" }}/>
+    {/* Antennae — rotate from base */}
+    <g style={{ transformOrigin: "34.5px 30px", animation: "ffAntL 2.8s ease-in-out infinite" }}>
+      <line x1="34.5" y1="30" x2="31" y2="25" stroke="#4a7058" strokeWidth="0.9" strokeLinecap="round"/>
+      <circle cx="31" cy="24.5" fill="#a8ffb0">
+        <animate attributeName="r" values="1;1.6;1" dur="2.4s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.4;0.9;0.4" dur="2.4s" repeatCount="indefinite"/>
+      </circle>
+    </g>
+    <g style={{ transformOrigin: "37.5px 30px", animation: "ffAntR 2.8s ease-in-out infinite", animationDelay: "0.4s" }}>
+      <line x1="37.5" y1="30" x2="41" y2="25" stroke="#4a7058" strokeWidth="0.9" strokeLinecap="round"/>
+      <circle cx="41" cy="24.5" fill="#a8ffb0">
+        <animate attributeName="r" values="1;1.6;1" dur="2.4s" begin="0.5s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.4;0.9;0.4" dur="2.4s" begin="0.5s" repeatCount="indefinite"/>
+      </circle>
+    </g>
+    {/* Eyes — soft blink via SVG animate on rx/ry */}
+    <ellipse cx="34.2" cy="33.5" fill="#b8f0b0">
+      <animate attributeName="rx" values="1.3;1.3;1.3;0.2;1.3" dur="5s" keyTimes="0;0.7;0.85;0.9;1" repeatCount="indefinite"/>
+      <animate attributeName="ry" values="1.3;1.3;1.3;0.15;1.3" dur="5s" keyTimes="0;0.7;0.85;0.9;1" repeatCount="indefinite"/>
+    </ellipse>
+    <ellipse cx="37.8" cy="33.5" fill="#b8f0b0">
+      <animate attributeName="rx" values="1.3;1.3;1.3;0.2;1.3" dur="5s" keyTimes="0;0.7;0.85;0.9;1" begin="0.08s" repeatCount="indefinite"/>
+      <animate attributeName="ry" values="1.3;1.3;1.3;0.15;1.3" dur="5s" keyTimes="0;0.7;0.85;0.9;1" begin="0.08s" repeatCount="indefinite"/>
+    </ellipse>
+    {/* Glowing tail */}
+    <circle cx="36" cy="41" r="3" fill="#7fff7a" opacity="0.18"/>
+    <circle cx="36" cy="41" fill="#c8ffb0">
+      <animate attributeName="r" values="2.8;4;2.8" dur="1.8s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.25;1;0.25" dur="1.8s" repeatCount="indefinite"/>
+    </circle>
   </svg>
 );
 
@@ -191,6 +245,367 @@ function WaitlistForm() {
   );
 }
 
+/* ─── Sage Chatbot ───────────────────────────────────────────────────────── */
+const SAGE_SYSTEM_PROMPT = `You are Sage, the friendly Care Compass guide on the Care Compass landing page. Care Compass is an AI-powered health navigation app for people living with chronic illness. It helps users track symptoms, prepare for appointments, understand patterns across body systems, and get specialist recommendations.
+
+You answer questions about Care Compass the product only — what it does, how it works, who it's for, pricing, the waitlist, and how to get started. You are warm, clear, and supportive in tone.
+
+If someone asks a medical question or describes their symptoms, gently let them know you can't give medical advice, and encourage them to join the waitlist to use the full Care Compass app.
+
+Keep responses concise — 2-4 sentences max. Do not use bullet points or markdown. Respond conversationally.`;
+
+const SUGGESTED_QUESTIONS = [
+  "What is Care Compass?",
+  "Who is it for?",
+  "How does it work?",
+  "Is it free?",
+  "How do I join the waitlist?",
+  "What conditions does it support?",
+];
+
+function SageChatbot() {
+  const [open, setOpen] = useState(false);
+  const [greeting, setGreeting] = useState(false);
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setGreeting(true), 4000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (open && messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages, open]);
+
+  const sendMessageWith = async (text) => {
+    if (!text || loading) return;
+    const newMessages = [...messages, { role: "user", content: text }];
+    setMessages(newMessages);
+    setInput("");
+    setLoading(true);
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1000,
+          system: SAGE_SYSTEM_PROMPT,
+          messages: newMessages,
+        }),
+      });
+      const data = await res.json();
+      const reply = data.content?.[0]?.text || "I'm having trouble connecting right now. Please try again in a moment.";
+      setMessages([...newMessages, { role: "assistant", content: reply }]);
+    } catch {
+      setMessages([...newMessages, { role: "assistant", content: "I'm having trouble connecting right now. Please try again in a moment." }]);
+    }
+    setLoading(false);
+  };
+
+  const sendMessage = async () => {
+    const text = input.trim();
+    if (!text || loading) return;
+    await sendMessageWith(text);
+  };
+
+  const handleKey = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  };
+
+  const openChat = () => { setOpen(true); setGreeting(false); };
+
+  return (
+    <>
+      {/* Greeting bubble */}
+      {greeting && !open && (
+        <div style={sageStyles.greeting}>
+          <p style={sageStyles.greetingText}>Hi, I'm Sage! Got questions about Care Compass? I'm here to help.</p>
+          <p style={sageStyles.greetingAttrib}>— <strong>Your Care Compass guide</strong></p>
+          <button style={sageStyles.greetingClose} onClick={() => setGreeting(false)} aria-label="Dismiss">✕</button>
+        </div>
+      )}
+
+      {/* Chat drawer */}
+      {open && (
+        <div style={sageStyles.drawer}>
+          <div style={sageStyles.drawerHeader}>
+            <div style={sageStyles.drawerHeaderLeft}>
+              <div style={sageStyles.drawerAvatar}><IconCompass size={44} /></div>
+              <div>
+                <div style={sageStyles.drawerName}>Sage</div>
+                <div style={sageStyles.drawerSub}>Your Care Compass guide</div>
+              </div>
+            </div>
+            <button style={sageStyles.drawerClose} onClick={() => setOpen(false)} aria-label="Close">✕</button>
+          </div>
+
+          <div style={sageStyles.messages}>
+            {messages.length === 0 && (
+              <div>
+                <div style={sageStyles.emptyState}>
+                  Ask me anything about Care Compass — what it does, who it's for, or how to get early access.
+                </div>
+                <div style={sageStyles.suggestedWrap}>
+                  {SUGGESTED_QUESTIONS.map(q => (
+                    <button
+                      key={q}
+                      style={sageStyles.suggestedPill}
+                      onClick={() => sendMessageWith(q)}
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {messages.map((m, i) => (
+              <div key={i} style={m.role === "user" ? sageStyles.userBubble : sageStyles.sageBubble}>
+                {m.content}
+              </div>
+            ))}
+            {loading && (
+              <div style={sageStyles.sageBubble}>
+                <span style={sageStyles.typing}>●&nbsp;●&nbsp;●</span>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          <div style={sageStyles.inputRow}>
+            <input
+              style={sageStyles.chatInput}
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={handleKey}
+              placeholder="Ask Sage a question…"
+              disabled={loading}
+            />
+            <button style={sageStyles.sendBtn} onClick={sendMessage} disabled={loading || !input.trim()} aria-label="Send">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Floating button */}
+      {!open && (
+        <button style={sageStyles.fab} onClick={openChat} aria-label="Chat with Sage">
+          <IconCompass size={48} />
+        </button>
+      )}
+    </>
+  );
+}
+
+const sageStyles = {
+  fab: {
+    position: "fixed",
+    bottom: "1.5rem",
+    right: "1.5rem",
+    width: 68,
+    height: 68,
+    borderRadius: "50%",
+    background: "#e8f0eb",
+    border: "2px solid #c2d9c8",
+    boxShadow: "0 4px 24px rgba(74,112,88,0.18), 0 1px 6px rgba(0,0,0,0.08)",
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 9000,
+    padding: 0,
+  },
+  greeting: {
+    position: "fixed",
+    bottom: "5.75rem",
+    right: "1.5rem",
+    background: "#fff",
+    borderRadius: "1rem",
+    boxShadow: "0 4px 32px rgba(0,0,0,0.10), 0 1px 6px rgba(0,0,0,0.06)",
+    padding: "1rem 1.25rem 0.85rem",
+    maxWidth: 260,
+    zIndex: 9000,
+    animation: "sageIn 0.4s cubic-bezier(0.34,1.56,0.64,1)",
+  },
+  greetingText: {
+    margin: "0 0 0.3rem",
+    fontSize: "0.92rem",
+    color: "#2d2926",
+    lineHeight: 1.55,
+    paddingRight: "1rem",
+  },
+  greetingAttrib: {
+    margin: 0,
+    fontSize: "0.78rem",
+    color: "#7a9e87",
+  },
+  greetingClose: {
+    position: "absolute",
+    top: "0.5rem",
+    right: "0.6rem",
+    background: "none",
+    border: "none",
+    cursor: "pointer",
+    color: "#aaa",
+    fontSize: "0.75rem",
+    padding: "2px 4px",
+    lineHeight: 1,
+  },
+  drawer: {
+    position: "fixed",
+    bottom: "1.5rem",
+    right: "1.5rem",
+    width: 340,
+    maxWidth: "calc(100vw - 2rem)",
+    maxHeight: "70vh",
+    background: "#fff",
+    borderRadius: "1.25rem",
+    boxShadow: "0 8px 48px rgba(0,0,0,0.14), 0 2px 12px rgba(0,0,0,0.07)",
+    border: "1px solid rgba(0,0,0,0.07)",
+    display: "flex",
+    flexDirection: "column",
+    zIndex: 9000,
+    overflow: "hidden",
+    animation: "sageIn 0.35s cubic-bezier(0.34,1.56,0.64,1)",
+  },
+  drawerHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "1rem 1.1rem",
+    borderBottom: "1px solid rgba(0,0,0,0.06)",
+    background: "#fafaf8",
+  },
+  drawerHeaderLeft: {
+    display: "flex",
+    alignItems: "center",
+    gap: "0.75rem",
+  },
+  drawerAvatar: {
+    width: 44,
+    height: 44,
+    flexShrink: 0,
+  },
+  drawerName: {
+    fontWeight: 700,
+    fontSize: "0.95rem",
+    color: "#2d2926",
+    lineHeight: 1.2,
+  },
+  drawerSub: {
+    fontSize: "0.75rem",
+    color: "#7a9e87",
+  },
+  drawerClose: {
+    background: "none",
+    border: "none",
+    cursor: "pointer",
+    color: "#aaa",
+    fontSize: "1rem",
+    padding: "4px",
+    lineHeight: 1,
+  },
+  messages: {
+    flex: 1,
+    overflowY: "auto",
+    padding: "1rem",
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.75rem",
+  },
+  emptyState: {
+    fontSize: "0.875rem",
+    color: "#aaa",
+    textAlign: "center",
+    lineHeight: 1.6,
+    padding: "1rem 0.5rem 0.75rem",
+    fontStyle: "italic",
+  },
+  suggestedWrap: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "0.45rem",
+    justifyContent: "center",
+    padding: "0 0.25rem 0.5rem",
+  },
+  suggestedPill: {
+    background: "#f0f7f2",
+    border: "1px solid #c2d9c8",
+    borderRadius: "100px",
+    padding: "0.4rem 0.85rem",
+    fontSize: "0.78rem",
+    color: "#4a7058",
+    fontWeight: 600,
+    cursor: "pointer",
+    fontFamily: "inherit",
+    lineHeight: 1.4,
+  },
+  userBubble: {
+    alignSelf: "flex-end",
+    background: "#4a7058",
+    color: "#fff",
+    borderRadius: "1rem 1rem 0.25rem 1rem",
+    padding: "0.65rem 0.9rem",
+    fontSize: "0.88rem",
+    lineHeight: 1.5,
+    maxWidth: "82%",
+  },
+  sageBubble: {
+    alignSelf: "flex-start",
+    background: "#e8f0eb",
+    color: "#2d2926",
+    borderRadius: "1rem 1rem 1rem 0.25rem",
+    padding: "0.65rem 0.9rem",
+    fontSize: "0.88rem",
+    lineHeight: 1.5,
+    maxWidth: "82%",
+  },
+  typing: {
+    color: "#7a9e87",
+    letterSpacing: "0.1em",
+    fontSize: "0.75rem",
+  },
+  inputRow: {
+    display: "flex",
+    gap: "0.5rem",
+    padding: "0.75rem",
+    borderTop: "1px solid rgba(0,0,0,0.06)",
+    background: "#fafaf8",
+  },
+  chatInput: {
+    flex: 1,
+    padding: "0.65rem 0.9rem",
+    borderRadius: "0.75rem",
+    border: "1.5px solid rgba(0,0,0,0.1)",
+    fontSize: "0.88rem",
+    fontFamily: "inherit",
+    color: "#2d2926",
+    background: "#fff",
+    outline: "none",
+  },
+  sendBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: "0.75rem",
+    background: "#4a7058",
+    color: "#fff",
+    border: "none",
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+};
+
 /* ─── Main Landing Page ───────────────────────────────────────────────────── */
 export default function CareCompassLanding() {
   const [scrolled, setScrolled] = useState(false);
@@ -240,6 +655,12 @@ export default function CareCompassLanding() {
           </FadeIn>
           <FadeIn delay={0.55}>
             <a href="#waitlist" style={styles.ctaButton}>Join the Waitlist →</a>
+          </FadeIn>
+          <FadeIn delay={0.75}>
+            <div style={{ marginTop: "2.5rem", display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem" }}>
+              <IconCompass size={96} />
+              <p style={{ fontSize: "0.8rem", color: "#7a9e87", margin: 0, letterSpacing: "0.06em", textTransform: "uppercase", fontWeight: 600 }}>Meet Sage, your guide</p>
+            </div>
           </FadeIn>
         </div>
         <div style={styles.heroScroll} aria-hidden="true">
@@ -490,6 +911,15 @@ export default function CareCompassLanding() {
           </FadeIn>
         </div>
       </section>
+
+      {/* ── Sage Chatbot ── */}
+      <style>{FIREFLY_KEYFRAMES + `
+        @keyframes sageIn {
+          from { opacity: 0; transform: translateY(12px) scale(0.95); }
+          to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+      `}</style>
+      <SageChatbot />
 
       {/* ── Footer ── */}
       <footer style={styles.footer}>
