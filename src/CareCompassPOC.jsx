@@ -532,12 +532,12 @@ const SAGE_KEYFRAMES = `
   @keyframes ffAntL { 0%,100% { transform:rotate(0deg); } 50% { transform:rotate(-5deg); } }
   @keyframes ffAntR { 0%,100% { transform:rotate(0deg); } 50% { transform:rotate(5deg); } }
   @keyframes sageNudgeIn {
-    from { opacity:0; transform:translateY(16px) scale(0.95); }
-    to   { opacity:1; transform:translateY(0) scale(1); }
+    from { opacity:0; transform:translateX(-50%) translateY(-12px) scale(0.95); }
+    to   { opacity:1; transform:translateX(-50%) translateY(0) scale(1); }
   }
   @keyframes sageNudgeOut {
-    from { opacity:1; transform:translateY(0) scale(1); }
-    to   { opacity:0; transform:translateY(8px) scale(0.97); }
+    from { opacity:1; transform:translateX(-50%) translateY(0) scale(1); }
+    to   { opacity:0; transform:translateX(-50%) translateY(-8px) scale(0.97); }
   }
   @keyframes sageIn {
     from { opacity:0; transform:translateY(12px) scale(0.95); }
@@ -609,22 +609,24 @@ function SageNudge({ message, onDone }) {
   }, []);
   return (
     <div style={{
-      position:"fixed", bottom:"1.5rem", right:"1.5rem", zIndex:9100,
-      display:"flex", alignItems:"flex-end", gap:"0.75rem",
+      position:"fixed", top:"5rem", left:"50%", transform:"translateX(-50%)",
+      zIndex:9100, display:"flex", alignItems:"center", gap:"0.65rem",
+      background:"#fff", borderRadius:"100px",
+      boxShadow:"0 4px 24px rgba(0,0,0,0.12)", padding:"0.65rem 1rem 0.65rem 0.65rem",
+      maxWidth:"calc(100vw - 2rem)", width:"fit-content",
+      border:"1px solid #d4e4d8", pointerEvents:"none",
       animation: phase === "in"
-        ? "sageNudgeIn 0.45s cubic-bezier(0.34,1.56,0.64,1) forwards"
+        ? "sageNudgeIn 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards"
         : "sageNudgeOut 0.5s ease-in forwards",
-      pointerEvents:"none",
     }}>
-      <div style={{
-        background:"#fff", borderRadius:"1rem 1rem 0.25rem 1rem",
-        boxShadow:"0 4px 24px rgba(0,0,0,0.12)", padding:"0.85rem 1.1rem",
-        maxWidth:240, fontSize:"0.875rem", color:"#2d2926",
-        lineHeight:1.55, border:"1px solid #d4e4d8",
+      <div style={{ flexShrink:0 }}><FireflyMark size={32}/></div>
+      <p style={{
+        fontSize:"0.85rem", color:"#2d2926",
+        lineHeight:1.45, margin:0, whiteSpace:"nowrap",
+        overflow:"hidden", textOverflow:"ellipsis", maxWidth:280,
       }}>
         {message}
-      </div>
-      <div style={{ flexShrink:0 }}><FireflyMark size={52}/></div>
+      </p>
     </div>
   );
 }
@@ -766,7 +768,10 @@ export default function CareCompassPOC() {
     setStep(i);
     setMaxVisited(prev => Math.max(prev, i));
     saveFormState({ step: i });
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    // Works across desktop and mobile browsers
+    window.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
   };
 
   const [symptoms, setSymptoms] = useState(
