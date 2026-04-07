@@ -1192,13 +1192,21 @@ function LabResultsTab({ entries }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
 
-      <div style={{ padding: "0.875rem 1rem", background: SAGE_LIGHT, borderRadius: "0.875rem", display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
-        <span style={{ color: SAGE_DARK, marginTop: "0.1rem" }}>{TIP_ICON}</span>
-        <div>
-          <p style={{ fontSize: "0.82rem", fontWeight: 600, color: SAGE_DARK, margin: "0 0 0.15rem" }}>Your results, in full context</p>
-          <p style={{ fontSize: "0.78rem", color: SAGE_DARK, lineHeight: 1.65, margin: 0 }}>
-            Normal on a lab report does not always mean normal for you. Care Compass reads your results alongside your symptom patterns, medications, and health history — and helps you know what questions to ask next.
+      <div style={{ background: "#fff", borderRadius: "1rem", border: "1px solid rgba(0,0,0,0.08)", overflow: "hidden" }}>
+        <div style={{ padding: "1.25rem 1.5rem", borderBottom: "1px solid rgba(0,0,0,0.08)" }}>
+          <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.2rem", fontWeight: 700, color: INK, margin: "0 0 0.3rem" }}>Lab Results</h2>
+          <p style={{ fontSize: "0.82rem", color: WARM_GRAY, margin: 0, lineHeight: 1.6 }}>
+            Upload lab results, imaging reports, or test results for a plain-language breakdown and personalised next-step guidance — cross-referenced with your symptoms and health profile.
           </p>
+        </div>
+        <div style={{ padding: "0.875rem 1.5rem", background: SAGE_LIGHT, display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
+          <span style={{ color: SAGE_DARK, marginTop: "0.1rem" }}>{TIP_ICON}</span>
+          <div>
+            <p style={{ fontSize: "0.82rem", fontWeight: 600, color: SAGE_DARK, margin: "0 0 0.15rem" }}>Your results, in full context</p>
+            <p style={{ fontSize: "0.78rem", color: SAGE_DARK, lineHeight: 1.65, margin: 0 }}>
+              Normal on a lab report does not always mean normal for you. Care Compass reads your results alongside your symptom patterns, medications, and health history — and helps you know what questions to ask next.
+            </p>
+          </div>
         </div>
       </div>
 
@@ -1313,6 +1321,8 @@ export default function CareCompassTracker() {
   const [insights, setInsights]         = useState(null);
   const [apptContext, setApptContext]    = useState(null);
   const [loadingInsights, setLoadingInsights] = useState(false);
+  const [showFocusModal, setShowFocusModal] = useState(false);
+  const [reportFocus, setReportFocus]     = useState("");
   const [saved, setSaved]               = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [confirmDeleteLabId, setConfirmDeleteLabId] = useState(null);
@@ -1595,7 +1605,16 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
     }
   };
 
-  const handlePrint = () => { const style = document.createElement("style"); style.innerHTML = `@media print { .no-print { display: none !important; } @page { margin: 1.5cm; } }`; document.head.appendChild(style); window.print(); setTimeout(() => document.head.removeChild(style), 1000); };
+  const handlePrint = () => setShowFocusModal(true);
+
+  const handlePrintWithFocus = () => {
+    setShowFocusModal(false);
+    const style = document.createElement("style");
+    style.innerHTML = `@media print { .no-print { display: none !important; } @page { margin: 1.5cm; } }`;
+    document.head.appendChild(style);
+    window.print();
+    setTimeout(() => document.head.removeChild(style), 1000);
+  };
 
   // ── Medication list state ────────────────────────────────────────────────
   const [medications, setMedications]     = useState([]);
@@ -2287,6 +2306,12 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
                             </div>
                           </div>
                         )}
+                        {reportFocus && (
+                          <div style={{ marginTop: "0.875rem", paddingTop: "0.875rem", borderTop: "1px solid rgba(0,0,0,0.06)", background: `linear-gradient(135deg, ${SAGE_LIGHT}, ${TEAL_LIGHT})`, borderRadius: "0.75rem", padding: "0.875rem 1rem", marginTop: "1rem" }}>
+                            <p style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: SAGE_DARK, margin: "0 0 0.3rem" }}>Visit focus</p>
+                            <p style={{ fontSize: "0.9rem", color: INK, margin: 0, lineHeight: 1.55 }}>{reportFocus}</p>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -2929,15 +2954,7 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
 
           {view === "labs" && (
             <div style={s.tabContent}>
-              <div style={{ maxWidth: 720, margin: "0 auto" }}>
-                {/* Header — matches other tab style */}
-                <div style={{ marginBottom: "1.5rem" }}>
-                  <p style={s.eyebrow}>Lab Results</p>
-                  <h2 style={{ ...s.title, fontSize: "1.4rem", marginBottom: "0.25rem" }}>Lab Results</h2>
-                  <p style={{ fontSize: "0.85rem", color: WARM_GRAY, margin: 0 }}>Upload lab results, imaging reports, or test results for a plain-language breakdown cross-referenced with your symptoms and health profile.</p>
-                </div>
-                <LabResultsTab entries={entries} />
-              </div>
+              <LabResultsTab entries={entries} />
             </div>
           )}
       </main>
@@ -3261,6 +3278,54 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
               </div>
             </div>
             <div style={s.modalFooter}><button onClick={() => setShowForm(false)} style={s.cancelBtn}>Cancel</button><button onClick={handleSubmit} style={s.saveBtn}>{editingEntry ? "Update Entry →" : "Save Entry →"}</button></div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Visit focus modal ── */}
+      {showFocusModal && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:"1.5rem" }}
+          onClick={() => setShowFocusModal(false)}>
+          <div style={{ background:"#fff", borderRadius:"1.5rem", padding:"2rem", maxWidth:440, width:"100%", boxShadow:"0 24px 64px rgba(0,0,0,0.2)", display:"flex", flexDirection:"column", gap:"1.25rem" }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ display:"flex", alignItems:"flex-start", gap:"1rem" }}>
+              <div style={{ width:44, height:44, borderRadius:"50%", background:SAGE_LIGHT, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                  <circle cx="10" cy="10" r="8" stroke={SAGE_DARK} strokeWidth="1.5"/>
+                  <path d="M10 6v4l2.5 2.5" stroke={SAGE_DARK} strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+              </div>
+              <div>
+                <h2 style={{ fontFamily:"'Playfair Display', Georgia, serif", fontSize:"1.2rem", fontWeight:700, color:INK, margin:"0 0 0.35rem" }}>
+                  What are you being seen for?
+                </h2>
+                <p style={{ fontSize:"0.85rem", color:WARM_GRAY, margin:0, lineHeight:1.6 }}>
+                  This will appear at the top of your report so your doctor knows what to focus on. Skip it if you'd like a general report.
+                </p>
+              </div>
+            </div>
+
+            <textarea
+              value={reportFocus}
+              onChange={e => setReportFocus(e.target.value)}
+              placeholder={"e.g. Neck and knee pain — tracking severity, triggers, and how it affects daily activities like driving and stairs"}
+              rows={3}
+              autoFocus
+              style={{ padding:"0.85rem 1rem", borderRadius:"0.75rem", border:`1.5px solid ${reportFocus ? SAGE : "rgba(0,0,0,0.12)"}`, fontSize:"0.92rem", color:INK, fontFamily:"inherit", resize:"vertical", lineHeight:1.6, outline:"none", transition:"border-color 0.2s" }}
+            />
+
+            <div style={{ display:"flex", gap:"0.75rem" }}>
+              <button
+                onClick={() => { setReportFocus(""); handlePrintWithFocus(); }}
+                style={{ flex:1, background:"transparent", border:"1.5px solid rgba(0,0,0,0.12)", borderRadius:"100px", padding:"0.75rem", fontSize:"0.875rem", color:WARM_GRAY, cursor:"pointer", fontFamily:"inherit", fontWeight:500 }}>
+                Skip — general report
+              </button>
+              <button
+                onClick={handlePrintWithFocus}
+                style={{ flex:1, background:SAGE_DARK, color:"#fff", border:"none", borderRadius:"100px", padding:"0.75rem", fontSize:"0.875rem", fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
+                Save as PDF →
+              </button>
+            </div>
           </div>
         </div>
       )}
