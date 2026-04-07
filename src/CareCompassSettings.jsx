@@ -1984,6 +1984,214 @@ function SubscriptionPanel() {
   );
 }
 
+/* ─── Sage Chatbot ───────────────────────────────────────────────────────── */
+const SAGE_KEYFRAMES = `
+  @keyframes ffDrift { 0%,100%{transform:translate(0,0)} 33%{transform:translate(0.6px,-0.8px)} 66%{transform:translate(-0.5px,0.6px)} }
+  @keyframes ffWingL { 0%,100%{transform-origin:50% 50%;transform:rotate(0deg) scaleY(1);opacity:0.55} 50%{transform-origin:50% 50%;transform:rotate(-18deg) scaleY(0.82);opacity:0.8} }
+  @keyframes ffWingR { 0%,100%{transform-origin:50% 50%;transform:rotate(0deg) scaleY(1);opacity:0.55} 50%{transform-origin:50% 50%;transform:rotate(18deg) scaleY(0.82);opacity:0.8} }
+  @keyframes ffLeaf  { 0%,100%{transform-origin:36px 36px;transform:scale(1)} 50%{transform-origin:36px 36px;transform:scale(1.03)} }
+  @keyframes ffAntL  { 0%,100%{transform:rotate(0deg)} 50%{transform:rotate(-5deg)} }
+  @keyframes ffAntR  { 0%,100%{transform:rotate(0deg)} 50%{transform:rotate(5deg)} }
+  @keyframes sageIn  { from{opacity:0;transform:translateY(12px) scale(0.95)} to{opacity:1;transform:translateY(0) scale(1)} }
+`;
+
+const FireflyMark = ({ size = 36 }) => (
+  <svg width={size} height={size} viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg"
+    style={{ animation:"ffDrift 4s ease-in-out infinite", display:"block" }}>
+    <circle cx="36" cy="36" r="34" fill="#e8f0eb" stroke="#7a9e87" strokeWidth="1"/>
+    <g style={{ animation:"ffLeaf 3.5s ease-in-out infinite" }}>
+      <ellipse cx="36" cy="17" rx="7" ry="17" fill="#4a7058"/>
+      <ellipse cx="36" cy="55" rx="5.5" ry="13" fill="#7a9e87" opacity="0.55"/>
+      <ellipse cx="55" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.8"/>
+      <ellipse cx="17" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.45"/>
+      <ellipse cx="36" cy="36" rx="4.5" ry="11" fill="#4a7058" opacity="0.35" transform="rotate(42 36 36) translate(0 -14)"/>
+      <ellipse cx="36" cy="36" rx="4.5" ry="11" fill="#4a7058" opacity="0.35" transform="rotate(-42 36 36) translate(0 -14)"/>
+      <ellipse cx="36" cy="36" rx="3.5" ry="9" fill="#4a9fa5" opacity="0.5" transform="rotate(135 36 36) translate(0 -14)"/>
+      <ellipse cx="36" cy="36" rx="3.5" ry="9" fill="#4a9fa5" opacity="0.5" transform="rotate(-135 36 36) translate(0 -14)"/>
+    </g>
+    <ellipse cx="36" cy="36" rx="4" ry="6.5" fill="#2d4a35"/>
+    <ellipse cx="28" cy="34" rx="8" ry="3.5" fill="#a8d4b0" opacity="0.55" style={{ animation:"ffWingL 0.6s ease-in-out infinite" }}/>
+    <ellipse cx="44" cy="34" rx="8" ry="3.5" fill="#a8d4b0" opacity="0.55" style={{ animation:"ffWingR 0.6s ease-in-out infinite", animationDelay:"0.05s" }}/>
+    <g style={{ transformOrigin:"34.5px 30px", animation:"ffAntL 2.8s ease-in-out infinite" }}>
+      <line x1="34.5" y1="30" x2="31" y2="25" stroke="#4a7058" strokeWidth="0.9" strokeLinecap="round"/>
+      <circle cx="31" cy="24.5" fill="#a8ffb0"><animate attributeName="r" values="1;1.6;1" dur="2.4s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.4;0.9;0.4" dur="2.4s" repeatCount="indefinite"/></circle>
+    </g>
+    <g style={{ transformOrigin:"37.5px 30px", animation:"ffAntR 2.8s ease-in-out infinite", animationDelay:"0.4s" }}>
+      <line x1="37.5" y1="30" x2="41" y2="25" stroke="#4a7058" strokeWidth="0.9" strokeLinecap="round"/>
+      <circle cx="41" cy="24.5" fill="#a8ffb0"><animate attributeName="r" values="1;1.6;1" dur="2.4s" begin="0.5s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.4;0.9;0.4" dur="2.4s" begin="0.5s" repeatCount="indefinite"/></circle>
+    </g>
+    <ellipse cx="34.2" cy="33.5" fill="#b8f0b0">
+      <animate attributeName="rx" values="1.3;1.3;1.3;0.2;1.3" dur="5s" keyTimes="0;0.7;0.85;0.9;1" repeatCount="indefinite"/>
+      <animate attributeName="ry" values="1.3;1.3;1.3;0.15;1.3" dur="5s" keyTimes="0;0.7;0.85;0.9;1" repeatCount="indefinite"/>
+    </ellipse>
+    <ellipse cx="37.8" cy="33.5" fill="#b8f0b0">
+      <animate attributeName="rx" values="1.3;1.3;1.3;0.2;1.3" dur="5s" keyTimes="0;0.7;0.85;0.9;1" begin="0.08s" repeatCount="indefinite"/>
+      <animate attributeName="ry" values="1.3;1.3;1.3;0.15;1.3" dur="5s" keyTimes="0;0.7;0.85;0.9;1" begin="0.08s" repeatCount="indefinite"/>
+    </ellipse>
+    <circle cx="36" cy="41" r="3" fill="#7fff7a" opacity="0.18"/>
+    <circle cx="36" cy="41" fill="#c8ffb0">
+      <animate attributeName="r" values="2.8;4;2.8" dur="1.8s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.25;1;0.25" dur="1.8s" repeatCount="indefinite"/>
+    </circle>
+  </svg>
+);
+
+const SETTINGS_SYSTEM_PROMPT = `You are Sage, the friendly Care Compass guide embedded in Account Settings. Care Compass is an AI-powered health navigation app for people with chronic illness.
+
+Help users understand and navigate their account settings. The settings panels are: Profile (name, age, conditions, care team), Notifications (reminders, check-ins, weekly digest), Security (password, 2FA, passkeys), Privacy & Data (data sharing preferences, export, deletion), Connected Apps, Subscription (billing, plan, cancellation), Family History (maternal/paternal conditions), and Medications (medication list, bottle scanning).
+
+Answer questions about what each setting does, why it matters, and how to use it. Be warm, helpful, and concise — 2-3 sentences max. No bullet points or markdown.`;
+
+const SETTINGS_SUGGESTIONS_BY_PANEL = {
+  profile:       ["What should I put in my care team?", "Why does my diagnosis matter?", "What is this information used for?"],
+  notifications: ["What's the daily reminder for?", "What's the difference between check-ins?", "Can I change the reminder time?"],
+  security:      ["Should I enable 2FA?", "What is a passkey?", "How do I change my password?"],
+  privacy:       ["Who can see my health data?", "How do I export my data?", "How do I delete my account?"],
+  connected:     ["What apps can I connect?", "Is my data safe with connected apps?"],
+  subscription:  ["Can I cancel anytime?", "What's included in my plan?", "How do I update my payment method?"],
+  family:        ["Why does family history matter?", "What conditions should I include?", "How is this used in my assessment?"],
+  medications:   ["How does bottle scanning work?", "Why should I log my medications?", "How are medications used in my assessment?"],
+};
+
+const DEFAULT_SUGGESTIONS = [
+  "What does this settings page do?",
+  "How is my data kept private?",
+  "How do I get the most out of Care Compass?",
+];
+
+function SageChatbot({ activePanel }) {
+  const [open, setOpen] = useState(false);
+  const [greeting, setGreeting] = useState(false);
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    const t = setTimeout(() => setGreeting(true), 5000);
+    return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    if (open && messagesEndRef.current)
+      messagesEndRef.current.scrollIntoView({ behavior:"smooth" });
+  }, [messages, open]);
+
+  const suggestions = SETTINGS_SUGGESTIONS_BY_PANEL[activePanel] || DEFAULT_SUGGESTIONS;
+
+  const sendMessageWith = async (text) => {
+    if (!text || loading) return;
+    const panelContext = `The user is currently on the "${activePanel}" settings panel.`;
+    const newMessages = [...messages, { role:"user", content:text }];
+    setMessages(newMessages);
+    setInput("");
+    setLoading(true);
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body:JSON.stringify({
+          model:"claude-sonnet-4-20250514",
+          max_tokens:1000,
+          system:`${SETTINGS_SYSTEM_PROMPT} ${panelContext}`,
+          messages:newMessages,
+        }),
+      });
+      const data = await res.json();
+      const reply = data.content?.[0]?.text || "I'm having trouble connecting. Please try again in a moment.";
+      setMessages([...newMessages, { role:"assistant", content:reply }]);
+    } catch {
+      setMessages([...newMessages, { role:"assistant", content:"I'm having trouble connecting. Please try again in a moment." }]);
+    }
+    setLoading(false);
+  };
+
+  const sendMessage = async () => { const t = input.trim(); if (t) await sendMessageWith(t); };
+  const handleKey = (e) => { if (e.key==="Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } };
+
+  return (
+    <>
+      <style>{SAGE_KEYFRAMES}</style>
+      {greeting && !open && (
+        <div style={ss.greeting}>
+          <p style={ss.greetingText}>Hi, I'm Sage! Need help with your settings? 🌿</p>
+          <p style={ss.greetingAttrib}>— <strong>Your Care Compass guide</strong></p>
+          <button style={ss.greetingClose} onClick={() => setGreeting(false)} aria-label="Dismiss">✕</button>
+        </div>
+      )}
+      {open && (
+        <div style={ss.drawer}>
+          <div style={ss.drawerHeader}>
+            <div style={ss.drawerHeaderLeft}>
+              <FireflyMark size={44}/>
+              <div>
+                <div style={ss.drawerName}>Sage</div>
+                <div style={ss.drawerSub}>Your Care Compass guide</div>
+              </div>
+            </div>
+            <button style={ss.drawerClose} onClick={() => setOpen(false)} aria-label="Close">✕</button>
+          </div>
+          <div style={ss.messages}>
+            {messages.length === 0 && (
+              <div>
+                <div style={ss.emptyState}>Questions about this section? I can help.</div>
+                <div style={ss.suggestedWrap}>
+                  {suggestions.map(q => (
+                    <button key={q} style={ss.suggestedPill} onClick={() => sendMessageWith(q)}>{q}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {messages.map((m, i) => (
+              <div key={i} style={m.role==="user" ? ss.userBubble : ss.sageBubble}>{m.content}</div>
+            ))}
+            {loading && <div style={ss.sageBubble}><span style={ss.typing}>●&nbsp;●&nbsp;●</span></div>}
+            <div ref={messagesEndRef}/>
+          </div>
+          <div style={ss.inputRow}>
+            <input style={ss.chatInput} value={input} onChange={e => setInput(e.target.value)}
+              onKeyDown={handleKey} placeholder="Ask Sage a question…" disabled={loading}/>
+            <button style={ss.sendBtn} onClick={sendMessage} disabled={loading || !input.trim()} aria-label="Send">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+      {!open && (
+        <button style={ss.fab} onClick={() => { setOpen(true); setGreeting(false); }} aria-label="Chat with Sage">
+          <FireflyMark size={48}/>
+        </button>
+      )}
+    </>
+  );
+}
+
+const ss = {
+  fab:{ position:"fixed", bottom:"1.5rem", right:"1.5rem", width:68, height:68, borderRadius:"50%", background:"#e8f0eb", border:"2px solid #c2d9c8", boxShadow:"0 4px 24px rgba(74,112,88,0.18)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", zIndex:9000, padding:0 },
+  greeting:{ position:"fixed", bottom:"5.75rem", right:"1.5rem", background:"#fff", borderRadius:"1rem", boxShadow:"0 4px 32px rgba(0,0,0,0.10)", padding:"1rem 1.25rem 0.85rem", maxWidth:260, zIndex:9000, animation:"sageIn 0.4s cubic-bezier(0.34,1.56,0.64,1)" },
+  greetingText:{ margin:"0 0 0.3rem", fontSize:"0.92rem", color:"#2d2926", lineHeight:1.55, paddingRight:"1rem" },
+  greetingAttrib:{ margin:0, fontSize:"0.78rem", color:"#7a9e87" },
+  greetingClose:{ position:"absolute", top:"0.5rem", right:"0.6rem", background:"none", border:"none", cursor:"pointer", color:"#aaa", fontSize:"0.75rem", padding:"2px 4px", lineHeight:1 },
+  drawer:{ position:"fixed", bottom:"1.5rem", right:"1.5rem", width:340, maxWidth:"calc(100vw - 2rem)", maxHeight:"70vh", background:"#fff", borderRadius:"1.25rem", boxShadow:"0 8px 48px rgba(0,0,0,0.14)", border:"1px solid rgba(0,0,0,0.07)", display:"flex", flexDirection:"column", zIndex:9000, overflow:"hidden", animation:"sageIn 0.35s cubic-bezier(0.34,1.56,0.64,1)" },
+  drawerHeader:{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"1rem 1.1rem", borderBottom:"1px solid rgba(0,0,0,0.06)", background:"#fafaf8" },
+  drawerHeaderLeft:{ display:"flex", alignItems:"center", gap:"0.75rem" },
+  drawerName:{ fontWeight:700, fontSize:"0.95rem", color:"#2d2926", lineHeight:1.2 },
+  drawerSub:{ fontSize:"0.75rem", color:"#7a9e87" },
+  drawerClose:{ background:"none", border:"none", cursor:"pointer", color:"#aaa", fontSize:"1rem", padding:"4px", lineHeight:1 },
+  messages:{ flex:1, overflowY:"auto", padding:"1rem", display:"flex", flexDirection:"column", gap:"0.75rem" },
+  emptyState:{ fontSize:"0.875rem", color:"#aaa", textAlign:"center", lineHeight:1.6, padding:"1rem 0.5rem 0.75rem", fontStyle:"italic" },
+  suggestedWrap:{ display:"flex", flexWrap:"wrap", gap:"0.45rem", justifyContent:"center", padding:"0 0.25rem 0.5rem" },
+  suggestedPill:{ background:"#f0f7f2", border:"1px solid #c2d9c8", borderRadius:"100px", padding:"0.4rem 0.85rem", fontSize:"0.78rem", color:"#4a7058", fontWeight:600, cursor:"pointer", fontFamily:"inherit", lineHeight:1.4 },
+  userBubble:{ alignSelf:"flex-end", background:"#4a7058", color:"#fff", borderRadius:"1rem 1rem 0.25rem 1rem", padding:"0.65rem 0.9rem", fontSize:"0.88rem", lineHeight:1.5, maxWidth:"82%" },
+  sageBubble:{ alignSelf:"flex-start", background:"#e8f0eb", color:"#2d2926", borderRadius:"1rem 1rem 1rem 0.25rem", padding:"0.65rem 0.9rem", fontSize:"0.88rem", lineHeight:1.5, maxWidth:"82%" },
+  typing:{ color:"#7a9e87", letterSpacing:"0.1em", fontSize:"0.75rem" },
+  inputRow:{ display:"flex", gap:"0.5rem", padding:"0.75rem", borderTop:"1px solid rgba(0,0,0,0.06)", background:"#fafaf8" },
+  chatInput:{ flex:1, padding:"0.65rem 0.9rem", borderRadius:"0.75rem", border:"1.5px solid rgba(0,0,0,0.1)", fontSize:"0.88rem", fontFamily:"inherit", color:"#2d2926", background:"#fff", outline:"none" },
+  sendBtn:{ width:40, height:40, borderRadius:"0.75rem", background:"#4a7058", color:"#fff", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 },
+};
+
 /* ─── Saved toast ────────────────────────────────────────────────────────── */
 function Toast({ visible }) {
   return (
@@ -2291,6 +2499,8 @@ export default function CareCompassSettings() {
       </div>
 
       <Toast visible={toastVisible} />
+
+      <SageChatbot activePanel={activePanel} />
 
       {/* Assessment prompt — shown after first save if no assessment yet */}
       {showAssessmentPrompt && (() => {
