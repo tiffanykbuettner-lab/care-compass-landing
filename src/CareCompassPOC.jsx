@@ -595,9 +595,9 @@ const FireflyMark = ({ size = 36 }) => (
 /* Step-specific nudge messages — null = no nudge shown */
 const STEP_NUDGES = [
   null,
-  "You're doing great — sharing your symptoms takes real courage. \uD83C\uDF3F",
-  "Your history is in! This context helps Care Compass find patterns that matter.",
-  "Almost there — one quick review and we'll find your patterns. You've got this.",
+  "That took courage to share. You're doing great. 🌿",
+  "History saved! This helps find your patterns.",
+  "Almost there — you've got this. ✨",
 ];
 
 function SageNudge({ message, onDone }) {
@@ -612,19 +612,15 @@ function SageNudge({ message, onDone }) {
       position:"fixed", top:"5rem", left:"50%", transform:"translateX(-50%)",
       zIndex:9100, display:"flex", alignItems:"center", gap:"0.65rem",
       background:"#fff", borderRadius:"100px",
-      boxShadow:"0 4px 24px rgba(0,0,0,0.12)", padding:"0.65rem 1rem 0.65rem 0.65rem",
-      maxWidth:"calc(100vw - 2rem)", width:"fit-content",
-      border:"1px solid #d4e4d8", pointerEvents:"none",
+      boxShadow:"0 4px 24px rgba(0,0,0,0.12)", padding:"0.6rem 1.1rem 0.6rem 0.6rem",
+      maxWidth:"calc(100vw - 2rem)", border:"1px solid #d4e4d8",
+      pointerEvents:"none",
       animation: phase === "in"
         ? "sageNudgeIn 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards"
         : "sageNudgeOut 0.5s ease-in forwards",
     }}>
-      <div style={{ flexShrink:0 }}><FireflyMark size={32}/></div>
-      <p style={{
-        fontSize:"0.85rem", color:"#2d2926",
-        lineHeight:1.45, margin:0, whiteSpace:"nowrap",
-        overflow:"hidden", textOverflow:"ellipsis", maxWidth:280,
-      }}>
+      <div style={{ flexShrink:0 }}><FireflyMark size={28}/></div>
+      <p style={{ fontSize:"0.85rem", color:"#2d2926", lineHeight:1.4, margin:0 }}>
         {message}
       </p>
     </div>
@@ -768,7 +764,6 @@ export default function CareCompassPOC() {
     setStep(i);
     setMaxVisited(prev => Math.max(prev, i));
     saveFormState({ step: i });
-    // Works across desktop and mobile browsers
     window.scrollTo(0, 0);
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
