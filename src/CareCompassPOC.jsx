@@ -766,6 +766,7 @@ export default function CareCompassPOC() {
     setStep(i);
     setMaxVisited(prev => Math.max(prev, i));
     saveFormState({ step: i });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const [symptoms, setSymptoms] = useState(
