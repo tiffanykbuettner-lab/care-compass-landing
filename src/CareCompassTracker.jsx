@@ -1192,21 +1192,13 @@ function LabResultsTab({ entries }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
 
-      <div style={{ background: "#fff", borderRadius: "1rem", border: "1px solid rgba(0,0,0,0.08)", overflow: "hidden" }}>
-        <div style={{ padding: "1.25rem 1.5rem", borderBottom: "1px solid rgba(0,0,0,0.08)" }}>
-          <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.2rem", fontWeight: 700, color: INK, margin: "0 0 0.3rem" }}>Lab Results</h2>
-          <p style={{ fontSize: "0.82rem", color: WARM_GRAY, margin: 0, lineHeight: 1.6 }}>
-            Upload lab results, imaging reports, or test results for a plain-language breakdown and personalised next-step guidance — cross-referenced with your symptoms and health profile.
+      <div style={{ padding: "0.875rem 1rem", background: SAGE_LIGHT, borderRadius: "0.875rem", display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
+        <span style={{ color: SAGE_DARK, marginTop: "0.1rem" }}>{TIP_ICON}</span>
+        <div>
+          <p style={{ fontSize: "0.82rem", fontWeight: 600, color: SAGE_DARK, margin: "0 0 0.15rem" }}>Your results, in full context</p>
+          <p style={{ fontSize: "0.78rem", color: SAGE_DARK, lineHeight: 1.65, margin: 0 }}>
+            Normal on a lab report does not always mean normal for you. Care Compass reads your results alongside your symptom patterns, medications, and health history — and helps you know what questions to ask next.
           </p>
-        </div>
-        <div style={{ padding: "0.875rem 1.5rem", background: SAGE_LIGHT, display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
-          <span style={{ color: SAGE_DARK, marginTop: "0.1rem" }}>{TIP_ICON}</span>
-          <div>
-            <p style={{ fontSize: "0.82rem", fontWeight: 600, color: SAGE_DARK, margin: "0 0 0.15rem" }}>Your results, in full context</p>
-            <p style={{ fontSize: "0.78rem", color: SAGE_DARK, lineHeight: 1.65, margin: 0 }}>
-              Normal on a lab report does not always mean normal for you. Care Compass reads your results alongside your symptom patterns, medications, and health history — and helps you know what questions to ask next.
-            </p>
-          </div>
         </div>
       </div>
 
@@ -2937,7 +2929,15 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
 
           {view === "labs" && (
             <div style={s.tabContent}>
-              <LabResultsTab entries={entries} />
+              <div style={{ maxWidth: 720, margin: "0 auto" }}>
+                {/* Header — matches other tab style */}
+                <div style={{ marginBottom: "1.5rem" }}>
+                  <p style={s.eyebrow}>Lab Results</p>
+                  <h2 style={{ ...s.title, fontSize: "1.4rem", marginBottom: "0.25rem" }}>Lab Results</h2>
+                  <p style={{ fontSize: "0.85rem", color: WARM_GRAY, margin: 0 }}>Upload lab results, imaging reports, or test results for a plain-language breakdown cross-referenced with your symptoms and health profile.</p>
+                </div>
+                <LabResultsTab entries={entries} />
+              </div>
             </div>
           )}
       </main>
