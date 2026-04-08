@@ -3,15 +3,23 @@ import { useAuth } from "./AuthContext";
 
 const INSIGHTS_LOADING_STYLES = `
 @keyframes insightProgress {
-  0% { width: 0%; }
-  10% { width: 12%; }
-  30% { width: 35%; }
-  60% { width: 62%; }
-  80% { width: 78%; }
-  95% { width: 90%; }
+  0%   { width: 0%; }
+  10%  { width: 12%; }
+  30%  { width: 35%; }
+  60%  { width: 62%; }
+  80%  { width: 78%; }
+  95%  { width: 90%; }
   100% { width: 94%; }
 }
 `;
+
+// Inject progress keyframe globally so all loading bars (Doctor Report, ER Report) animate correctly
+if (typeof document !== "undefined" && !document.getElementById("cc-progress-keyframe")) {
+  const _s = document.createElement("style");
+  _s.id = "cc-progress-keyframe";
+  _s.innerHTML = INSIGHTS_LOADING_STYLES;
+  document.head.appendChild(_s);
+}
 
 const SAGE       = "#7a9e87";
 const SAGE_LIGHT = "#e8f0eb";
@@ -1934,7 +1942,41 @@ End with a one-line footer: "This document was prepared by the patient using Car
   const hasActiveFilter = dateFilter !== "all" || advFilter.symptomQuery || advFilter.severity !== null || advFilter.tags.length > 0;
 
   const CHART_OPTIONS = [{ field: "severity", label: "Overall severity", color: SAGE }, { field: "stress", label: "Stress level", color: "#e8a838" }, { field: "sleep", label: "Sleep quality", color: TEAL }];
-  const tabs = [{ id: "log", label: "Log" }, { id: "trends", label: "Trends" }, { id: "insights", label: "AI Insights" }, { id: "report", label: "Doctor Report" }, { id: "er", label: "🚨 ER Report" }, { id: "bp", label: "Blood Pressure" }, { id: "labs", label: "Lab Results" }];
+  const ALL_TABS = [
+    { id: "log", label: "Log" },
+    { id: "bp", label: "Blood Pressure" },
+    { id: "trends", label: "Trends" },
+    { id: "insights", label: "AI Insights" },
+    { id: "report", label: "Doctor Report" },
+    { id: "labs", label: "Lab Results" },
+    { id: "er", label: "ER Report" },
+  ];
+
+  const TAB_ORDER_KEY = "cc-tab-order";
+  const [tabOrder, setTabOrder] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(TAB_ORDER_KEY) || "null");
+      if (saved && Array.isArray(saved) && saved.every(id => ALL_TABS.find(t => t.id === id))) return saved;
+    } catch {}
+    return ALL_TABS.map(t => t.id);
+  });
+  const [showTabConfig, setShowTabConfig] = useState(false);
+
+  const tabs = tabOrder.map(id => ALL_TABS.find(t => t.id === id)).filter(Boolean);
+
+  const saveTabOrder = (order) => {
+    setTabOrder(order);
+    try { localStorage.setItem(TAB_ORDER_KEY, JSON.stringify(order)); } catch {}
+  };
+
+  const moveTab = (id, dir) => {
+    const idx = tabOrder.indexOf(id);
+    if (dir === -1 && idx === 0) return;
+    if (dir === 1 && idx === tabOrder.length - 1) return;
+    const next = [...tabOrder];
+    [next[idx], next[idx + dir]] = [next[idx + dir], next[idx]];
+    saveTabOrder(next);
+  };
 
   if (!hasSeenOnboarding) {
     return (
@@ -2022,9 +2064,44 @@ End with a one-line footer: "This document was prepared by the patient using Car
               ))}
             </div>
           )}
-          <div style={s.tabs} className="no-print">
-            {tabs.map(tab => <button key={tab.id} onClick={() => setView(tab.id)} style={{ ...s.tab, borderBottom: view === tab.id ? `2px solid ${SAGE_DARK}` : "2px solid transparent", color: view === tab.id ? SAGE_DARK : WARM_GRAY, fontWeight: view === tab.id ? 600 : 400 }}>{tab.label}</button>)}
+          <div style={{ ...s.tabs, position: "relative", justifyContent: "space-between", alignItems: "center" }} className="no-print">
+            <div style={{ display: "flex", overflowX: "auto", gap: 0, flex: 1 }}>
+              {tabs.map(tab => <button key={tab.id} onClick={() => setView(tab.id)} style={{ ...s.tab, borderBottom: view === tab.id ? `2px solid ${SAGE_DARK}` : "2px solid transparent", color: view === tab.id ? SAGE_DARK : WARM_GRAY, fontWeight: view === tab.id ? 600 : 400, whiteSpace: "nowrap" }}>{tab.label}</button>)}
+            </div>
+            <button onClick={() => setShowTabConfig(v => !v)} title="Customize tab order"
+              style={{ flexShrink: 0, background: "none", border: "none", cursor: "pointer", color: WARM_GRAY, padding: "0.25rem 0.5rem", opacity: 0.5, fontSize: "1rem", lineHeight: 1 }}>
+              ⚙︎
+            </button>
           </div>
+
+          {/* Tab order config panel */}
+          {showTabConfig && (
+            <div style={{ background: "#fff", border: "1px solid rgba(0,0,0,0.08)", borderRadius: "1rem", padding: "1.25rem", marginBottom: "1rem", display: "flex", flexDirection: "column", gap: "0.75rem" }} className="no-print">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <p style={{ fontSize: "0.85rem", fontWeight: 600, color: INK, margin: 0 }}>Customize tab order</p>
+                  <p style={{ fontSize: "0.75rem", color: WARM_GRAY, margin: "0.1rem 0 0" }}>Use the arrows to reorder tabs to match how you use the tracker.</p>
+                </div>
+                <button onClick={() => { saveTabOrder(ALL_TABS.map(t => t.id)); }} style={{ fontSize: "0.75rem", color: WARM_GRAY, background: "none", border: "1px solid rgba(0,0,0,0.12)", borderRadius: "100px", padding: "0.3rem 0.75rem", cursor: "pointer", fontFamily: "inherit" }}>Reset</button>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                {tabOrder.map((id, idx) => {
+                  const tab = ALL_TABS.find(t => t.id === id);
+                  if (!tab) return null;
+                  return (
+                    <div key={id} style={{ display: "flex", alignItems: "center", gap: "0.75rem", background: OFF_WHITE, borderRadius: "0.625rem", padding: "0.5rem 0.875rem" }}>
+                      <span style={{ flex: 1, fontSize: "0.88rem", color: INK, fontWeight: 500 }}>{tab.label}</span>
+                      <button onClick={() => moveTab(id, -1)} disabled={idx === 0}
+                        style={{ background: "none", border: "1px solid rgba(0,0,0,0.1)", borderRadius: "0.375rem", width: 28, height: 28, cursor: idx === 0 ? "default" : "pointer", opacity: idx === 0 ? 0.3 : 1, fontSize: "0.75rem", display: "flex", alignItems: "center", justifyContent: "center" }}>↑</button>
+                      <button onClick={() => moveTab(id, 1)} disabled={idx === tabOrder.length - 1}
+                        style={{ background: "none", border: "1px solid rgba(0,0,0,0.1)", borderRadius: "0.375rem", width: 28, height: 28, cursor: idx === tabOrder.length - 1 ? "default" : "pointer", opacity: idx === tabOrder.length - 1 ? 0.3 : 1, fontSize: "0.75rem", display: "flex", alignItems: "center", justifyContent: "center" }}>↓</button>
+                    </div>
+                  );
+                })}
+              </div>
+              <button onClick={() => setShowTabConfig(false)} style={{ alignSelf: "flex-end", background: SAGE_DARK, color: "#fff", border: "none", borderRadius: "100px", padding: "0.5rem 1.25rem", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Done</button>
+            </div>
+          )}
 
           {view === "log" && (
             <div style={s.tabContent}>
@@ -2757,7 +2834,7 @@ End with a one-line footer: "This document was prepared by the patient using Car
 
                 /* ── Generating screen ── */
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 400, gap: "1.5rem", textAlign: "center" }}>
-                  <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#fff0f0", border: "2px solid #f5c0c0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.75rem" }}>🚨</div>
+                  <BotanicalMark size={56}/>
                   <div>
                     <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.4rem", fontWeight: 700, color: INK, margin: "0 0 0.5rem" }}>Building your ER report…</h2>
                     <p style={{ fontSize: "0.92rem", color: WARM_GRAY, margin: 0, lineHeight: 1.7, maxWidth: 380 }}>
