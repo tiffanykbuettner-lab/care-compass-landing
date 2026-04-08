@@ -30,6 +30,15 @@ const MED_STORAGE_KEY = "care-compass-medications-v1";
 const CHECKIN_KEY = "care-compass-checkins-v1";
 const LABS_KEY    = "care-compass-labs-v1";
 
+const APPT_SPECIALTIES = [
+  "Cardiologist", "Dermatologist", "ENT", "Endocrinologist",
+  "Gastroenterologist", "Geneticist", "Gynecologist", "Hematologist",
+  "Immunologist / Allergist", "Nephrologist", "Neurologist", "Oncologist",
+  "Ophthalmologist", "Orthopedist", "Pain Management", "Physical Therapist",
+  "Primary Care", "Psychiatrist / Psychologist", "Pulmonologist",
+  "Rheumatologist", "Urologist", "Other",
+];
+
 const BotanicalMark = ({ size = 32 }) => (
   <svg width={size} height={size} viewBox="0 0 72 72" fill="none">
     <circle cx="36" cy="36" r="34" fill="#e8f0eb" stroke="#7a9e87" strokeWidth="1"/>
@@ -1313,6 +1322,10 @@ export default function CareCompassTracker() {
   const [insights, setInsights]         = useState(null);
   const [apptContext, setApptContext]    = useState(null);
   const [loadingInsights, setLoadingInsights] = useState(false);
+  // ── Doctor report state ───────────────────────────────────────────────────
+  const [reportView, setReportView]     = useState("prompt"); // "prompt" | "generating" | "report"
+  const [reportPrompt, setReportPrompt] = useState({ providerName: "", specialty: "", focus: "", symptoms: "", questions: "", saveToTeam: false });
+  const [reportAI, setReportAI]         = useState(null);
   const [saved, setSaved]               = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [confirmDeleteLabId, setConfirmDeleteLabId] = useState(null);
@@ -1347,11 +1360,10 @@ export default function CareCompassTracker() {
 
   useEffect(() => { try { const stored = localStorage.getItem(STORAGE_KEY); if (stored) setEntries(JSON.parse(stored)); } catch {} }, []);
 
-  // Read appointment context from URL and auto-trigger insights
+  // Read appointment context from URL and auto-trigger insights or prefill report
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("insight") === "1") {
-      // Skip onboarding if coming from appointment flow
       try { localStorage.setItem("cc-tracker-onboarded", "true"); } catch {}
       setHasSeenOnboarding(true);
       setView("insights");
@@ -1359,10 +1371,20 @@ export default function CareCompassTracker() {
       const doctor = params.get("doctor") || "";
       const reason = params.get("reason") || "";
       const date = params.get("date") || "";
-      if (specialty) {
-        setApptContext({ specialty, doctor, reason, date });
-      }
-      // Clean URL without reload
+      if (specialty) setApptContext({ specialty, doctor, reason, date });
+      window.history.replaceState({}, "", "/tracker");
+    }
+    if (params.get("report") === "1") {
+      try { localStorage.setItem("cc-tracker-onboarded", "true"); } catch {}
+      setHasSeenOnboarding(true);
+      setView("report");
+      setReportView("prompt");
+      setReportPrompt(p => ({
+        ...p,
+        providerName: params.get("doctor") || "",
+        specialty: params.get("specialty") || "",
+        focus: params.get("reason") || "",
+      }));
       window.history.replaceState({}, "", "/tracker");
     }
   }, []);
@@ -1597,7 +1619,82 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
 
   const handlePrint = () => { const style = document.createElement("style"); style.innerHTML = `@media print { .no-print { display: none !important; } @page { margin: 1.5cm; } }`; document.head.appendChild(style); window.print(); setTimeout(() => document.head.removeChild(style), 1000); };
 
-  // ── Medication list state ────────────────────────────────────────────────
+  const handleGenerateReport = async () => {
+    if (!entries.length) return;
+    setReportView("generating");
+    setReportAI(null);
+    // Save new provider to care team if requested
+    const { providerName, specialty, saveToTeam } = reportPrompt;
+    if (saveToTeam && providerName.trim() && !careTeam.find(p => p.name.toLowerCase() === providerName.trim().toLowerCase())) {
+      try {
+        const existing = JSON.parse(localStorage.getItem("cc-care-team") || "[]");
+        existing.push({ id: Date.now(), name: providerName.trim(), specialty: specialty || "" });
+        localStorage.setItem("cc-care-team", JSON.stringify(existing));
+      } catch {}
+    }
+    const since = Date.now() - 60 * 24 * 60 * 60 * 1000;
+    const workingEntries = entries.filter(e => e.timestamp >= since).length >= 5
+      ? entries.filter(e => e.timestamp >= since) : entries;
+    const grouped = {};
+    [...workingEntries].sort((a, b) => a.timestamp - b.timestamp).forEach(e => {
+      const day = new Date(e.timestamp).toLocaleDateString("en-US", { weekday:"short", month:"short", day:"numeric" });
+      if (!grouped[day]) grouped[day] = [];
+      grouped[day].push(e);
+    });
+    const summary = Object.entries(grouped).map(([day, dayEntries]) =>
+      `${day}:\n${dayEntries.map(e =>
+        `  ${new Date(e.timestamp).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})}: Severity ${e.severity}/10${e.symptoms?` — ${e.symptoms}`:""}${e.stress?` | Stress: ${e.stress}/10`:""}${e.activity?` | Activity: ${e.activity}`:""}${e.notes?` | Notes: ${e.notes}`:""}`
+      ).join("\n")}`
+    ).join("\n\n");
+    const { focus, symptoms: highlightSymptoms, questions } = reportPrompt;
+    const prompt = `You are Care Compass, a compassionate health navigation assistant helping a patient prepare for a medical appointment. Generate a focused, appointment-ready report.
+
+APPOINTMENT DETAILS:
+- Provider: ${providerName || "their doctor"}
+- Specialty: ${specialty || "General"}
+- Visit focus: ${focus || "General symptom review"}
+${highlightSymptoms ? `- Symptoms to highlight: ${highlightSymptoms}` : ""}
+${questions ? `- Patient's questions: ${questions}` : ""}
+${careTeamStr ? `\nCARE TEAM: ${careTeamStr}` : ""}${familyHistoryStr ? `\nFAMILY HISTORY: ${familyHistoryStr}` : ""}
+
+TRACKER DATA (last 60 days):
+${summary}
+
+Write a warm, specific, appointment-focused report using exactly these section headers (##):
+
+## Visit Summary
+2-3 sentences on the overall picture and visit focus.
+
+## Key Patterns for This Visit
+Patterns most relevant to ${specialty || "this appointment"} and the focus. Be specific — reference dates and trends.
+
+## Highlighted Symptom Entries
+Pull 4-6 most relevant entries from the log. Note date, severity, and quote the patient's words.
+
+## Daily Life Impact
+How symptoms affect real-world functioning — driving, work, sleep, physical tasks. Be specific.
+
+## What's Improving vs What's Worsening
+Honest assessment of trends. Note if patterns are unclear.
+
+## Questions to Raise at This Visit
+5-7 specific, targeted questions for ${providerName || "their " + (specialty || "doctor")} grounded in the data.
+
+## Suggested Next Steps
+2-3 concrete things to discuss or request (tests, referrals, adjustments).
+
+Never diagnose. Use language like "worth discussing", "the data suggests".`;
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+        body: JSON.stringify({ model: "claude-opus-4-6", max_tokens: 4000, messages: [{ role: "user", content: prompt }] }),
+      });
+      const data = await res.json();
+      setReportAI(data.content?.[0]?.text || "Unable to generate report. Please try again.");
+    } catch { setReportAI("Something went wrong. Please try again."); }
+    setReportView("report");
+  };
   const [medications, setMedications]     = useState([]);
   const [showMedForm, setShowMedForm]     = useState(false);
   const [editingMed, setEditingMed]       = useState(null);
@@ -2258,50 +2355,140 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
 
           {view === "report" && (
             <div style={s.tabContent}>
-              {entries.length === 0 ? <div style={s.emptyState}><p style={s.emptyDesc}>No entries yet.</p></div> : (
+              {entries.length === 0 ? (
+                <div style={s.emptyState}><p style={s.emptyDesc}>No entries yet. Start logging to generate a doctor report.</p></div>
+              ) : reportView === "prompt" ? (
+                <div style={{ maxWidth: 640, margin: "0 auto", display: "flex", flexDirection: "column", gap: "1.75rem" }}>
+                  <div>
+                    <p style={s.eyebrow}>Doctor Report</p>
+                    <h2 style={{ ...s.title, fontSize: "1.5rem", marginBottom: "0.4rem" }}>Prepare your visit report</h2>
+                    <p style={{ fontSize: "0.92rem", color: WARM_GRAY, margin: 0, lineHeight: 1.65 }}>Tell us about your upcoming appointment and Care Compass will generate a focused, AI-powered report with your metrics, relevant entries, and questions tailored to your visit.</p>
+                  </div>
+                  <div style={{ background: "#fff", borderRadius: "1.25rem", border: "1px solid rgba(0,0,0,0.07)", padding: "1.75rem", display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+                    {/* Provider name — care team pills or freetext */}
+                    <div style={s.formGroup}>
+                      <label style={s.label}>Provider name</label>
+                      {careTeam.filter(p => p.name).length > 0 ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+                            {careTeam.filter(p => p.name).map((p, i) => (
+                              <button key={i}
+                                onClick={() => setReportPrompt(prev => ({ ...prev, providerName: p.name, specialty: p.specialty || prev.specialty, saveToTeam: false }))}
+                                style={{ padding: "0.4rem 0.875rem", borderRadius: "100px", border: "1.5px solid", borderColor: reportPrompt.providerName === p.name ? SAGE_DARK : "rgba(0,0,0,0.12)", background: reportPrompt.providerName === p.name ? SAGE_DARK : "#fff", color: reportPrompt.providerName === p.name ? "#fff" : INK, fontSize: "0.85rem", fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}>
+                                {p.name}{p.specialty ? ` · ${p.specialty}` : ""}
+                              </button>
+                            ))}
+                            <button
+                              onClick={() => setReportPrompt(prev => ({ ...prev, providerName: !careTeam.find(p => p.name === prev.providerName) ? prev.providerName : "" }))}
+                              style={{ padding: "0.4rem 0.875rem", borderRadius: "100px", border: "1.5px dashed rgba(0,0,0,0.15)", background: !careTeam.find(p => p.name === reportPrompt.providerName) && reportPrompt.providerName ? SAGE_LIGHT : "#fff", color: WARM_GRAY, fontSize: "0.85rem", cursor: "pointer", fontFamily: "inherit" }}>
+                              + Other provider
+                            </button>
+                          </div>
+                          {(!careTeam.find(p => p.name === reportPrompt.providerName) || reportPrompt.providerName === "") && (
+                            <input style={s.input} value={reportPrompt.providerName}
+                              onChange={e => setReportPrompt(p => ({ ...p, providerName: e.target.value, saveToTeam: false }))}
+                              placeholder="Enter provider name"/>
+                          )}
+                          {reportPrompt.providerName.trim() && !careTeam.find(p => p.name === reportPrompt.providerName) && (
+                            <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", fontSize: "0.8rem", color: SAGE_DARK }}>
+                              <input type="checkbox" checked={reportPrompt.saveToTeam || false} onChange={() => setReportPrompt(p => ({ ...p, saveToTeam: !p.saveToTeam }))} style={{ accentColor: SAGE_DARK, width: 14, height: 14 }}/>
+                              Save this provider to my care team in Account Settings
+                            </label>
+                          )}
+                        </div>
+                      ) : (
+                        <input style={s.input} value={reportPrompt.providerName}
+                          onChange={e => setReportPrompt(p => ({ ...p, providerName: e.target.value }))}
+                          placeholder="e.g. Dr. Smith"/>
+                      )}
+                    </div>
+                    {/* Specialty dropdown */}
+                    <div style={s.formGroup}>
+                      <label style={s.label}>Specialty</label>
+                      <select style={s.input} value={reportPrompt.specialty} onChange={e => setReportPrompt(p => ({ ...p, specialty: e.target.value }))}>
+                        <option value="">Select a specialty…</option>
+                        {APPT_SPECIALTIES.map(sp => <option key={sp} value={sp}>{sp}</option>)}
+                      </select>
+                    </div>
+                    <div style={s.formGroup}>
+                      <label style={s.label}>What are you being seen for?</label>
+                      <input style={s.input} value={reportPrompt.focus} onChange={e => setReportPrompt(p => ({ ...p, focus: e.target.value }))} placeholder="e.g. Neck and knee pain, flare management, medication review"/>
+                    </div>
+                    <div style={s.formGroup}>
+                      <label style={s.label}>Symptoms to highlight <span style={s.optional}>(optional)</span></label>
+                      <textarea style={{ ...s.input, resize: "vertical" }} rows={2} value={reportPrompt.symptoms} onChange={e => setReportPrompt(p => ({ ...p, symptoms: e.target.value }))} placeholder="e.g. Neck stiffness after sitting, knee pain on stairs, morning joint pain lasting 2+ hours"/>
+                    </div>
+                    <div style={s.formGroup}>
+                      <label style={s.label}>Questions or concerns to raise <span style={s.optional}>(optional)</span></label>
+                      <textarea style={{ ...s.input, resize: "vertical" }} rows={2} value={reportPrompt.questions} onChange={e => setReportPrompt(p => ({ ...p, questions: e.target.value }))} placeholder="e.g. Is my pain pattern consistent with inflammation? Should we adjust my current treatment?"/>
+                    </div>
+                  </div>
+                  <div style={{ background: SAGE_LIGHT, borderRadius: "0.875rem", padding: "0.875rem 1.1rem", display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink:0, marginTop:"0.1rem" }}><circle cx="8" cy="8" r="6.5" stroke={SAGE_DARK} strokeWidth="1.3"/><path d="M8 7v4" stroke={SAGE_DARK} strokeWidth="1.4" strokeLinecap="round"/><circle cx="8" cy="5.5" r="0.7" fill={SAGE_DARK}/></svg>
+                    <p style={{ fontSize: "0.8rem", color: SAGE_DARK, margin: 0, lineHeight: 1.6 }}>Your report will include <strong>metrics and charts</strong>, <strong>highlighted entries</strong> relevant to your visit, and <strong>tailored questions</strong> — based on {entries.length} entries across {new Set(entries.map(e => new Date(e.timestamp).toDateString())).size} days.</p>
+                  </div>
+                  <button onClick={handleGenerateReport} disabled={!reportPrompt.focus.trim() && !reportPrompt.specialty}
+                    style={{ ...s.addBtn, padding: "1rem 2rem", fontSize: "1rem", opacity: (!reportPrompt.focus.trim() && !reportPrompt.specialty) ? 0.5 : 1 }}>
+                    Generate My Report →
+                  </button>
+                  {!reportPrompt.focus.trim() && !reportPrompt.specialty && (
+                    <p style={{ fontSize: "0.8rem", color: "#aaa", margin: "-1rem 0 0", textAlign: "center", fontStyle: "italic" }}>Select a specialty or enter a visit focus to get started</p>
+                  )}
+                </div>
+              ) : reportView === "generating" ? (
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 400, gap: "1.5rem", textAlign: "center" }}>
+                  <BotanicalMark size={56}/>
+                  <div>
+                    <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.4rem", fontWeight: 700, color: INK, margin: "0 0 0.5rem" }}>Building your report…</h2>
+                    <p style={{ fontSize: "0.92rem", color: WARM_GRAY, margin: 0, lineHeight: 1.7, maxWidth: 360 }}>Care Compass is analyzing your entries and tailoring insights for your {reportPrompt.specialty || "appointment"}{reportPrompt.providerName ? ` with ${reportPrompt.providerName}` : ""}.</p>
+                  </div>
+                  <div style={{ width: "100%", maxWidth: 320, height: 6, background: SAGE_LIGHT, borderRadius: 100, overflow: "hidden" }}>
+                    <div style={{ height: "100%", borderRadius: 100, background: SAGE_DARK, animation: "insightProgress 18s ease-in-out forwards" }}/>
+                  </div>
+                  <p style={{ fontSize: "0.78rem", color: "#aaa", margin: 0, fontStyle: "italic" }}>This usually takes 10–20 seconds</p>
+                </div>
+              ) : (
                 <div style={s.reportWrap}>
-                  <div style={s.reportTopBar} className="no-print">
-                    <p style={s.reportTopNote}>Formatted for your doctor. Print or save as PDF.</p>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem", flexWrap: "wrap", gap: "0.75rem" }} className="no-print">
+                    <button onClick={() => { setReportView("prompt"); setReportAI(null); }} style={{ background: "transparent", border: "1.5px solid rgba(0,0,0,0.12)", borderRadius: "100px", padding: "0.5rem 1.1rem", fontSize: "0.85rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit" }}>← Edit report details</button>
                     <button onClick={handlePrint} style={s.printBtn}>↓ Save as PDF</button>
                   </div>
                   <div style={s.reportCard}>
-
-                    {/* ── Header ── */}
                     <div style={s.reportHead}>
                       <BotanicalMark size={44}/>
                       <div style={{ flex: 1 }}>
-                        <p style={s.reportEyebrow}>Care Compass Health Report</p>
-                        <h2 style={s.reportTitle}>Symptom Tracking Summary</h2>
-                        <p style={s.reportMeta}>
-                          Generated {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })} · {entries.length} entries over {new Set(entries.map(e => new Date(e.timestamp).toDateString())).size} days
-                        </p>
-                        {careTeam.length > 0 && (
+                        <p style={s.reportEyebrow}>Care Compass · Appointment Report</p>
+                        <h2 style={s.reportTitle}>{reportPrompt.specialty || "Doctor"} Visit{reportPrompt.providerName ? ` — ${reportPrompt.providerName}` : ""}</h2>
+                        <p style={s.reportMeta}>Generated {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })} · {entries.length} entries over {new Set(entries.map(e => new Date(e.timestamp).toDateString())).size} days</p>
+                        {reportPrompt.focus && (
+                          <div style={{ marginTop: "0.875rem", background: `linear-gradient(135deg, ${SAGE_LIGHT}, ${TEAL_LIGHT})`, borderRadius: "0.75rem", padding: "0.75rem 1rem" }}>
+                            <p style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: SAGE_DARK, margin: "0 0 0.2rem" }}>Visit focus</p>
+                            <p style={{ fontSize: "0.9rem", color: INK, margin: 0, lineHeight: 1.5 }}>{reportPrompt.focus}</p>
+                          </div>
+                        )}
+                        {careTeam.filter(p => p.name).length > 0 && (
                           <div style={{ marginTop: "0.75rem", paddingTop: "0.75rem", borderTop: "1px solid rgba(0,0,0,0.06)" }}>
                             <p style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: "0 0 0.4rem" }}>Care team</p>
                             <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
                               {careTeam.filter(p => p.name).map((p, i) => (
-                                <span key={i} style={{ background: SAGE_LIGHT, color: SAGE_DARK, fontSize: "0.75rem", fontWeight: 600, padding: "0.2rem 0.7rem", borderRadius: "100px" }}>
-                                  {p.name}{p.specialty ? ` · ${p.specialty}` : ""}
-                                </span>
+                                <span key={i} style={{ background: SAGE_LIGHT, color: SAGE_DARK, fontSize: "0.75rem", fontWeight: 600, padding: "0.2rem 0.7rem", borderRadius: "100px" }}>{p.name}{p.specialty ? ` · ${p.specialty}` : ""}</span>
                               ))}
                             </div>
                           </div>
                         )}
                       </div>
                     </div>
-
-                    {/* ── Summary stats ── */}
                     <div style={s.reportSection}>
                       <h3 style={s.reportSectionTitle}>At a Glance</h3>
                       <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
                         {(() => {
                           const totalDays = new Set(entries.map(e => new Date(e.timestamp).toDateString())).size;
-                          const avgSev = (entries.reduce((s, e) => s + e.severity, 0) / entries.length).toFixed(1);
+                          const avgSev = (entries.reduce((sum, e) => sum + e.severity, 0) / entries.length).toFixed(1);
                           const highDays = new Set(entries.filter(e => e.severity >= 7).map(e => new Date(e.timestamp).toDateString())).size;
                           const sleepEntries = entries.filter(e => e.sleep != null);
-                          const avgSleep = sleepEntries.length ? (sleepEntries.reduce((s, e) => s + e.sleep, 0) / sleepEntries.length).toFixed(1) : null;
+                          const avgSleep = sleepEntries.length ? (sleepEntries.reduce((sum, e) => sum + e.sleep, 0) / sleepEntries.length).toFixed(1) : null;
                           const stressEntries = entries.filter(e => e.stress != null);
-                          const avgStress = stressEntries.length ? (stressEntries.reduce((s, e) => s + e.stress, 0) / stressEntries.length).toFixed(1) : null;
+                          const avgStress = stressEntries.length ? (stressEntries.reduce((sum, e) => sum + e.stress, 0) / stressEntries.length).toFixed(1) : null;
                           const sevColor = avgSev <= 3 ? SAGE_DARK : avgSev <= 6 ? "#e8a838" : "#c0392b";
                           return <>
                             <ReportStatBox label="Days tracked" value={totalDays} sub={`${entries.length} total entries`}/>
@@ -2313,138 +2500,64 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
                         })()}
                       </div>
                     </div>
-
-                    {/* ── Severity bar chart ── */}
                     <div style={s.reportSection}>
                       <h3 style={s.reportSectionTitle}>Daily Severity — Last 30 Days</h3>
-                      <p style={{ fontSize: "0.75rem", color: "#aaa", margin: "0 0 0.75rem", fontStyle: "italic" }}>
-                        Average severity per day · <span style={{ color: SAGE_DARK }}>■</span> Low (1–3) &nbsp;
-                        <span style={{ color: "#e8a838" }}>■</span> Moderate (4–6) &nbsp;
-                        <span style={{ color: "#c0392b" }}>■</span> High (7–10)
-                      </p>
+                      <p style={{ fontSize: "0.75rem", color: "#aaa", margin: "0 0 0.75rem", fontStyle: "italic" }}><span style={{ color: SAGE_DARK }}>■</span> Low (1–3) &nbsp;<span style={{ color: "#e8a838" }}>■</span> Moderate (4–6) &nbsp;<span style={{ color: "#c0392b" }}>■</span> High (7–10)</p>
                       <SeverityBarChart entries={entries}/>
                     </div>
-
-                    {/* ── Severity line chart ── */}
-                    <div style={s.reportSection}>
-                      <h3 style={s.reportSectionTitle}>Severity Trend</h3>
-                      <LineChart entries={entries} field="severity" color={SAGE}/>
-                    </div>
-
-                    {/* ── Symptom frequency ── */}
                     <div style={s.reportSection}>
                       <h3 style={s.reportSectionTitle}>Most Frequent Symptoms</h3>
-                      <p style={{ fontSize: "0.75rem", color: "#aaa", margin: "0 0 0.75rem", fontStyle: "italic" }}>
-                        Frequency shown as number of entries and % of days tracked
-                      </p>
                       <SymptomFrequencyChart entries={entries}/>
                     </div>
-
-                    {/* ── Sleep & stress ── */}
                     {entries.some(e => e.sleep != null) && (
                       <div style={s.reportSection}>
                         <h3 style={s.reportSectionTitle}>Sleep Quality & Stress Levels</h3>
                         <SleepStressChart entries={entries}/>
                       </div>
                     )}
-
-                    {/* ── Medications summary ── */}
-                    {(() => {
-                      const medSet = new Set();
-                      entries.forEach(e => { if (e.medications) e.medications.replace(/\n/g, ",").split(",").forEach(m => { const t = m.trim(); if (t) medSet.add(t); }); });
-                      const meds = [...medSet].slice(0, 20);
-                      if (!meds.length) return null;
-                      return (
-                        <div style={s.reportSection}>
-                          <h3 style={s.reportSectionTitle}>Medications Logged</h3>
-                          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
-                            {meds.map(m => (
-                              <span key={m} style={{ background: SAGE_LIGHT, color: SAGE_DARK, fontSize: "0.75rem", fontWeight: 600, padding: "0.2rem 0.7rem", borderRadius: "100px" }}>{m}</span>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })()}
-
-                    {/* ── Functional impact section ── */}
-                    {(() => {
-                      const ACTIVITY_KEYWORDS = [
-                        "driv", "cook", "shower", "bath", "dress", "undress", "hair", "brush",
-                        "laundry", "wash", "clean", "vacuum", "groceri", "shop", "lift", "carry",
-                        "walk", "stairs", "climb", "stand", "sit", "bed", "sleep", "couch",
-                        "work", "type", "write", "phone", "computer", "screen",
-                        "exercise", "gym", "yoga", "stretch", "run", "swim",
-                        "child", "kid", "pet", "dog", "cat", "feed",
-                        "eat", "chew", "swallow", "drink",
-                        "social", "friend", "family", "visit", "event", "cancel",
-                        "appointment", "class", "school", "errands",
-                        "couldn't", "unable", "difficult", "hard to", "struggle", "help",
-                        "had to stop", "had to sit", "had to rest", "had to cancel",
-                        "too tired", "too painful", "too dizzy", "too weak",
-                        "limited", "impacted", "affected", "prevented", "missed",
-                      ];
-                      const impactEntries = entries.filter(e => {
-                        const text = ((e.activity || "") + " " + (e.symptoms || "") + " " + (e.notes || "")).toLowerCase();
-                        return ACTIVITY_KEYWORDS.some(kw => text.includes(kw));
-                      });
-                      if (!impactEntries.length) return null;
-                      return (
-                        <div style={{ ...s.reportSection, pageBreakInside: "avoid" }}>
-                          <h3 style={s.reportSectionTitle}>Daily Life Impact</h3>
-                          <p style={{ fontSize: "0.78rem", color: WARM_GRAY, margin: "0 0 0.875rem", fontStyle: "italic", lineHeight: 1.6 }}>
-                            Activities and daily tasks affected by symptoms — shown to illustrate real-world severity.
-                          </p>
-                          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                            {impactEntries.slice(0, 20).map((e, i) => {
-                              const date = new Date(e.timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-                              const time = new Date(e.timestamp).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-                              const impactText = [e.activity, e.symptoms, e.notes].filter(Boolean).join(" · ");
-                              return (
-                                <div key={e.id} style={{ display: "flex", gap: "0.875rem", alignItems: "flex-start", padding: "0.65rem 0.875rem", background: i % 2 === 0 ? "#fff" : OFF_WHITE, borderRadius: "0.5rem", borderLeft: `3px solid ${severityColor(e.severity)}` }}>
-                                  <div style={{ flexShrink: 0, textAlign: "center", minWidth: 52 }}>
-                                    <div style={{ fontSize: "0.72rem", fontWeight: 600, color: INK }}>{date}</div>
-                                    <div style={{ fontSize: "0.65rem", color: "#aaa" }}>{time}</div>
-                                    <span style={{ ...s.severityBadge, background: severityColor(e.severity), fontSize: "0.65rem", marginTop: "0.2rem", display: "inline-block" }}>{e.severity}/10</span>
+                    {reportAI && (() => {
+                      const SECTION_STYLES = {
+                        "visit summary":              { border: SAGE,      head: SAGE_DARK,  bg: "#fff" },
+                        "key patterns for this visit":{ border: TEAL,      head: "#2c6e72",  bg: TEAL_LIGHT },
+                        "highlighted symptom entries":{ border: "#e8a838", head: "#8a5a00",  bg: "#fff8e8" },
+                        "daily life impact":          { border: "#f0d58a", head: "#8a5a00",  bg: "#fff8e8" },
+                        "what's improving vs what's worsening": { border: SAGE, head: SAGE_DARK, bg: SAGE_LIGHT },
+                        "questions to raise at this visit":     { border: "#c0caf5", head: "#2c3d9b", bg: "#f0f4ff" },
+                        "suggested next steps":       { border: TEAL,      head: "#2c6e72",  bg: TEAL_LIGHT },
+                      };
+                      return reportAI.split(/\n(?=## )/).filter(Boolean).map((section, si) => {
+                        const lines = section.split("\n");
+                        const heading = lines[0].replace(/^##\s*/, "").trim();
+                        const body = lines.slice(1).join("\n").trim();
+                        if (!heading || !body) return null;
+                        const key = heading.toLowerCase().replace(/[^a-z\s']/g, "").trim();
+                        const col = SECTION_STYLES[key] || { border: SAGE, head: SAGE_DARK, bg: "#fff" };
+                        return (
+                          <div key={si} style={{ background: col.bg, border: `1.5px solid ${col.border}`, borderRadius: "1.25rem", overflow: "hidden", marginBottom: "1rem" }}>
+                            <div style={{ padding: "0.875rem 1.5rem", borderBottom: `1.5px solid ${col.border}`, display: "flex", alignItems: "center", gap: "0.625rem" }}>
+                              <div style={{ width: 4, height: 20, borderRadius: 2, background: col.head, flexShrink: 0 }}/>
+                              <h3 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.05rem", fontWeight: 700, color: col.head, margin: 0 }}>{heading}</h3>
+                            </div>
+                            <div style={{ padding: "1.1rem 1.5rem", display: "flex", flexDirection: "column", gap: "0.625rem" }}>
+                              {body.split("\n").map(l => l.trim()).filter(Boolean).map((line, li) => {
+                                const isBullet = /^[-*•]\s/.test(line) || /^\d+[.)]\s/.test(line);
+                                const clean = line.replace(/^[-*•]\s*/, "").replace(/^\d+[.)]\s*/, "").replace(/\*\*(.*?)\*\*/g, "$1").trim();
+                                if (!clean) return null;
+                                if (isBullet) return (
+                                  <div key={li} style={{ display: "flex", gap: "0.625rem", alignItems: "flex-start" }}>
+                                    <div style={{ width: 6, height: 6, borderRadius: "50%", background: col.head, flexShrink: 0, marginTop: "0.6rem" }}/>
+                                    <p style={{ fontSize: "0.875rem", color: INK, lineHeight: 1.75, margin: 0 }}>{clean}</p>
                                   </div>
-                                  <div style={{ flex: 1, fontSize: "0.82rem", color: INK, lineHeight: 1.6 }}>
-                                    {impactText}
-                                  </div>
-                                </div>
-                              );
-                            })}
+                                );
+                                return <p key={li} style={{ fontSize: "0.875rem", color: INK, lineHeight: 1.85, margin: 0 }}>{clean}</p>;
+                              })}
+                            </div>
                           </div>
-                          {impactEntries.length > 20 && (
-                            <p style={{ fontSize: "0.72rem", color: "#aaa", marginTop: "0.5rem", fontStyle: "italic" }}>
-                              Showing 20 of {impactEntries.length} entries with functional impact
-                            </p>
-                          )}
-                        </div>
-                      );
+                        );
+                      }).filter(Boolean);
                     })()}
-
-                    {/* ── Detailed log table ── */}
-                    <div style={s.reportSection}>
-                      <h3 style={s.reportSectionTitle}>Detailed Entry Log</h3>
-                      <table style={s.reportTable}>
-                        <thead><tr>{["Date & Time","Severity","Symptoms","Food","Medications","Activity","Sleep","Stress","Notes"].map(h => <th key={h} style={s.reportTh}>{h}</th>)}</tr></thead>
-                        <tbody>{[...entries].reverse().map((e, i) => (
-                          <tr key={e.id} style={{ background: i % 2 === 0 ? "#fff" : OFF_WHITE }}>
-                            <td style={s.reportTd}>{new Date(e.timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric" })}<br/><span style={{ fontSize: "0.72rem", color: "#aaa" }}>{new Date(e.timestamp).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</span></td>
-                            <td style={{ ...s.reportTd, textAlign: "center" }}><span style={{ ...s.severityBadge, background: severityColor(e.severity), fontSize: "0.72rem" }}>{e.severity}/10</span></td>
-                            <td style={s.reportTd}>{e.symptoms || "—"}</td>
-                            <td style={s.reportTd}>{e.food || "—"}</td>
-                            <td style={s.reportTd}>{e.medications || "—"}</td>
-                            <td style={s.reportTd}>{e.activity || "—"}</td>
-                            <td style={s.reportTd}>{e.sleep != null ? `${e.sleep}/10` : "—"}</td>
-                            <td style={s.reportTd}>{e.stress}/10</td>
-                            <td style={s.reportTd}>{e.notes || "—"}</td>
-                          </tr>
-                        ))}</tbody>
-                      </table>
-                    </div>
-
                     <div style={s.reportFooter}>
-                      <p style={s.reportFooterText}>Generated by Care Compass · joincarecompass.com · This is not a medical record or medical advice. Please review with your healthcare provider.</p>
+                      <p style={s.reportFooterText}>Generated by Care Compass · joincarecompass.com · Not a medical record or medical advice. Review with your healthcare provider.</p>
                     </div>
                   </div>
                 </div>
