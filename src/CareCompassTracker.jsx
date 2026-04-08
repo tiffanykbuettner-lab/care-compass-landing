@@ -1326,6 +1326,10 @@ export default function CareCompassTracker() {
   const [reportView, setReportView]     = useState("prompt"); // "prompt" | "generating" | "report"
   const [reportPrompt, setReportPrompt] = useState({ providerName: "", specialty: "", focus: "", symptoms: "", questions: "", saveToTeam: false });
   const [reportAI, setReportAI]         = useState(null);
+  // ── ER Report state ───────────────────────────────────────────────────────
+  const [erView, setErView]             = useState("prompt"); // "prompt" | "generating" | "report"
+  const [erPrompt, setErPrompt]         = useState({ chiefComplaint: "", severity: 8, duration: "", relevantHistory: "", allergies: "" });
+  const [erAI, setErAI]                 = useState(null);
   const [saved, setSaved]               = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [confirmDeleteLabId, setConfirmDeleteLabId] = useState(null);
@@ -1695,6 +1699,94 @@ Never diagnose. Use language like "worth discussing", "the data suggests".`;
     } catch { setReportAI("Something went wrong. Please try again."); }
     setReportView("report");
   };
+
+  const handleGenerateER = async () => {
+    if (!entries.length && !erPrompt.chiefComplaint.trim()) return;
+    setErView("generating");
+    setErAI(null);
+
+    // Pull all context
+    const profile = (() => { try { return JSON.parse(localStorage.getItem("cc-profile") || "{}"); } catch { return {}; } })();
+    const conditions = (profile.conditions || []).join(", ");
+    const medsStr = medications.filter(m => m.name).map(m => `${m.name}${m.dose ? " " + m.dose : ""}${m.frequency ? ", " + m.frequency : ""}`).join("; ");
+    const allergiesFromPrompt = erPrompt.allergies.trim();
+
+    // Recent entries — last 14 days for acute context
+    const since14 = Date.now() - 14 * 24 * 60 * 60 * 1000;
+    const recentEntries = [...entries].filter(e => e.timestamp >= since14).sort((a,b) => b.timestamp - a.timestamp);
+    const entrySummary = recentEntries.slice(0, 30).map(e =>
+      `${new Date(e.timestamp).toLocaleDateString("en-US",{month:"short",day:"numeric"})} ${new Date(e.timestamp).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})}: Severity ${e.severity}/10${e.symptoms?` — ${e.symptoms}`:""}${e.activity?` | Functional impact: ${e.activity}`:""}${e.notes?` | ${e.notes}`:""}`
+    ).join("\n");
+
+    // BP last 10 readings
+    const bpSummary = bpReadings.slice(0,10).map(r =>
+      `${new Date(r.timestamp).toLocaleDateString("en-US",{month:"short",day:"numeric"})}: ${r.systolic}/${r.diastolic} mmHg${r.pulse?` | Pulse: ${r.pulse}`:""}${r.notes?` | ${r.notes}`:""} — ${bpCategory(r.systolic,r.diastolic).label}`
+    ).join("\n");
+
+    const prompt = `You are helping a patient with chronic and complex illness prepare a clear, professional emergency room handoff document. This document needs to communicate quickly and authoritatively to ER staff who are unfamiliar with this patient's history.
+
+CRITICAL CONTEXT: ER staff are trained in acute care, not complex chronic illness management. Many chronic illness patients are dismissed, undertreated, or sent home without answers because their complexity is not immediately visible. This document should be structured, scannable, and credible — formatted to be taken seriously. It should communicate the urgency of TODAY'S visit while also giving enough medical context that staff understand who this patient is.
+
+TODAY'S VISIT:
+- Chief complaint: ${erPrompt.chiefComplaint || "See symptom history"}
+- Current severity: ${erPrompt.severity}/10
+- Duration of current symptoms: ${erPrompt.duration || "See symptom history"}
+${erPrompt.relevantHistory ? `- Additional context the patient wants to highlight: ${erPrompt.relevantHistory}` : ""}
+
+PATIENT MEDICAL CONTEXT:
+${conditions ? `Confirmed/suspected diagnoses: ${conditions}` : ""}
+${medsStr ? `Current medications: ${medsStr}` : ""}
+${allergiesFromPrompt ? `Known allergies: ${allergiesFromPrompt}` : ""}
+${careTeamStr ? `Care team: ${careTeamStr}` : ""}
+${familyHistoryStr ? `Relevant family history:\n${familyHistoryStr}` : ""}
+
+RECENT SYMPTOM TRACKING (last 14 days):
+${entrySummary || "No recent entries logged"}
+
+${bpSummary ? `BLOOD PRESSURE READINGS (recent):\n${bpSummary}` : ""}
+
+Generate a structured ER handoff document using exactly these section headers (##). Keep each section tight and scannable — ER staff need to absorb this quickly. Use clinical-adjacent language (clear, not jargon-heavy). Be direct and factual.
+
+## Patient Overview
+2-3 sentences: who this patient is, their primary conditions, and why they are here today. Write this as if briefing a physician cold.
+
+## Chief Complaint & Current Symptoms
+What is happening right now, how severe, how long, and what makes it better or worse. Include functional impact — what they cannot do because of this.
+
+## Relevant Symptom Pattern (Last 14 Days)
+Key patterns from their tracking data that are relevant to today's visit. Highlight any escalation, high-severity days, or notable triggers. Be specific with dates where relevant.
+
+## Confirmed Diagnoses & Known Conditions
+Bulleted list of diagnoses and conditions on record. Include how long they've had each where known.
+
+## Current Medications
+Bulleted list of current medications with doses. Note any that are relevant to today's presentation.
+
+## Known Allergies & Sensitivities
+List any known medication allergies, sensitivities, or adverse reactions. If none stated, say "None reported by patient."
+
+## Care Team
+List of current providers with specialties. Include this so ER staff know who to coordinate with if needed.
+
+## What to Know About This Patient
+2-4 bullet points that give ER staff important context for treating this patient well — their complexity, any conditions that are commonly misunderstood, sensitivities to standard protocols, or things that have not worked in the past. Frame this as clinical context, not patient advocacy.
+
+## What This Patient Needs From This Visit
+Clear, specific statement of what the patient is seeking — diagnosis, pain management, imaging, IV fluids, etc. Frame as clinical goals.
+
+End with a one-line footer: "This document was prepared by the patient using Care Compass health tracking software. joincarecompass.com"`;
+
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+        body: JSON.stringify({ model: "claude-opus-4-6", max_tokens: 4000, messages: [{ role: "user", content: prompt }] }),
+      });
+      const data = await res.json();
+      setErAI(data.content?.[0]?.text || "Unable to generate report. Please try again.");
+    } catch { setErAI("Something went wrong. Please try again."); }
+    setErView("report");
+  };
   const [medications, setMedications]     = useState([]);
   const [showMedForm, setShowMedForm]     = useState(false);
   const [editingMed, setEditingMed]       = useState(null);
@@ -1842,7 +1934,7 @@ Never diagnose. Use language like "worth discussing", "the data suggests".`;
   const hasActiveFilter = dateFilter !== "all" || advFilter.symptomQuery || advFilter.severity !== null || advFilter.tags.length > 0;
 
   const CHART_OPTIONS = [{ field: "severity", label: "Overall severity", color: SAGE }, { field: "stress", label: "Stress level", color: "#e8a838" }, { field: "sleep", label: "Sleep quality", color: TEAL }];
-  const tabs = [{ id: "log", label: "Log" }, { id: "trends", label: "Trends" }, { id: "insights", label: "AI Insights" }, { id: "report", label: "Doctor Report" }, { id: "bp", label: "Blood Pressure" }, { id: "labs", label: "Lab Results" }];
+  const tabs = [{ id: "log", label: "Log" }, { id: "trends", label: "Trends" }, { id: "insights", label: "AI Insights" }, { id: "report", label: "Doctor Report" }, { id: "er", label: "🚨 ER Report" }, { id: "bp", label: "Blood Pressure" }, { id: "labs", label: "Lab Results" }];
 
   if (!hasSeenOnboarding) {
     return (
@@ -2558,6 +2650,204 @@ Never diagnose. Use language like "worth discussing", "the data suggests".`;
                     })()}
                     <div style={s.reportFooter}>
                       <p style={s.reportFooterText}>Generated by Care Compass · joincarecompass.com · Not a medical record or medical advice. Review with your healthcare provider.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+
+          {view === "er" && (
+            <div style={s.tabContent}>
+              {erView === "prompt" ? (
+
+                /* ── ER Prompt screen ── */
+                <div style={{ maxWidth: 640, margin: "0 auto", display: "flex", flexDirection: "column", gap: "1.75rem" }}>
+                  <div>
+                    <p style={{ ...s.eyebrow, color: "#c0392b" }}>Emergency Room</p>
+                    <h2 style={{ ...s.title, fontSize: "1.5rem", marginBottom: "0.4rem" }}>ER Visit Report</h2>
+                    <p style={{ fontSize: "0.92rem", color: WARM_GRAY, margin: 0, lineHeight: 1.65 }}>
+                      Generate a professional handoff document for emergency room staff — structured to communicate your medical history, current condition, and today's chief complaint clearly and credibly.
+                    </p>
+                  </div>
+
+                  {/* Context banner */}
+                  <div style={{ background: "#fff5f5", borderRadius: "1rem", border: "1.5px solid #f5c0c0", padding: "1.1rem 1.25rem", display: "flex", gap: "0.875rem", alignItems: "flex-start" }}>
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{ flexShrink: 0, marginTop: "0.1rem" }}>
+                      <circle cx="10" cy="10" r="9" stroke="#c0392b" strokeWidth="1.5"/>
+                      <path d="M10 6v5" stroke="#c0392b" strokeWidth="1.8" strokeLinecap="round"/>
+                      <circle cx="10" cy="14" r="0.8" fill="#c0392b"/>
+                    </svg>
+                    <div>
+                      <p style={{ fontSize: "0.85rem", fontWeight: 600, color: "#9b2c2c", margin: "0 0 0.25rem" }}>How to use this report</p>
+                      <p style={{ fontSize: "0.82rem", color: "#9b2c2c", margin: 0, lineHeight: 1.65 }}>
+                        Print or show this on your phone when you arrive. Hand it to the triage nurse or physician. Having your history documented makes you harder to dismiss — and easier to treat.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={{ background: "#fff", borderRadius: "1.25rem", border: "1px solid rgba(0,0,0,0.07)", padding: "1.75rem", display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+
+                    {/* Chief complaint */}
+                    <div style={s.formGroup}>
+                      <label style={s.label}>Chief complaint — why are you going to the ER? <span style={{ color: "#c0392b" }}>*</span></label>
+                      <textarea style={{ ...s.input, resize: "vertical" }} rows={2}
+                        value={erPrompt.chiefComplaint}
+                        onChange={e => setErPrompt(p => ({ ...p, chiefComplaint: e.target.value }))}
+                        placeholder="e.g. Severe chest pain radiating to left arm, started 2 hours ago, not relieved by rest"/>
+                    </div>
+
+                    {/* Severity */}
+                    <div style={s.formGroup}>
+                      <label style={s.label}>Current severity <span style={{ fontSize: "0.85rem", fontWeight: 700, color: erPrompt.severity >= 8 ? "#c0392b" : erPrompt.severity >= 5 ? "#e8a838" : SAGE_DARK }}>{erPrompt.severity}/10</span></label>
+                      <input type="range" min="1" max="10" step="1" value={erPrompt.severity}
+                        onChange={e => setErPrompt(p => ({ ...p, severity: Number(e.target.value) }))}
+                        style={{ width: "100%", accentColor: erPrompt.severity >= 8 ? "#c0392b" : erPrompt.severity >= 5 ? "#e8a838" : SAGE_DARK }}/>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span style={{ fontSize: "0.72rem", color: "#aaa" }}>Manageable</span>
+                        <span style={{ fontSize: "0.72rem", color: "#aaa" }}>Severe / unbearable</span>
+                      </div>
+                    </div>
+
+                    {/* Duration */}
+                    <div style={s.formGroup}>
+                      <label style={s.label}>How long have you had these symptoms?</label>
+                      <input style={s.input} value={erPrompt.duration}
+                        onChange={e => setErPrompt(p => ({ ...p, duration: e.target.value }))}
+                        placeholder="e.g. Sudden onset 2 hours ago, or worsening over the past 3 days"/>
+                    </div>
+
+                    {/* Allergies */}
+                    <div style={s.formGroup}>
+                      <label style={s.label}>Known medication allergies or sensitivities <span style={s.optional}>(optional — add any not already in your profile)</span></label>
+                      <input style={s.input} value={erPrompt.allergies}
+                        onChange={e => setErPrompt(p => ({ ...p, allergies: e.target.value }))}
+                        placeholder="e.g. Penicillin — rash; NSAIDs — GI bleed; Contrast dye — reaction"/>
+                    </div>
+
+                    {/* Relevant history */}
+                    <div style={s.formGroup}>
+                      <label style={s.label}>Anything specific you want the ER team to know <span style={s.optional}>(optional)</span></label>
+                      <textarea style={{ ...s.input, resize: "vertical" }} rows={2}
+                        value={erPrompt.relevantHistory}
+                        onChange={e => setErPrompt(p => ({ ...p, relevantHistory: e.target.value }))}
+                        placeholder="e.g. I've had similar episodes before — my cardiologist Dr. Koning is aware. Previous ER visit in March found nothing on standard workup but symptoms persisted."/>
+                    </div>
+                  </div>
+
+                  {/* What will be included */}
+                  <div style={{ background: SAGE_LIGHT, borderRadius: "0.875rem", padding: "0.875rem 1.1rem", display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink:0, marginTop:"0.1rem" }}><circle cx="8" cy="8" r="6.5" stroke={SAGE_DARK} strokeWidth="1.3"/><path d="M8 7v4" stroke={SAGE_DARK} strokeWidth="1.4" strokeLinecap="round"/><circle cx="8" cy="5.5" r="0.7" fill={SAGE_DARK}/></svg>
+                    <p style={{ fontSize: "0.8rem", color: SAGE_DARK, margin: 0, lineHeight: 1.6 }}>
+                      Your report will automatically include your <strong>confirmed diagnoses</strong>, <strong>current medications</strong>, <strong>care team</strong>, <strong>family history</strong>, and <strong>recent symptom data</strong> from the last 14 days — giving ER staff a complete picture of who you are.
+                    </p>
+                  </div>
+
+                  <button onClick={handleGenerateER} disabled={!erPrompt.chiefComplaint.trim()}
+                    style={{ ...s.addBtn, padding: "1rem 2rem", fontSize: "1rem", background: erPrompt.chiefComplaint.trim() ? "#c0392b" : "#aaa", opacity: 1, border: "none" }}>
+                    Generate ER Report →
+                  </button>
+                  {!erPrompt.chiefComplaint.trim() && (
+                    <p style={{ fontSize: "0.8rem", color: "#aaa", margin: "-1rem 0 0", textAlign: "center", fontStyle: "italic" }}>Enter your chief complaint to get started</p>
+                  )}
+                </div>
+
+              ) : erView === "generating" ? (
+
+                /* ── Generating screen ── */
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 400, gap: "1.5rem", textAlign: "center" }}>
+                  <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#fff0f0", border: "2px solid #f5c0c0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.75rem" }}>🚨</div>
+                  <div>
+                    <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.4rem", fontWeight: 700, color: INK, margin: "0 0 0.5rem" }}>Building your ER report…</h2>
+                    <p style={{ fontSize: "0.92rem", color: WARM_GRAY, margin: 0, lineHeight: 1.7, maxWidth: 380 }}>
+                      Compiling your medical history, diagnoses, medications, and recent symptom data into a document ER staff can read at a glance.
+                    </p>
+                  </div>
+                  <div style={{ width: "100%", maxWidth: 320, height: 6, background: "#fdeaea", borderRadius: 100, overflow: "hidden" }}>
+                    <div style={{ height: "100%", borderRadius: 100, background: "#c0392b", animation: "insightProgress 18s ease-in-out forwards" }}/>
+                  </div>
+                  <p style={{ fontSize: "0.78rem", color: "#aaa", margin: 0, fontStyle: "italic" }}>This usually takes 10–20 seconds</p>
+                </div>
+
+              ) : (
+
+                /* ── Generated ER report ── */
+                <div style={s.reportWrap}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem", flexWrap: "wrap", gap: "0.75rem" }} className="no-print">
+                    <button onClick={() => { setErView("prompt"); setErAI(null); }}
+                      style={{ background: "transparent", border: "1.5px solid rgba(0,0,0,0.12)", borderRadius: "100px", padding: "0.5rem 1.1rem", fontSize: "0.85rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit" }}>
+                      ← Edit details
+                    </button>
+                    <button onClick={handlePrint} style={{ ...s.printBtn, background: "#c0392b" }}>↓ Save as PDF</button>
+                  </div>
+
+                  <div style={{ ...s.reportCard, borderTop: "4px solid #c0392b" }}>
+
+                    {/* ER Report Header */}
+                    <div style={{ display: "flex", gap: "1.25rem", alignItems: "flex-start", paddingBottom: "1.25rem", borderBottom: "1px solid rgba(0,0,0,0.07)" }}>
+                      <div style={{ width: 52, height: 52, borderRadius: "50%", background: "#fff0f0", border: "2px solid #f5c0c0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.5rem", flexShrink: 0 }}>🚨</div>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#c0392b", margin: "0 0 0.2rem" }}>Emergency Department · Patient Handoff</p>
+                        <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.4rem", fontWeight: 700, color: INK, margin: "0 0 0.25rem" }}>Medical History & Current Presentation</h2>
+                        <p style={{ fontSize: "0.8rem", color: WARM_GRAY, margin: 0 }}>
+                          Generated {new Date().toLocaleDateString("en-US", { weekday:"long", month:"long", day:"numeric", year:"numeric" })} at {new Date().toLocaleTimeString("en-US", { hour:"numeric", minute:"2-digit" })}
+                        </p>
+                      </div>
+                      <div style={{ flexShrink: 0, background: erPrompt.severity >= 8 ? "#fdeaea" : erPrompt.severity >= 5 ? "#fef3da" : SAGE_LIGHT, border: `2px solid ${erPrompt.severity >= 8 ? "#c0392b" : erPrompt.severity >= 5 ? "#e8a838" : SAGE}`, borderRadius: "0.875rem", padding: "0.6rem 1rem", textAlign: "center", minWidth: 80 }}>
+                        <div style={{ fontSize: "1.5rem", fontWeight: 700, color: erPrompt.severity >= 8 ? "#c0392b" : erPrompt.severity >= 5 ? "#8a5a00" : SAGE_DARK, lineHeight: 1 }}>{erPrompt.severity}/10</div>
+                        <div style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: erPrompt.severity >= 8 ? "#c0392b" : erPrompt.severity >= 5 ? "#8a5a00" : SAGE_DARK, marginTop: "0.2rem" }}>Severity</div>
+                      </div>
+                    </div>
+
+                    {/* AI narrative sections */}
+                    {erAI && (() => {
+                      const ER_SECTION_STYLES = {
+                        "patient overview":                  { border: "#c0392b", head: "#c0392b",  bg: "#fff5f5" },
+                        "chief complaint & current symptoms":{ border: "#c0392b", head: "#9b2c2c",  bg: "#fff0f0" },
+                        "relevant symptom pattern (last 14 days)": { border: "#e8a838", head: "#8a5a00", bg: "#fff8e8" },
+                        "confirmed diagnoses & known conditions":   { border: "#7a6fa0", head: "#4a3a80", bg: "#f5f3ff" },
+                        "current medications":               { border: TEAL,      head: "#2c6e72",  bg: TEAL_LIGHT },
+                        "known allergies & sensitivities":   { border: "#e8a838", head: "#8a5a00",  bg: "#fff8e8" },
+                        "care team":                         { border: SAGE,      head: SAGE_DARK,  bg: SAGE_LIGHT },
+                        "what to know about this patient":   { border: "#7a6fa0", head: "#4a3a80",  bg: "#f5f3ff" },
+                        "what this patient needs from this visit": { border: "#c0392b", head: "#9b2c2c", bg: "#fff5f5" },
+                      };
+                      return erAI.split(/\n(?=## )/).filter(Boolean).map((section, si) => {
+                        const lines = section.split("\n");
+                        const heading = lines[0].replace(/^##\s*/, "").trim();
+                        const body = lines.slice(1).join("\n").trim();
+                        if (!heading || !body) return null;
+                        const key = heading.toLowerCase().replace(/[^a-z\s()&]/g, "").trim();
+                        const col = ER_SECTION_STYLES[key] || { border: "#c0392b", head: "#9b2c2c", bg: "#fff" };
+                        return (
+                          <div key={si} style={{ background: col.bg, border: `1.5px solid ${col.border}`, borderRadius: "1.25rem", overflow: "hidden", marginBottom: "0.875rem" }}>
+                            <div style={{ padding: "0.75rem 1.25rem", borderBottom: `1.5px solid ${col.border}`, display: "flex", alignItems: "center", gap: "0.625rem" }}>
+                              <div style={{ width: 4, height: 18, borderRadius: 2, background: col.head, flexShrink: 0 }}/>
+                              <h3 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1rem", fontWeight: 700, color: col.head, margin: 0 }}>{heading}</h3>
+                            </div>
+                            <div style={{ padding: "0.875rem 1.25rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                              {body.split("\n").map(l => l.trim()).filter(Boolean).map((line, li) => {
+                                if (line.startsWith("---") || line.startsWith("___")) return <hr key={li} style={{ border: "none", borderTop: `1px solid ${col.border}`, margin: "0.25rem 0" }}/>;
+                                const isBullet = /^[-*•]\s/.test(line) || /^\d+[.)]\s/.test(line);
+                                const clean = line.replace(/^[-*•]\s*/, "").replace(/^\d+[.)]\s*/, "").replace(/\*\*(.*?)\*\*/g, "$1").trim();
+                                if (!clean) return null;
+                                if (isBullet) return (
+                                  <div key={li} style={{ display: "flex", gap: "0.625rem", alignItems: "flex-start" }}>
+                                    <div style={{ width: 6, height: 6, borderRadius: "50%", background: col.head, flexShrink: 0, marginTop: "0.55rem" }}/>
+                                    <p style={{ fontSize: "0.875rem", color: INK, lineHeight: 1.7, margin: 0 }}>{clean}</p>
+                                  </div>
+                                );
+                                return <p key={li} style={{ fontSize: "0.875rem", color: INK, lineHeight: 1.8, margin: 0 }}>{clean}</p>;
+                              })}
+                            </div>
+                          </div>
+                        );
+                      }).filter(Boolean);
+                    })()}
+
+                    <div style={{ ...s.reportFooter, borderTop: "1px solid rgba(0,0,0,0.07)", paddingTop: "1rem" }}>
+                      <p style={{ ...s.reportFooterText, fontSize: "0.72rem" }}>This document was prepared by the patient using Care Compass health tracking software · joincarecompass.com · This is not a medical record. For clinical decisions, verify information directly with the patient.</p>
                     </div>
                   </div>
                 </div>
