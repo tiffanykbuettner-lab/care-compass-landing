@@ -1332,7 +1332,7 @@ export default function CareCompassTracker() {
   const [loadingInsights, setLoadingInsights] = useState(false);
   // ── Doctor report state ───────────────────────────────────────────────────
   const [reportView, setReportView]     = useState("prompt"); // "prompt" | "generating" | "report"
-  const [reportPrompt, setReportPrompt] = useState({ providerName: "", specialty: "", focus: "", symptoms: "", questions: "" });
+  const [reportPrompt, setReportPrompt] = useState({ providerName: "", specialty: "", focus: "", symptoms: "", questions: "", saveToTeam: false });
   const [reportAI, setReportAI]         = useState(null);
   const [saved, setSaved]               = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
@@ -1638,6 +1638,16 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
     if (!entries.length) return;
     setReportView("generating");
     setReportAI(null);
+
+    // Save new provider to care team if requested
+    const { providerName, specialty, saveToTeam } = reportPrompt;
+    if (saveToTeam && providerName.trim() && !careTeam.find(p => p.name.toLowerCase() === providerName.trim().toLowerCase())) {
+      try {
+        const existing = JSON.parse(localStorage.getItem("cc-care-team") || "[]");
+        existing.push({ id: Date.now(), name: providerName.trim(), specialty: specialty || "" });
+        localStorage.setItem("cc-care-team", JSON.stringify(existing));
+      } catch {}
+    }
     const since = Date.now() - 60 * 24 * 60 * 60 * 1000;
     const workingEntries = entries.filter(e => e.timestamp >= since).length >= 5
       ? entries.filter(e => e.timestamp >= since) : entries;
@@ -2391,6 +2401,7 @@ Never diagnose. Use language like "worth discussing", "the data suggests".`;
                                   ...prev,
                                   providerName: p.name,
                                   specialty: p.specialty || prev.specialty,
+                                  saveToTeam: false,
                                 }))}
                                 style={{
                                   padding: "0.4rem 0.875rem", borderRadius: "100px", border: "1.5px solid",
@@ -2414,8 +2425,20 @@ Never diagnose. Use language like "worth discussing", "the data suggests".`;
                           </div>
                           {(!careTeam.find(p => p.name === reportPrompt.providerName) || reportPrompt.providerName === "") && (
                             <input style={s.input} value={reportPrompt.providerName}
-                              onChange={e => setReportPrompt(p => ({ ...p, providerName: e.target.value }))}
+                              onChange={e => setReportPrompt(p => ({ ...p, providerName: e.target.value, saveToTeam: false }))}
                               placeholder="Enter provider name"/>
+                          )}
+                          {/* Save to care team checkbox — shows when a new name is typed */}
+                          {reportPrompt.providerName.trim() && !careTeam.find(p => p.name === reportPrompt.providerName) && (
+                            <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", fontSize: "0.8rem", color: SAGE_DARK }}>
+                              <input
+                                type="checkbox"
+                                checked={reportPrompt.saveToTeam || false}
+                                onChange={() => setReportPrompt(p => ({ ...p, saveToTeam: !p.saveToTeam }))}
+                                style={{ accentColor: SAGE_DARK, width: 14, height: 14 }}
+                              />
+                              Save this provider to my care team in Account Settings
+                            </label>
                           )}
                         </div>
                       ) : (
