@@ -262,7 +262,7 @@ function AppointmentCard({ appt, onEdit, onDelete }) {
         <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
           {appt.reminder && (
             <span style={{ fontSize: "0.7rem", background: SAGE_LIGHT, color: SAGE_DARK, borderRadius: "100px", padding: "0.2rem 0.65rem", fontWeight: 500 }}>
-              {appt.reminder ? `(REMINDER_OPTIONS.find(o => o.value === appt.reminderAdvance) || REMINDER_OPTIONS[1]).label}` : ''}
+              🔔 {(REMINDER_OPTIONS.find(o => o.value === appt.reminderAdvance) || REMINDER_OPTIONS[1]).label}
             </span>
           )}
           {appt.prepReport && (
