@@ -37,6 +37,11 @@ const BP_REMINDERS_KEY = "care-compass-bp-reminders-v1";
 const MED_STORAGE_KEY = "care-compass-medications-v1";
 const CHECKIN_KEY = "care-compass-checkins-v1";
 const LABS_KEY    = "care-compass-labs-v1";
+const CYCLE_KEY   = "care-compass-cycle-v1";
+const ROSE        = "#c0567a";
+const ROSE_LIGHT  = "#fdeef4";
+const LAVENDER    = "#8b7ab8";
+const LAVENDER_LIGHT = "#f0eef9";
 
 const APPT_SPECIALTIES = [
   "Cardiologist", "Dermatologist", "ENT", "Endocrinologist",
@@ -1320,6 +1325,457 @@ function LabResultsTab({ entries }) {
 
 /* ─── End Lab Results Tab ────────────────────────────────────────────────── */
 
+/* ─── Cycle Tracker Tab ──────────────────────────────────────────────────── */
+
+const CYCLE_SYMPTOMS = [
+  "Cramps", "Heavy flow", "Clots", "Back pain", "Headache / migraine",
+  "Bloating", "Breast tenderness", "Fatigue", "Nausea", "Mood swings",
+  "Anxiety", "Depression", "Irritability", "Acne", "Food cravings",
+  "Insomnia", "Spotting", "Discharge changes", "Pelvic pain",
+  "Pain during intercourse", "Ovulation pain (mittelschmerz)",
+];
+const FLOW_LEVELS = ["Spotting", "Light", "Moderate", "Heavy", "Very heavy"];
+
+function cyclePhaseForDay(dayOffset, cycleLength = 28) {
+  if (dayOffset < 0 || dayOffset >= cycleLength) return null;
+  if (dayOffset < 5) return "period";
+  if (dayOffset < 13) return "follicular";
+  if (dayOffset >= 13 && dayOffset <= 15) return "ovulation";
+  return "luteal";
+}
+
+const PHASE_STYLES = {
+  period:     { bg: "#fdeef4", border: ROSE,     dot: ROSE,      label: "Period" },
+  follicular: { bg: "#e8f0eb", border: SAGE,      dot: SAGE_DARK, label: "Follicular" },
+  ovulation:  { bg: "#e0f2f4", border: TEAL,      dot: TEAL,      label: "Ovulation" },
+  luteal:     { bg: "#f5f3ff", border: LAVENDER,  dot: LAVENDER,  label: "Luteal" },
+};
+
+function CycleTab({ globalEntries }) {
+  const [cycles, setCycles] = useState(() => {
+    try { const s = localStorage.getItem(CYCLE_KEY); return s ? JSON.parse(s) : []; } catch { return []; }
+  });
+  const [calMonth, setCalMonth] = useState(() => {
+    const now = new Date(); return { year: now.getFullYear(), month: now.getMonth() };
+  });
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [saved, setSaved] = useState(false);
+  const [activeView, setActiveView] = useState("calendar"); // "calendar" | "history" | "insights"
+  const blankForm = { startDate: "", endDate: "", flow: "Moderate", pain: 5, symptoms: [], notes: "", mood: "" };
+  const [form, setForm] = useState(blankForm);
+
+  const saveCycles = (updated) => {
+    setCycles(updated);
+    try { localStorage.setItem(CYCLE_KEY, JSON.stringify(updated)); } catch {}
+  };
+
+  const handleSave = () => {
+    if (!form.startDate) return;
+    if (editingId) {
+      saveCycles(cycles.map(c => c.id === editingId ? { ...form, id: editingId } : c));
+    } else {
+      saveCycles([...cycles, { ...form, id: Date.now() }]);
+    }
+    setForm(blankForm); setShowForm(false); setEditingId(null);
+    setSaved(true); setTimeout(() => setSaved(false), 2500);
+  };
+
+  const handleDelete = (id) => saveCycles(cycles.filter(c => c.id !== id));
+
+  const toggleSymptom = (sym) => {
+    setForm(f => ({ ...f, symptoms: f.symptoms.includes(sym) ? f.symptoms.filter(s => s !== sym) : [...f.symptoms, sym] }));
+  };
+
+  // Sort cycles by start date descending
+  const sorted = [...cycles].sort((a, b) => new Date(b.startDate) - new Date(a.startDate));
+  const latest = sorted[0];
+
+  // Predict phases based on most recent cycle start
+  const getPhaseForDate = (dateStr) => {
+    if (!latest?.startDate) return null;
+    const start = new Date(latest.startDate + "T12:00:00");
+    const target = new Date(dateStr + "T12:00:00");
+    const dayOffset = Math.round((target - start) / (1000 * 60 * 60 * 24));
+    // Find if this date falls within a logged period
+    const inPeriod = cycles.some(c => {
+      if (!c.startDate) return false;
+      const s = new Date(c.startDate + "T12:00:00");
+      const e = c.endDate ? new Date(c.endDate + "T12:00:00") : new Date(c.startDate + "T12:00:00");
+      return target >= s && target <= e;
+    });
+    if (inPeriod) return "period";
+    // Calculate predicted phase using latest cycle
+    const avgCycleLength = cycles.length >= 2
+      ? Math.round(cycles.slice(0, -1).reduce((sum, c, i) => {
+          const next = cycles[i];
+          if (!c.startDate || !next?.startDate) return sum;
+          return sum + Math.abs(Math.round((new Date(c.startDate) - new Date(next.startDate)) / (1000*60*60*24)));
+        }, 0) / (cycles.length - 1))
+      : 28;
+    const normalizedOffset = ((dayOffset % avgCycleLength) + avgCycleLength) % avgCycleLength;
+    return cyclePhaseForDay(normalizedOffset, avgCycleLength);
+  };
+
+  // Build calendar for current month
+  const { year, month } = calMonth;
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const calDays = [];
+  for (let i = 0; i < firstDay; i++) calDays.push(null);
+  for (let d = 1; d <= daysInMonth; d++) calDays.push(d);
+  while (calDays.length % 7 !== 0) calDays.push(null);
+
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`;
+
+  const dateStr = (d) => d ? `${year}-${String(month+1).padStart(2,"0")}-${String(d).padStart(2,"0")}` : null;
+
+  // Stats
+  const avgCycleLen = cycles.length >= 2
+    ? Math.round(cycles.slice(0, -1).reduce((sum, c, i) => {
+        const prev = cycles[i+1]; if (!prev?.startDate) return sum;
+        return sum + Math.abs(Math.round((new Date(c.startDate) - new Date(prev.startDate)) / (1000*60*60*24)));
+      }, 0) / (cycles.length - 1))
+    : null;
+  const avgPeriodLen = cycles.filter(c => c.startDate && c.endDate).length
+    ? Math.round(cycles.filter(c => c.startDate && c.endDate).reduce((sum, c) =>
+        sum + Math.round((new Date(c.endDate) - new Date(c.startDate)) / (1000*60*60*24)) + 1, 0)
+      / cycles.filter(c => c.endDate).length)
+    : null;
+  const nextPeriodDate = latest?.startDate && avgCycleLen
+    ? new Date(new Date(latest.startDate + "T12:00:00").getTime() + avgCycleLen * 24*60*60*1000)
+    : null;
+  const daysUntilNext = nextPeriodDate ? Math.round((nextPeriodDate - today) / (1000*60*60*24)) : null;
+
+  const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const DAY_NAMES = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "1rem" }}>
+        <div>
+          <p style={{ fontSize: "0.75rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: ROSE, margin: "0 0 0.35rem" }}>Cycle Tracker</p>
+          <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.4rem", fontWeight: 700, color: INK, margin: "0 0 0.25rem" }}>Menstrual Health</h2>
+          <p style={{ fontSize: "0.85rem", color: WARM_GRAY, margin: 0 }}>Track your cycle alongside your symptoms. Pattern data feeds into your AI insights and doctor reports.</p>
+        </div>
+        <button onClick={() => { setForm(blankForm); setEditingId(null); setShowForm(true); }}
+          style={{ background: ROSE, color: "#fff", border: "none", padding: "0.75rem 1.25rem", borderRadius: "100px", fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+          + Log Period
+        </button>
+      </div>
+
+      {saved && <div style={{ background: ROSE_LIGHT, color: ROSE, borderRadius: "0.75rem", padding: "0.75rem 1rem", fontSize: "0.85rem", fontWeight: 600 }}>Period logged ✓</div>}
+
+      {/* Stats row */}
+      {cycles.length > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "0.875rem" }}>
+          {[
+            { label: "Cycles logged", value: cycles.length },
+            avgCycleLen && { label: "Avg cycle length", value: `${avgCycleLen} days` },
+            avgPeriodLen && { label: "Avg period length", value: `${avgPeriodLen} days` },
+            daysUntilNext !== null && { label: daysUntilNext >= 0 ? "Next period in" : "Period overdue by", value: `${Math.abs(daysUntilNext)} days`, color: daysUntilNext < 0 ? ROSE : INK },
+          ].filter(Boolean).map((stat, i) => (
+            <div key={i} style={{ background: "#fff", borderRadius: "0.875rem", border: "1px solid rgba(0,0,0,0.07)", padding: "1rem", display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+              <p style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: 0 }}>{stat.label}</p>
+              <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.5rem", fontWeight: 700, color: stat.color || ROSE, margin: 0 }}>{stat.value}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Sub-nav */}
+      <div style={{ display: "flex", gap: "0.5rem", borderBottom: "1px solid rgba(0,0,0,0.07)", paddingBottom: 0 }}>
+        {[{ id: "calendar", label: "Calendar" }, { id: "history", label: "Cycle History" }, { id: "insights", label: "Pattern Notes" }].map(t => (
+          <button key={t.id} onClick={() => setActiveView(t.id)}
+            style={{ background: "none", border: "none", borderBottom: activeView === t.id ? `2px solid ${ROSE}` : "2px solid transparent", color: activeView === t.id ? ROSE : WARM_GRAY, fontWeight: activeView === t.id ? 600 : 400, fontSize: "0.875rem", padding: "0.5rem 0.875rem", cursor: "pointer", fontFamily: "inherit" }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Calendar view ── */}
+      {activeView === "calendar" && (
+        <div style={{ background: "#fff", borderRadius: "1.25rem", border: "1px solid rgba(0,0,0,0.07)", overflow: "hidden" }}>
+          {/* Month nav */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1rem 1.25rem", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
+            <button onClick={() => setCalMonth(m => { const d = new Date(m.year, m.month - 1); return { year: d.getFullYear(), month: d.getMonth() }; })}
+              style={{ background: "none", border: "1px solid rgba(0,0,0,0.1)", borderRadius: "0.5rem", padding: "0.35rem 0.75rem", cursor: "pointer", color: WARM_GRAY, fontFamily: "inherit", fontSize: "0.85rem" }}>←</button>
+            <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.05rem", fontWeight: 700, color: INK, margin: 0 }}>{MONTH_NAMES[month]} {year}</p>
+            <button onClick={() => setCalMonth(m => { const d = new Date(m.year, m.month + 1); return { year: d.getFullYear(), month: d.getMonth() }; })}
+              style={{ background: "none", border: "1px solid rgba(0,0,0,0.1)", borderRadius: "0.5rem", padding: "0.35rem 0.75rem", cursor: "pointer", color: WARM_GRAY, fontFamily: "inherit", fontSize: "0.85rem" }}>→</button>
+          </div>
+
+          {/* Day headers */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
+            {DAY_NAMES.map(d => <div key={d} style={{ padding: "0.5rem 0", textAlign: "center", fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.06em", color: WARM_GRAY }}>{d}</div>)}
+          </div>
+
+          {/* Calendar grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
+            {calDays.map((d, i) => {
+              const ds = dateStr(d);
+              const phase = ds ? getPhaseForDate(ds) : null;
+              const ps = phase ? PHASE_STYLES[phase] : null;
+              const isToday = ds === todayStr;
+              const hasLog = ds && cycles.some(c => c.startDate === ds);
+              return (
+                <div key={i} style={{
+                  minHeight: 52, padding: "0.3rem", position: "relative",
+                  background: ps ? ps.bg : "transparent",
+                  borderRight: "1px solid rgba(0,0,0,0.04)",
+                  borderBottom: "1px solid rgba(0,0,0,0.04)",
+                  cursor: d ? "pointer" : "default",
+                  borderLeft: ps ? `2px solid ${ps.border}` : "2px solid transparent",
+                }}
+                  onClick={() => { if (d) { setForm({ ...blankForm, startDate: ds }); setEditingId(null); setShowForm(true); } }}>
+                  {d && (
+                    <>
+                      <div style={{
+                        width: 26, height: 26, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
+                        background: isToday ? ROSE : "transparent",
+                        color: isToday ? "#fff" : phase === "period" ? ROSE : INK,
+                        fontSize: "0.82rem", fontWeight: isToday || phase === "period" ? 700 : 400,
+                      }}>{d}</div>
+                      {hasLog && <div style={{ position: "absolute", bottom: 4, left: "50%", transform: "translateX(-50%)", width: 5, height: 5, borderRadius: "50%", background: ROSE }}/>}
+                      {phase === "ovulation" && <div style={{ position: "absolute", top: 4, right: 4, fontSize: "0.55rem" }}>◉</div>}
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Phase legend */}
+          <div style={{ padding: "0.875rem 1.25rem", borderTop: "1px solid rgba(0,0,0,0.06)", display: "flex", flexWrap: "wrap", gap: "0.875rem" }}>
+            {Object.entries(PHASE_STYLES).map(([phase, ps]) => (
+              <div key={phase} style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                <div style={{ width: 10, height: 10, borderRadius: "50%", background: ps.dot }}/>
+                <span style={{ fontSize: "0.75rem", color: WARM_GRAY }}>{ps.label}</span>
+              </div>
+            ))}
+            <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+              <div style={{ width: 10, height: 10, borderRadius: "50%", background: ROSE, border: `2px solid ${ROSE}` }}/>
+              <span style={{ fontSize: "0.75rem", color: WARM_GRAY }}>Logged period day</span>
+            </div>
+          </div>
+
+          {cycles.length === 0 && (
+            <div style={{ padding: "2rem", textAlign: "center", color: WARM_GRAY, fontSize: "0.875rem", fontStyle: "italic" }}>
+              Log your first period to see cycle phase predictions on the calendar.
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Cycle History ── */}
+      {activeView === "history" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+          {sorted.length === 0 ? (
+            <div style={{ background: "#fff", borderRadius: "1rem", border: "1px solid rgba(0,0,0,0.07)", padding: "2rem", textAlign: "center" }}>
+              <p style={{ color: WARM_GRAY, fontSize: "0.875rem", fontStyle: "italic", margin: 0 }}>No cycles logged yet. Tap "+ Log Period" to get started.</p>
+            </div>
+          ) : sorted.map(c => {
+            const start = new Date(c.startDate + "T12:00:00");
+            const end = c.endDate ? new Date(c.endDate + "T12:00:00") : null;
+            const len = end ? Math.round((end - start) / (1000*60*60*24)) + 1 : null;
+            return (
+              <div key={c.id} style={{ background: "#fff", borderRadius: "1rem", border: "1px solid rgba(0,0,0,0.07)", padding: "1.1rem 1.25rem", display: "flex", gap: "1rem", alignItems: "flex-start" }}>
+                <div style={{ width: 42, height: 42, borderRadius: "50%", background: ROSE_LIGHT, border: `2px solid ${ROSE}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={ROSE} strokeWidth="2" strokeLinecap="round"><path d="M12 2C6 2 2 7 2 12s4 10 10 10 10-4.5 10-10S18 2 12 2z"/><path d="M12 8v4l3 3"/></svg>
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.5rem", flexWrap: "wrap" }}>
+                    <div>
+                      <p style={{ fontWeight: 600, color: INK, fontSize: "0.92rem", margin: "0 0 0.15rem" }}>
+                        {start.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                        {end && ` → ${end.toLocaleDateString("en-US", { month: "long", day: "numeric" })}`}
+                      </p>
+                      <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+                        {len && <span style={{ fontSize: "0.75rem", color: WARM_GRAY }}>{len} day{len !== 1 ? "s" : ""}</span>}
+                        {c.flow && <span style={{ fontSize: "0.75rem", background: ROSE_LIGHT, color: ROSE, borderRadius: "100px", padding: "0.1rem 0.6rem", fontWeight: 600 }}>{c.flow}</span>}
+                        {c.pain > 0 && <span style={{ fontSize: "0.75rem", color: WARM_GRAY }}>Pain: {c.pain}/10</span>}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: "0.4rem" }}>
+                      <button onClick={() => { setForm({ startDate: c.startDate, endDate: c.endDate || "", flow: c.flow || "Moderate", pain: c.pain || 5, symptoms: c.symptoms || [], notes: c.notes || "", mood: c.mood || "" }); setEditingId(c.id); setShowForm(true); }}
+                        style={{ background: "none", border: "1px solid rgba(0,0,0,0.1)", borderRadius: "0.375rem", padding: "0.3rem 0.65rem", fontSize: "0.72rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit" }}>Edit</button>
+                      <button onClick={() => handleDelete(c.id)}
+                        style={{ background: "none", border: "1px solid #f5c0c0", borderRadius: "0.375rem", padding: "0.3rem 0.5rem", color: "#c0392b", cursor: "pointer" }}>
+                        <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                      </button>
+                    </div>
+                  </div>
+                  {c.symptoms?.length > 0 && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.3rem", marginTop: "0.5rem" }}>
+                      {c.symptoms.map(sym => <span key={sym} style={{ fontSize: "0.72rem", background: OFF_WHITE, border: "1px solid rgba(0,0,0,0.08)", borderRadius: "100px", padding: "0.15rem 0.55rem", color: INK_LIGHT }}>{sym}</span>)}
+                    </div>
+                  )}
+                  {c.notes && <p style={{ fontSize: "0.8rem", color: WARM_GRAY, margin: "0.4rem 0 0", fontStyle: "italic", lineHeight: 1.5 }}>{c.notes}</p>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Pattern Notes ── */}
+      {activeView === "insights" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          {/* Apple Health note */}
+          <div style={{ background: LAVENDER_LIGHT, borderRadius: "0.875rem", border: `1px solid ${LAVENDER}`, padding: "1rem 1.25rem", display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, marginTop: "0.1rem" }} stroke={LAVENDER} strokeWidth="1.6" strokeLinecap="round">
+              <path d="M12 2a10 10 0 100 20A10 10 0 0012 2z"/><path d="M12 8v4l3 3"/>
+            </svg>
+            <div>
+              <p style={{ fontSize: "0.82rem", fontWeight: 600, color: LAVENDER, margin: "0 0 0.2rem" }}>Importing from Apple Health or other apps</p>
+              <p style={{ fontSize: "0.78rem", color: "#5a4a8a", lineHeight: 1.65, margin: 0 }}>
+                Web apps can't directly access Apple Health data. To use your existing data, export from Apple Health (Health app → your profile → Export All Health Data), then manually enter your cycle dates here. Your data stays private on this device.
+              </p>
+            </div>
+          </div>
+
+          {cycles.length === 0 ? (
+            <div style={{ background: "#fff", borderRadius: "1rem", border: "1px solid rgba(0,0,0,0.07)", padding: "2rem", textAlign: "center" }}>
+              <p style={{ color: WARM_GRAY, fontSize: "0.875rem", margin: 0, fontStyle: "italic" }}>Log at least one cycle to see pattern notes.</p>
+            </div>
+          ) : (
+            <>
+              {/* Symptom frequency */}
+              {(() => {
+                const symCount = {};
+                cycles.forEach(c => (c.symptoms || []).forEach(s => { symCount[s] = (symCount[s] || 0) + 1; }));
+                const sorted = Object.entries(symCount).sort((a,b) => b[1]-a[1]).slice(0, 10);
+                if (!sorted.length) return null;
+                return (
+                  <div style={{ background: "#fff", borderRadius: "1rem", border: "1px solid rgba(0,0,0,0.07)", padding: "1.25rem" }}>
+                    <h3 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1rem", fontWeight: 700, color: INK, margin: "0 0 1rem" }}>Most frequent symptoms</h3>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                      {sorted.map(([sym, count]) => (
+                        <div key={sym} style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                          <span style={{ fontSize: "0.82rem", color: INK, minWidth: 160 }}>{sym}</span>
+                          <div style={{ flex: 1, height: 6, background: ROSE_LIGHT, borderRadius: 100, overflow: "hidden" }}>
+                            <div style={{ width: `${(count / cycles.length) * 100}%`, height: "100%", background: ROSE, borderRadius: 100 }}/>
+                          </div>
+                          <span style={{ fontSize: "0.75rem", color: WARM_GRAY, minWidth: 32 }}>{count}x</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Avg pain */}
+              {cycles.some(c => c.pain) && (() => {
+                const avg = (cycles.reduce((sum, c) => sum + (c.pain || 0), 0) / cycles.length).toFixed(1);
+                const max = Math.max(...cycles.map(c => c.pain || 0));
+                return (
+                  <div style={{ background: "#fff", borderRadius: "1rem", border: "1px solid rgba(0,0,0,0.07)", padding: "1.25rem", display: "flex", gap: "1.5rem", flexWrap: "wrap" }}>
+                    <div><p style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: "0 0 0.25rem" }}>Avg pain level</p><p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.5rem", color: ROSE, fontWeight: 700, margin: 0 }}>{avg}/10</p></div>
+                    <div><p style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: "0 0 0.25rem" }}>Highest pain recorded</p><p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.5rem", color: ROSE, fontWeight: 700, margin: 0 }}>{max}/10</p></div>
+                  </div>
+                );
+              })()}
+
+              {/* Symptom overlap note */}
+              {globalEntries?.length > 0 && cycles.length > 0 && (
+                <div style={{ background: SAGE_LIGHT, borderRadius: "0.875rem", padding: "1rem 1.25rem", display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink:0, marginTop:"0.1rem" }}><circle cx="8" cy="8" r="6.5" stroke={SAGE_DARK} strokeWidth="1.3"/><path d="M8 7v4" stroke={SAGE_DARK} strokeWidth="1.4" strokeLinecap="round"/><circle cx="8" cy="5.5" r="0.7" fill={SAGE_DARK}/></svg>
+                  <p style={{ fontSize: "0.8rem", color: SAGE_DARK, margin: 0, lineHeight: 1.6 }}>
+                    <strong>Your cycle data is included in AI pattern analysis.</strong> When you run AI Insights, Care Compass will cross-reference your period dates with your symptom entries to identify cycle-related symptom patterns — like flares around your period or ovulation.
+                  </p>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ── Log form modal ── */}
+      {showForm && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem", overflowY: "auto" }}
+          onClick={() => setShowForm(false)}>
+          <div style={{ background: "#fff", borderRadius: "1.25rem", maxWidth: 500, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.18)", maxHeight: "90vh", overflowY: "auto" }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ padding: "1.25rem 1.5rem", borderBottom: "1px solid rgba(0,0,0,0.07)", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, background: "#fff", zIndex: 1 }}>
+              <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.1rem", fontWeight: 700, color: INK, margin: 0 }}>{editingId ? "Edit period" : "Log a period"}</h2>
+              <button onClick={() => setShowForm(false)} style={{ background: "none", border: "none", cursor: "pointer", color: WARM_GRAY, fontSize: "1.1rem" }}>✕</button>
+            </div>
+            <div style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+                  <label style={{ fontSize: "0.82rem", fontWeight: 600, color: INK }}>First day of period <span style={{ color: ROSE }}>*</span></label>
+                  <input type="date" value={form.startDate} onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))}
+                    style={{ padding: "0.65rem 0.875rem", border: "1.5px solid rgba(0,0,0,0.12)", borderRadius: "0.625rem", fontSize: "0.88rem", fontFamily: "inherit", color: INK, outline: "none" }}/>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+                  <label style={{ fontSize: "0.82rem", fontWeight: 600, color: INK }}>Last day of bleeding <span style={{ fontSize: "0.75rem", fontWeight: 400, color: "#aaa" }}>(optional)</span></label>
+                  <input type="date" value={form.endDate} onChange={e => setForm(f => ({ ...f, endDate: e.target.value }))}
+                    style={{ padding: "0.65rem 0.875rem", border: "1.5px solid rgba(0,0,0,0.12)", borderRadius: "0.625rem", fontSize: "0.88rem", fontFamily: "inherit", color: INK, outline: "none" }}/>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+                <label style={{ fontSize: "0.82rem", fontWeight: 600, color: INK }}>Flow intensity</label>
+                <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                  {FLOW_LEVELS.map(f => (
+                    <button key={f} onClick={() => setForm(p => ({ ...p, flow: f }))}
+                      style={{ padding: "0.4rem 0.875rem", borderRadius: "100px", border: "1.5px solid", borderColor: form.flow === f ? ROSE : "rgba(0,0,0,0.12)", background: form.flow === f ? ROSE : "#fff", color: form.flow === f ? "#fff" : INK, fontSize: "0.8rem", cursor: "pointer", fontFamily: "inherit" }}>
+                      {f}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+                <label style={{ fontSize: "0.82rem", fontWeight: 600, color: INK }}>Pain level <span style={{ color: ROSE, fontWeight: 700 }}>{form.pain}/10</span></label>
+                <input type="range" min="0" max="10" step="1" value={form.pain}
+                  onChange={e => setForm(f => ({ ...f, pain: Number(e.target.value) }))}
+                  style={{ width: "100%", accentColor: ROSE }}/>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: "0.72rem", color: "#aaa" }}>None</span>
+                  <span style={{ fontSize: "0.72rem", color: "#aaa" }}>Severe / debilitating</span>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                <label style={{ fontSize: "0.82rem", fontWeight: 600, color: INK }}>Symptoms <span style={{ fontSize: "0.75rem", fontWeight: 400, color: "#aaa" }}>(select all that apply)</span></label>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+                  {CYCLE_SYMPTOMS.map(sym => (
+                    <button key={sym} onClick={() => toggleSymptom(sym)}
+                      style={{ padding: "0.3rem 0.75rem", borderRadius: "100px", border: "1.5px solid", borderColor: form.symptoms.includes(sym) ? ROSE : "rgba(0,0,0,0.1)", background: form.symptoms.includes(sym) ? ROSE_LIGHT : "#fff", color: form.symptoms.includes(sym) ? ROSE : INK_LIGHT, fontSize: "0.78rem", cursor: "pointer", fontFamily: "inherit" }}>
+                      {sym}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+                <label style={{ fontSize: "0.82rem", fontWeight: 600, color: INK }}>Notes <span style={{ fontSize: "0.75rem", fontWeight: 400, color: "#aaa" }}>(optional)</span></label>
+                <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2}
+                  placeholder="e.g. Passed large clots, couldn't get out of bed, missed work, pain started a week before..."
+                  style={{ padding: "0.65rem 0.875rem", border: "1.5px solid rgba(0,0,0,0.12)", borderRadius: "0.625rem", fontSize: "0.88rem", fontFamily: "inherit", color: INK, outline: "none", resize: "vertical", lineHeight: 1.6 }}/>
+              </div>
+            </div>
+            <div style={{ padding: "1rem 1.5rem", borderTop: "1px solid rgba(0,0,0,0.07)", display: "flex", gap: "0.75rem", justifyContent: "flex-end", position: "sticky", bottom: 0, background: "#fff" }}>
+              <button onClick={() => { setShowForm(false); setEditingId(null); }}
+                style={{ background: "transparent", border: "1.5px solid rgba(0,0,0,0.12)", borderRadius: "100px", padding: "0.65rem 1.25rem", fontSize: "0.875rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+              <button onClick={handleSave} disabled={!form.startDate}
+                style={{ background: form.startDate ? ROSE : "#aaa", color: "#fff", border: "none", borderRadius: "100px", padding: "0.65rem 1.5rem", fontSize: "0.875rem", fontWeight: 600, cursor: form.startDate ? "pointer" : "default", fontFamily: "inherit" }}>
+                {editingId ? "Update →" : "Save period →"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── End Cycle Tracker Tab ──────────────────────────────────────────────── */
+
 export default function CareCompassTracker() {
   const { signOut } = useAuth();
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState(() => { try { return localStorage.getItem('cc-tracker-onboarded') === 'true'; } catch { return false; } });
@@ -1618,7 +2074,12 @@ Never diagnose. Focus on patterns across days AND within-day timing. Be specific
 BLOOD PRESSURE READINGS (most recent first):
 ` + bpReadings.slice(0, 20).map(r => formatBPTime(r.timestamp) + ": " + r.systolic + "/" + r.diastolic + " mmHg" + (r.pulse ? " | Pulse: " + r.pulse + " bpm" : "") + (r.notes ? " | Notes: " + r.notes : "") + " — " + bpCategory(r.systolic, r.diastolic).label).join("\n") + `
 
-Please also include a ## Blood Pressure Patterns section if you notice correlations between BP readings and symptoms (e.g. high BP days correlating with headaches, stress, poor sleep, or specific activities).` : "") }] }) });
+Please also include a ## Blood Pressure Patterns section if you notice correlations between BP readings and symptoms (e.g. high BP days correlating with headaches, stress, poor sleep, or specific activities).` : "") + (cycleStr ? `
+
+MENSTRUAL CYCLE DATA (most recent first):
+` + cycleStr + `
+
+IMPORTANT: Cross-reference cycle dates with symptom entries. Look for symptom flares around period start, ovulation window, or premenstrual phase. If patterns exist, include a ## Cycle & Symptom Patterns section noting which symptoms correlate with which cycle phases. This is especially important for conditions like endometriosis, PCOS, PMDD, fibromyalgia, and autoimmune conditions where cycle-driven symptom fluctuation is common.` : "") }] }) });
       const data = await response.json();
       setInsights(data.content[0].text); setView("insights");
     } catch { setInsights("Something went wrong. Please try again."); }
@@ -1667,7 +2128,7 @@ APPOINTMENT DETAILS:
 - Visit focus: ${focus || "General symptom review"}
 ${highlightSymptoms ? `- Symptoms to highlight: ${highlightSymptoms}` : ""}
 ${questions ? `- Patient's questions: ${questions}` : ""}
-${careTeamStr ? `\nCARE TEAM: ${careTeamStr}` : ""}${familyHistoryStr ? `\nFAMILY HISTORY: ${familyHistoryStr}` : ""}
+${careTeamStr ? `\nCARE TEAM: ${careTeamStr}` : ""}${familyHistoryStr ? `\nFAMILY HISTORY: ${familyHistoryStr}` : ""}${cycleStr ? `\nMENSTRUAL CYCLE DATA (recent periods):\n${cycleStr}` : ""}
 
 TRACKER DATA (last 60 days):
 ${summary}
@@ -1824,6 +2285,18 @@ End with a one-line footer: "This document was prepared by the patient using Car
     return `${MEMBERS[e.member] || e.member}: ${e.conditions.join(", ")}${e.notes ? " (" + e.notes + ")" : ""}`;
   }).join("\n");
 
+  // Read cycle data for AI context
+  const cycleData = (() => { try { return JSON.parse(localStorage.getItem(CYCLE_KEY) || "[]"); } catch { return []; } })();
+  const cycleStr = cycleData.length > 0 ? cycleData.slice(0, 6).map(c => {
+    const start = c.startDate;
+    const end = c.endDate ? ` to ${c.endDate}` : "";
+    const flow = c.flow ? ` | Flow: ${c.flow}` : "";
+    const pain = c.pain ? ` | Pain: ${c.pain}/10` : "";
+    const syms = c.symptoms?.length ? ` | Symptoms: ${c.symptoms.join(", ")}` : "";
+    const notes = c.notes ? ` | Notes: ${c.notes}` : "";
+    return `Period: ${start}${end}${flow}${pain}${syms}${notes}`;
+  }).join("\n") : null;
+
   const saveMedications = (updated) => {
     setMedications(updated);
     try { localStorage.setItem(MED_STORAGE_KEY, JSON.stringify(updated)); } catch {}
@@ -1950,23 +2423,51 @@ End with a one-line footer: "This document was prepared by the patient using Car
     { id: "report", label: "Doctor Report" },
     { id: "labs", label: "Lab Results" },
     { id: "er", label: "ER Report" },
+    { id: "cycle", label: "Cycle Tracker" },
   ];
 
-  const TAB_ORDER_KEY = "cc-tab-order";
+  const DEFAULT_TAB_ORDER = ["log", "bp", "trends", "insights", "report", "labs", "er", "cycle"];
+  const DEFAULT_HIDDEN = ["cycle", "er"]; // hidden by default, user can enable
+
+  const TAB_ORDER_KEY  = "cc-tab-order";
+  const TAB_HIDDEN_KEY = "cc-tab-hidden";
+
   const [tabOrder, setTabOrder] = useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(TAB_ORDER_KEY) || "null");
-      if (saved && Array.isArray(saved) && saved.every(id => ALL_TABS.find(t => t.id === id))) return saved;
+      // Merge saved with any new tabs not yet in saved order
+      if (saved && Array.isArray(saved)) {
+        const known = saved.filter(id => ALL_TABS.find(t => t.id === id));
+        const newTabs = ALL_TABS.map(t => t.id).filter(id => !known.includes(id));
+        return [...known, ...newTabs];
+      }
     } catch {}
-    return ALL_TABS.map(t => t.id);
+    return DEFAULT_TAB_ORDER;
   });
+
+  const [hiddenTabs, setHiddenTabs] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(TAB_HIDDEN_KEY) || "null");
+      if (saved && Array.isArray(saved)) return saved;
+    } catch {}
+    return DEFAULT_HIDDEN;
+  });
+
   const [showTabConfig, setShowTabConfig] = useState(false);
 
-  const tabs = tabOrder.map(id => ALL_TABS.find(t => t.id === id)).filter(Boolean);
+  const tabs = tabOrder.map(id => ALL_TABS.find(t => t.id === id)).filter(t => t && !hiddenTabs.includes(t.id));
 
   const saveTabOrder = (order) => {
     setTabOrder(order);
     try { localStorage.setItem(TAB_ORDER_KEY, JSON.stringify(order)); } catch {}
+  };
+
+  const toggleHidden = (id) => {
+    const next = hiddenTabs.includes(id) ? hiddenTabs.filter(h => h !== id) : [...hiddenTabs, id];
+    setHiddenTabs(next);
+    try { localStorage.setItem(TAB_HIDDEN_KEY, JSON.stringify(next)); } catch {}
+    // If hiding current view, switch to log
+    if (!hiddenTabs.includes(id) && view === id) setView("log");
   };
 
   const moveTab = (id, dir) => {
@@ -2079,25 +2580,44 @@ End with a one-line footer: "This document was prepared by the patient using Car
 
           {/* Tab order config panel */}
           {showTabConfig && (
-            <div style={{ background: "#fff", border: "1px solid rgba(0,0,0,0.08)", borderRadius: "1rem", padding: "1.25rem", marginBottom: "1rem", display: "flex", flexDirection: "column", gap: "0.75rem" }} className="no-print">
+            <div style={{ background: "#fff", border: "1px solid rgba(0,0,0,0.08)", borderRadius: "1rem", padding: "1.25rem", marginBottom: "1rem", display: "flex", flexDirection: "column", gap: "0.875rem" }} className="no-print">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
-                  <p style={{ fontSize: "0.85rem", fontWeight: 600, color: INK, margin: 0 }}>Customize tab order</p>
-                  <p style={{ fontSize: "0.75rem", color: WARM_GRAY, margin: "0.1rem 0 0" }}>Use the arrows to reorder tabs to match how you use the tracker.</p>
+                  <p style={{ fontSize: "0.85rem", fontWeight: 600, color: INK, margin: 0 }}>Customize tabs</p>
+                  <p style={{ fontSize: "0.75rem", color: WARM_GRAY, margin: "0.1rem 0 0" }}>Show/hide tabs and reorder them to match how you use the tracker.</p>
                 </div>
-                <button onClick={() => { saveTabOrder(ALL_TABS.map(t => t.id)); }} style={{ fontSize: "0.75rem", color: WARM_GRAY, background: "none", border: "1px solid rgba(0,0,0,0.12)", borderRadius: "100px", padding: "0.3rem 0.75rem", cursor: "pointer", fontFamily: "inherit" }}>Reset</button>
+                <button onClick={() => { saveTabOrder(DEFAULT_TAB_ORDER); setHiddenTabs(DEFAULT_HIDDEN); try { localStorage.setItem(TAB_HIDDEN_KEY, JSON.stringify(DEFAULT_HIDDEN)); } catch {} }}
+                  style={{ fontSize: "0.75rem", color: WARM_GRAY, background: "none", border: "1px solid rgba(0,0,0,0.12)", borderRadius: "100px", padding: "0.3rem 0.75rem", cursor: "pointer", fontFamily: "inherit" }}>Reset</button>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
                 {tabOrder.map((id, idx) => {
                   const tab = ALL_TABS.find(t => t.id === id);
                   if (!tab) return null;
+                  const isHidden = hiddenTabs.includes(id);
+                  const isLocked = id === "log"; // Log tab can't be hidden
                   return (
-                    <div key={id} style={{ display: "flex", alignItems: "center", gap: "0.75rem", background: OFF_WHITE, borderRadius: "0.625rem", padding: "0.5rem 0.875rem" }}>
-                      <span style={{ flex: 1, fontSize: "0.88rem", color: INK, fontWeight: 500 }}>{tab.label}</span>
-                      <button onClick={() => moveTab(id, -1)} disabled={idx === 0}
-                        style={{ background: "none", border: "1px solid rgba(0,0,0,0.1)", borderRadius: "0.375rem", width: 28, height: 28, cursor: idx === 0 ? "default" : "pointer", opacity: idx === 0 ? 0.3 : 1, fontSize: "0.75rem", display: "flex", alignItems: "center", justifyContent: "center" }}>↑</button>
-                      <button onClick={() => moveTab(id, 1)} disabled={idx === tabOrder.length - 1}
-                        style={{ background: "none", border: "1px solid rgba(0,0,0,0.1)", borderRadius: "0.375rem", width: 28, height: 28, cursor: idx === tabOrder.length - 1 ? "default" : "pointer", opacity: idx === tabOrder.length - 1 ? 0.3 : 1, fontSize: "0.75rem", display: "flex", alignItems: "center", justifyContent: "center" }}>↓</button>
+                    <div key={id} style={{ display: "flex", alignItems: "center", gap: "0.75rem", background: isHidden ? "#fafaf8" : OFF_WHITE, borderRadius: "0.625rem", padding: "0.5rem 0.875rem", opacity: isHidden ? 0.6 : 1, border: `1px solid ${isHidden ? "rgba(0,0,0,0.06)" : "transparent"}` }}>
+                      {/* Show/hide toggle */}
+                      <button onClick={() => !isLocked && toggleHidden(id)} title={isLocked ? "This tab can't be hidden" : isHidden ? "Show tab" : "Hide tab"}
+                        style={{ background: "none", border: "none", cursor: isLocked ? "default" : "pointer", padding: 0, flexShrink: 0, display: "flex", alignItems: "center" }}>
+                        {isLocked ? (
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="4" y="7" width="8" height="7" rx="1.5" stroke={SAGE_DARK} strokeWidth="1.3"/><path d="M5.5 7V5a2.5 2.5 0 015 0v2" stroke={SAGE_DARK} strokeWidth="1.3" strokeLinecap="round"/></svg>
+                        ) : isHidden ? (
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="14" height="14" rx="3" stroke="rgba(0,0,0,0.2)" strokeWidth="1.3"/></svg>
+                        ) : (
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="14" height="14" rx="3" fill={SAGE_DARK} stroke={SAGE_DARK} strokeWidth="1.3"/><path d="M4 8l3 3 5-5" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        )}
+                      </button>
+                      <span style={{ flex: 1, fontSize: "0.88rem", color: isHidden ? WARM_GRAY : INK, fontWeight: 500 }}>{tab.label}</span>
+                      {/* Reorder buttons — only show for visible tabs */}
+                      {!isHidden && (
+                        <>
+                          <button onClick={() => moveTab(id, -1)} disabled={idx === 0}
+                            style={{ background: "none", border: "1px solid rgba(0,0,0,0.1)", borderRadius: "0.375rem", width: 28, height: 28, cursor: idx === 0 ? "default" : "pointer", opacity: idx === 0 ? 0.3 : 1, fontSize: "0.75rem", display: "flex", alignItems: "center", justifyContent: "center" }}>↑</button>
+                          <button onClick={() => moveTab(id, 1)} disabled={idx === tabOrder.length - 1}
+                            style={{ background: "none", border: "1px solid rgba(0,0,0,0.1)", borderRadius: "0.375rem", width: 28, height: 28, cursor: idx === tabOrder.length - 1 ? "default" : "pointer", opacity: idx === tabOrder.length - 1 ? 0.3 : 1, fontSize: "0.75rem", display: "flex", alignItems: "center", justifyContent: "center" }}>↓</button>
+                        </>
+                      )}
                     </div>
                   );
                 })}
@@ -2932,6 +3452,13 @@ End with a one-line footer: "This document was prepared by the patient using Car
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+
+          {view === "cycle" && (
+            <div style={s.tabContent}>
+              <CycleTab globalEntries={entries} />
             </div>
           )}
 
