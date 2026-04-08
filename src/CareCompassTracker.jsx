@@ -30,6 +30,15 @@ const MED_STORAGE_KEY = "care-compass-medications-v1";
 const CHECKIN_KEY = "care-compass-checkins-v1";
 const LABS_KEY    = "care-compass-labs-v1";
 
+const APPT_SPECIALTIES = [
+  "Cardiologist", "Dermatologist", "ENT", "Endocrinologist",
+  "Gastroenterologist", "Geneticist", "Gynecologist", "Hematologist",
+  "Immunologist / Allergist", "Nephrologist", "Neurologist", "Oncologist",
+  "Ophthalmologist", "Orthopedist", "Pain Management", "Physical Therapist",
+  "Primary Care", "Psychiatrist / Psychologist", "Pulmonologist",
+  "Rheumatologist", "Urologist", "Other",
+];
+
 const BotanicalMark = ({ size = 32 }) => (
   <svg width={size} height={size} viewBox="0 0 72 72" fill="none">
     <circle cx="36" cy="36" r="34" fill="#e8f0eb" stroke="#7a9e87" strokeWidth="1"/>
@@ -1324,7 +1333,7 @@ export default function CareCompassTracker() {
   // ── Doctor report state ───────────────────────────────────────────────────
   const [reportView, setReportView]     = useState("prompt"); // "prompt" | "generating" | "report"
   const [reportPrompt, setReportPrompt] = useState({ providerName: "", specialty: "", focus: "", symptoms: "", questions: "" });
-  const [reportAI, setReportAI]         = useState(null); // AI-generated narrative sections
+  const [reportAI, setReportAI]         = useState(null);
   const [saved, setSaved]               = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [confirmDeleteLabId, setConfirmDeleteLabId] = useState(null);
@@ -1359,11 +1368,12 @@ export default function CareCompassTracker() {
 
   useEffect(() => { try { const stored = localStorage.getItem(STORAGE_KEY); if (stored) setEntries(JSON.parse(stored)); } catch {} }, []);
 
-  // Read appointment context from URL and auto-trigger insights
+  // Read appointment context from URL and auto-trigger insights or prefill report
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+
+    // Existing: insight=1 → go to AI Insights tab
     if (params.get("insight") === "1") {
-      // Skip onboarding if coming from appointment flow
       try { localStorage.setItem("cc-tracker-onboarded", "true"); } catch {}
       setHasSeenOnboarding(true);
       setView("insights");
@@ -1371,10 +1381,25 @@ export default function CareCompassTracker() {
       const doctor = params.get("doctor") || "";
       const reason = params.get("reason") || "";
       const date = params.get("date") || "";
-      if (specialty) {
-        setApptContext({ specialty, doctor, reason, date });
-      }
-      // Clean URL without reload
+      if (specialty) setApptContext({ specialty, doctor, reason, date });
+      window.history.replaceState({}, "", "/tracker");
+    }
+
+    // New: report=1 → go to Doctor Report tab with prompt prefilled
+    if (params.get("report") === "1") {
+      try { localStorage.setItem("cc-tracker-onboarded", "true"); } catch {}
+      setHasSeenOnboarding(true);
+      setView("report");
+      setReportView("prompt");
+      const specialty = params.get("specialty") || "";
+      const doctor = params.get("doctor") || "";
+      const reason = params.get("reason") || "";
+      setReportPrompt(p => ({
+        ...p,
+        providerName: doctor,
+        specialty,
+        focus: reason,
+      }));
       window.history.replaceState({}, "", "/tracker");
     }
   }, []);
@@ -1613,69 +1638,58 @@ Please also include a ## Blood Pressure Patterns section if you notice correlati
     if (!entries.length) return;
     setReportView("generating");
     setReportAI(null);
-
-    // Build entry summary (last 60 days)
     const since = Date.now() - 60 * 24 * 60 * 60 * 1000;
-    const recentEntries = entries.filter(e => e.timestamp >= since);
-    const workingEntries = recentEntries.length >= 5 ? recentEntries : entries;
-
+    const workingEntries = entries.filter(e => e.timestamp >= since).length >= 5
+      ? entries.filter(e => e.timestamp >= since) : entries;
     const grouped = {};
-    [...workingEntries].sort((a,b) => a.timestamp - b.timestamp).forEach(e => {
+    [...workingEntries].sort((a, b) => a.timestamp - b.timestamp).forEach(e => {
       const day = new Date(e.timestamp).toLocaleDateString("en-US", { weekday:"short", month:"short", day:"numeric" });
       if (!grouped[day]) grouped[day] = [];
       grouped[day].push(e);
     });
-    const summary = Object.entries(grouped).map(([day, dayEntries]) => {
-      const lines = dayEntries.map(e =>
+    const summary = Object.entries(grouped).map(([day, dayEntries]) =>
+      `${day}:\n${dayEntries.map(e =>
         `  ${new Date(e.timestamp).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})}: Severity ${e.severity}/10${e.symptoms?` — ${e.symptoms}`:""}${e.stress?` | Stress: ${e.stress}/10`:""}${e.activity?` | Activity: ${e.activity}`:""}${e.notes?` | Notes: ${e.notes}`:""}`
-      ).join("\n");
-      return `${day}:\n${lines}`;
-    }).join("\n\n");
-
+      ).join("\n")}`
+    ).join("\n\n");
     const { providerName, specialty, focus, symptoms: highlightSymptoms, questions } = reportPrompt;
-
-    const prompt = `You are Care Compass, a compassionate health navigation assistant helping a patient prepare for a medical appointment. Generate a focused, appointment-ready report based on their symptom tracking data.
+    const prompt = `You are Care Compass, a compassionate health navigation assistant helping a patient prepare for a medical appointment. Generate a focused, appointment-ready report.
 
 APPOINTMENT DETAILS:
 - Provider: ${providerName || "their doctor"}
 - Specialty: ${specialty || "General"}
-- Visit focus / reason: ${focus || "General symptom review"}
+- Visit focus: ${focus || "General symptom review"}
 ${highlightSymptoms ? `- Symptoms to highlight: ${highlightSymptoms}` : ""}
-${questions ? `- Patient's specific questions: ${questions}` : ""}
+${questions ? `- Patient's questions: ${questions}` : ""}
+${careTeamStr ? `\nCARE TEAM: ${careTeamStr}` : ""}${familyHistoryStr ? `\nFAMILY HISTORY: ${familyHistoryStr}` : ""}
 
-${careTeamStr ? `CARE TEAM CONTEXT: ${careTeamStr}\n` : ""}${familyHistoryStr ? `FAMILY HISTORY: ${familyHistoryStr}\n` : ""}
-
-TRACKER DATA (last 60 days, grouped by day):
+TRACKER DATA (last 60 days):
 ${summary}
 
-YOUR TASK:
-Write a warm, specific, appointment-focused report. Tailor everything to the visit focus and specialty above. Be concrete — reference actual dates and entries where possible.
-
-Use exactly these section headers (##):
+Write a warm, specific, appointment-focused report using exactly these section headers (##):
 
 ## Visit Summary
-2-3 sentences summarizing the overall picture and what this visit is focused on.
+2-3 sentences on the overall picture and visit focus.
 
 ## Key Patterns for This Visit
-The patterns most relevant to ${specialty || "this appointment"} and the stated focus. Be specific about frequency, timing, severity trends. Reference specific dates or day patterns where meaningful.
+Patterns most relevant to ${specialty || "this appointment"} and the focus. Be specific — reference dates and trends.
 
 ## Highlighted Symptom Entries
-Pull out the 4-6 most relevant individual entries from the log that best illustrate the focus area. For each, note the date, severity, and what they reported. Quote their words where impactful.
+Pull 4-6 most relevant entries from the log. Note date, severity, and quote the patient's words.
 
 ## Daily Life Impact
-How symptoms are affecting real-world functioning — driving, work, sleep, physical tasks. Be specific and concrete. Doctors need this to understand true severity.
+How symptoms affect real-world functioning — driving, work, sleep, physical tasks. Be specific.
 
 ## What's Improving vs What's Worsening
-Based on the data trends over the period. Be honest if patterns are unclear.
+Honest assessment of trends. Note if patterns are unclear.
 
 ## Questions to Raise at This Visit
-5-7 specific, targeted questions the patient should ask ${providerName ? providerName : "their " + (specialty || "doctor")} based on what the data shows. Make these actionable and grounded in what was logged.
+5-7 specific, targeted questions for ${providerName || "their " + (specialty || "doctor")} grounded in the data.
 
 ## Suggested Next Steps
-2-3 concrete things to discuss or request at this visit (tests, referrals, treatment adjustments, etc.) based on the patterns.
+2-3 concrete things to discuss or request (tests, referrals, adjustments).
 
-Keep the tone warm and patient-centered. Never diagnose. Use language like "worth discussing", "the data suggests", "you may want to ask about".`;
-
+Never diagnose. Use language like "worth discussing", "the data suggests".`;
     try {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
@@ -1684,9 +1698,7 @@ Keep the tone warm and patient-centered. Never diagnose. Use language like "wort
       });
       const data = await res.json();
       setReportAI(data.content?.[0]?.text || "Unable to generate report. Please try again.");
-    } catch {
-      setReportAI("Something went wrong generating your report. Please try again.");
-    }
+    } catch { setReportAI("Something went wrong. Please try again."); }
     setReportView("report");
   };
 
@@ -2361,27 +2373,69 @@ Keep the tone warm and patient-centered. Never diagnose. Use language like "wort
                     <p style={s.eyebrow}>Doctor Report</p>
                     <h2 style={{ ...s.title, fontSize: "1.5rem", marginBottom: "0.4rem" }}>Prepare your visit report</h2>
                     <p style={{ fontSize: "0.92rem", color: WARM_GRAY, margin: 0, lineHeight: 1.65 }}>
-                      Tell us about your upcoming appointment and Care Compass will generate a focused, AI-powered report — with your metrics, relevant symptom entries, and targeted questions for your provider.
+                      Tell us about your upcoming appointment and Care Compass will generate a focused, AI-powered report with your metrics, relevant entries, and questions tailored to your visit.
                     </p>
                   </div>
 
                   <div style={{ background: "#fff", borderRadius: "1.25rem", border: "1px solid rgba(0,0,0,0.07)", padding: "1.75rem", display: "flex", flexDirection: "column", gap: "1.25rem" }}>
 
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-                      <div style={s.formGroup}>
-                        <label style={s.label}>Provider name <span style={s.optional}>(optional)</span></label>
+                    {/* Provider name — care team picker or freetext */}
+                    <div style={s.formGroup}>
+                      <label style={s.label}>Provider name</label>
+                      {careTeam.filter(p => p.name).length > 0 ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+                            {careTeam.filter(p => p.name).map((p, i) => (
+                              <button key={i}
+                                onClick={() => setReportPrompt(prev => ({
+                                  ...prev,
+                                  providerName: p.name,
+                                  specialty: p.specialty || prev.specialty,
+                                }))}
+                                style={{
+                                  padding: "0.4rem 0.875rem", borderRadius: "100px", border: "1.5px solid",
+                                  borderColor: reportPrompt.providerName === p.name ? SAGE_DARK : "rgba(0,0,0,0.12)",
+                                  background: reportPrompt.providerName === p.name ? SAGE_DARK : "#fff",
+                                  color: reportPrompt.providerName === p.name ? "#fff" : INK,
+                                  fontSize: "0.85rem", fontWeight: 500, cursor: "pointer", fontFamily: "inherit",
+                                }}>
+                                {p.name}{p.specialty ? ` · ${p.specialty}` : ""}
+                              </button>
+                            ))}
+                            <button
+                              onClick={() => setReportPrompt(prev => ({ ...prev, providerName: prev.providerName && !careTeam.find(p => p.name === prev.providerName) ? prev.providerName : "" }))}
+                              style={{
+                                padding: "0.4rem 0.875rem", borderRadius: "100px", border: "1.5px dashed rgba(0,0,0,0.15)",
+                                background: !careTeam.find(p => p.name === reportPrompt.providerName) && reportPrompt.providerName ? SAGE_LIGHT : "#fff",
+                                color: WARM_GRAY, fontSize: "0.85rem", cursor: "pointer", fontFamily: "inherit",
+                              }}>
+                              + Other provider
+                            </button>
+                          </div>
+                          {(!careTeam.find(p => p.name === reportPrompt.providerName) || reportPrompt.providerName === "") && (
+                            <input style={s.input} value={reportPrompt.providerName}
+                              onChange={e => setReportPrompt(p => ({ ...p, providerName: e.target.value }))}
+                              placeholder="Enter provider name"/>
+                          )}
+                        </div>
+                      ) : (
                         <input style={s.input} value={reportPrompt.providerName}
                           onChange={e => setReportPrompt(p => ({ ...p, providerName: e.target.value }))}
                           placeholder="e.g. Dr. Smith"/>
-                      </div>
-                      <div style={s.formGroup}>
-                        <label style={s.label}>Specialty</label>
-                        <input style={s.input} value={reportPrompt.specialty}
-                          onChange={e => setReportPrompt(p => ({ ...p, specialty: e.target.value }))}
-                          placeholder="e.g. Pain Management, Rheumatology"/>
-                      </div>
+                      )}
                     </div>
 
+                    {/* Specialty — dropdown */}
+                    <div style={s.formGroup}>
+                      <label style={s.label}>Specialty</label>
+                      <select style={s.input} value={reportPrompt.specialty}
+                        onChange={e => setReportPrompt(p => ({ ...p, specialty: e.target.value }))}>
+                        <option value="">Select a specialty…</option>
+                        {APPT_SPECIALTIES.map(sp => <option key={sp} value={sp}>{sp}</option>)}
+                      </select>
+                    </div>
+
+                    {/* Visit focus */}
                     <div style={s.formGroup}>
                       <label style={s.label}>What are you being seen for?</label>
                       <input style={s.input} value={reportPrompt.focus}
@@ -2389,6 +2443,7 @@ Keep the tone warm and patient-centered. Never diagnose. Use language like "wort
                         placeholder="e.g. Neck and knee pain, flare management, medication review"/>
                     </div>
 
+                    {/* Symptoms to highlight */}
                     <div style={s.formGroup}>
                       <label style={s.label}>Symptoms to highlight <span style={s.optional}>(optional)</span></label>
                       <textarea style={{ ...s.input, resize: "vertical" }} rows={2}
@@ -2397,6 +2452,7 @@ Keep the tone warm and patient-centered. Never diagnose. Use language like "wort
                         placeholder="e.g. Neck stiffness after sitting, knee pain on stairs, morning joint pain lasting 2+ hours"/>
                     </div>
 
+                    {/* Questions */}
                     <div style={s.formGroup}>
                       <label style={s.label}>Questions or concerns to raise <span style={s.optional}>(optional)</span></label>
                       <textarea style={{ ...s.input, resize: "vertical" }} rows={2}
@@ -2409,18 +2465,17 @@ Keep the tone warm and patient-centered. Never diagnose. Use language like "wort
                   <div style={{ background: SAGE_LIGHT, borderRadius: "0.875rem", padding: "0.875rem 1.1rem", display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink:0, marginTop:"0.1rem" }}><circle cx="8" cy="8" r="6.5" stroke={SAGE_DARK} strokeWidth="1.3"/><path d="M8 7v4" stroke={SAGE_DARK} strokeWidth="1.4" strokeLinecap="round"/><circle cx="8" cy="5.5" r="0.7" fill={SAGE_DARK}/></svg>
                     <p style={{ fontSize: "0.8rem", color: SAGE_DARK, margin: 0, lineHeight: 1.6 }}>
-                      Your report will include <strong>metrics and charts</strong> from your tracking data, <strong>highlighted entries</strong> relevant to your visit focus, and <strong>tailored questions</strong> for your provider — all based on {entries.length} logged entries across {new Set(entries.map(e => new Date(e.timestamp).toDateString())).size} days.
+                      Your report will include <strong>metrics and charts</strong>, <strong>highlighted entries</strong> relevant to your visit, and <strong>tailored questions</strong> — based on {entries.length} entries across {new Set(entries.map(e => new Date(e.timestamp).toDateString())).size} days.
                     </p>
                   </div>
 
-                  <button
-                    onClick={handleGenerateReport}
-                    disabled={!reportPrompt.focus.trim() && !reportPrompt.specialty.trim()}
-                    style={{ ...s.addBtn, padding: "1rem 2rem", fontSize: "1rem", opacity: (!reportPrompt.focus.trim() && !reportPrompt.specialty.trim()) ? 0.5 : 1 }}>
+                  <button onClick={handleGenerateReport}
+                    disabled={!reportPrompt.focus.trim() && !reportPrompt.specialty}
+                    style={{ ...s.addBtn, padding: "1rem 2rem", fontSize: "1rem", opacity: (!reportPrompt.focus.trim() && !reportPrompt.specialty) ? 0.5 : 1 }}>
                     Generate My Report →
                   </button>
-                  {!reportPrompt.focus.trim() && !reportPrompt.specialty.trim() && (
-                    <p style={{ fontSize: "0.8rem", color: "#aaa", margin: "-1rem 0 0", textAlign: "center", fontStyle: "italic" }}>Enter a specialty or visit focus to get started</p>
+                  {!reportPrompt.focus.trim() && !reportPrompt.specialty && (
+                    <p style={{ fontSize: "0.8rem", color: "#aaa", margin: "-1rem 0 0", textAlign: "center", fontStyle: "italic" }}>Select a specialty or enter a visit focus to get started</p>
                   )}
                 </div>
 
@@ -2430,9 +2485,7 @@ Keep the tone warm and patient-centered. Never diagnose. Use language like "wort
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 400, gap: "1.5rem", textAlign: "center" }}>
                   <BotanicalMark size={56}/>
                   <div>
-                    <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.4rem", fontWeight: 700, color: INK, margin: "0 0 0.5rem" }}>
-                      Building your report…
-                    </h2>
+                    <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.4rem", fontWeight: 700, color: INK, margin: "0 0 0.5rem" }}>Building your report…</h2>
                     <p style={{ fontSize: "0.92rem", color: WARM_GRAY, margin: 0, lineHeight: 1.7, maxWidth: 360 }}>
                       Care Compass is analyzing your entries and tailoring insights for your {reportPrompt.specialty || "appointment"}{reportPrompt.providerName ? ` with ${reportPrompt.providerName}` : ""}.
                     </p>
@@ -2456,8 +2509,7 @@ Keep the tone warm and patient-centered. Never diagnose. Use language like "wort
                   </div>
 
                   <div style={s.reportCard}>
-
-                    {/* ── Header ── */}
+                    {/* Header */}
                     <div style={s.reportHead}>
                       <BotanicalMark size={44}/>
                       <div style={{ flex: 1 }}>
@@ -2474,7 +2526,7 @@ Keep the tone warm and patient-centered. Never diagnose. Use language like "wort
                             <p style={{ fontSize: "0.9rem", color: INK, margin: 0, lineHeight: 1.5 }}>{reportPrompt.focus}</p>
                           </div>
                         )}
-                        {careTeam.length > 0 && (
+                        {careTeam.filter(p => p.name).length > 0 && (
                           <div style={{ marginTop: "0.75rem", paddingTop: "0.75rem", borderTop: "1px solid rgba(0,0,0,0.06)" }}>
                             <p style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: "0 0 0.4rem" }}>Care team</p>
                             <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
@@ -2489,7 +2541,7 @@ Keep the tone warm and patient-centered. Never diagnose. Use language like "wort
                       </div>
                     </div>
 
-                    {/* ── Summary stats ── */}
+                    {/* Stats */}
                     <div style={s.reportSection}>
                       <h3 style={s.reportSectionTitle}>At a Glance</h3>
                       <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
@@ -2513,7 +2565,7 @@ Keep the tone warm and patient-centered. Never diagnose. Use language like "wort
                       </div>
                     </div>
 
-                    {/* ── Charts ── */}
+                    {/* Charts */}
                     <div style={s.reportSection}>
                       <h3 style={s.reportSectionTitle}>Daily Severity — Last 30 Days</h3>
                       <p style={{ fontSize: "0.75rem", color: "#aaa", margin: "0 0 0.75rem", fontStyle: "italic" }}>
@@ -2523,12 +2575,10 @@ Keep the tone warm and patient-centered. Never diagnose. Use language like "wort
                       </p>
                       <SeverityBarChart entries={entries}/>
                     </div>
-
                     <div style={s.reportSection}>
                       <h3 style={s.reportSectionTitle}>Most Frequent Symptoms</h3>
                       <SymptomFrequencyChart entries={entries}/>
                     </div>
-
                     {entries.some(e => e.sleep != null) && (
                       <div style={s.reportSection}>
                         <h3 style={s.reportSectionTitle}>Sleep Quality & Stress Levels</h3>
@@ -2536,16 +2586,16 @@ Keep the tone warm and patient-centered. Never diagnose. Use language like "wort
                       </div>
                     )}
 
-                    {/* ── AI narrative sections ── */}
+                    {/* AI narrative */}
                     {reportAI && (() => {
                       const SECTION_STYLES = {
-                        "visit summary":             { border: SAGE,      head: SAGE_DARK,  bg: "#fff" },
-                        "key patterns for this visit":{ border: TEAL,     head: "#2c6e72",  bg: TEAL_LIGHT },
+                        "visit summary":              { border: SAGE,      head: SAGE_DARK,  bg: "#fff" },
+                        "key patterns for this visit":{ border: TEAL,      head: "#2c6e72",  bg: TEAL_LIGHT },
                         "highlighted symptom entries":{ border: "#e8a838", head: "#8a5a00",  bg: "#fff8e8" },
                         "daily life impact":          { border: "#f0d58a", head: "#8a5a00",  bg: "#fff8e8" },
                         "what's improving vs what's worsening": { border: SAGE, head: SAGE_DARK, bg: SAGE_LIGHT },
                         "questions to raise at this visit":     { border: "#c0caf5", head: "#2c3d9b", bg: "#f0f4ff" },
-                        "suggested next steps":       { border: TEAL,     head: "#2c6e72",  bg: TEAL_LIGHT },
+                        "suggested next steps":       { border: TEAL,      head: "#2c6e72",  bg: TEAL_LIGHT },
                       };
                       return reportAI.split(/\n(?=## )/).filter(Boolean).map((section, si) => {
                         const lines = section.split("\n");
@@ -2554,7 +2604,6 @@ Keep the tone warm and patient-centered. Never diagnose. Use language like "wort
                         if (!heading || !body) return null;
                         const key = heading.toLowerCase().replace(/[^a-z\s']/g, "").trim();
                         const col = SECTION_STYLES[key] || { border: SAGE, head: SAGE_DARK, bg: "#fff" };
-                        const bodyLines = body.split("\n").map(l => l.trim()).filter(Boolean);
                         return (
                           <div key={si} style={{ background: col.bg, border: `1.5px solid ${col.border}`, borderRadius: "1.25rem", overflow: "hidden", marginBottom: "1rem" }}>
                             <div style={{ padding: "0.875rem 1.5rem", borderBottom: `1.5px solid ${col.border}`, display: "flex", alignItems: "center", gap: "0.625rem" }}>
@@ -2562,7 +2611,7 @@ Keep the tone warm and patient-centered. Never diagnose. Use language like "wort
                               <h3 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.05rem", fontWeight: 700, color: col.head, margin: 0 }}>{heading}</h3>
                             </div>
                             <div style={{ padding: "1.1rem 1.5rem", display: "flex", flexDirection: "column", gap: "0.625rem" }}>
-                              {bodyLines.map((line, li) => {
+                              {body.split("\n").map(l => l.trim()).filter(Boolean).map((line, li) => {
                                 const isBullet = /^[-*•]\s/.test(line) || /^\d+[.)]\s/.test(line);
                                 const clean = line.replace(/^[-*•]\s*/, "").replace(/^\d+[.)]\s*/, "").replace(/\*\*(.*?)\*\*/g, "$1").trim();
                                 if (!clean) return null;
@@ -2581,14 +2630,13 @@ Keep the tone warm and patient-centered. Never diagnose. Use language like "wort
                     })()}
 
                     <div style={s.reportFooter}>
-                      <p style={s.reportFooterText}>Generated by Care Compass · joincarecompass.com · This is not a medical record or medical advice. Please review with your healthcare provider.</p>
+                      <p style={s.reportFooterText}>Generated by Care Compass · joincarecompass.com · Not a medical record or medical advice. Review with your healthcare provider.</p>
                     </div>
                   </div>
                 </div>
               )}
             </div>
           )}
-
           {view === "bp" && (
             <div style={s.tabContent}>
               {/* Header */}

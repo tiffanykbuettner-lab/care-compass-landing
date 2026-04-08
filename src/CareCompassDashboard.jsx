@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "./AuthContext";
 
 const SAGE       = "#7a9e87";
@@ -979,7 +979,7 @@ export default function CareCompassDashboard() {
                     <div style={s.trackerActions}>
                       <a href="/tracker" style={s.trackerActionBtn}>View Trends</a>
                       <a href="/tracker" style={s.trackerActionBtnSecondary}>AI Insights</a>
-                      <a href="/tracker" style={s.trackerActionBtnSecondary}>Doctor Report</a>
+                      <a href="/tracker?report=1" style={s.trackerActionBtnSecondary}>Doctor Report</a>
                     </div>
                   </div>
                 ) : (
@@ -1038,7 +1038,7 @@ export default function CareCompassDashboard() {
                   </div>
                   {nextAppt.prepReport && (
                     <a
-                      href={`/tracker?insight=1&specialty=${encodeURIComponent(nextAppt.specialty)}${nextAppt.doctor ? `&doctor=${encodeURIComponent(nextAppt.doctor)}` : ""}${nextAppt.reason ? `&reason=${encodeURIComponent(nextAppt.reason)}` : ""}&date=${encodeURIComponent(nextAppt.date)}`}
+                      href={`/tracker?report=1&specialty=${encodeURIComponent(nextAppt.specialty)}${nextAppt.doctor ? `&doctor=${encodeURIComponent(nextAppt.doctor)}` : ""}${nextAppt.reason ? `&reason=${encodeURIComponent(nextAppt.reason)}` : ""}&date=${encodeURIComponent(nextAppt.date)}`}
                       style={{ background: TEAL, color: "#fff", borderRadius: "100px", padding: "0.55rem 1.1rem", fontSize: "0.8rem", fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" }}
                     >
                       Generate report →
@@ -1126,7 +1126,7 @@ export default function CareCompassDashboard() {
                 {[
                   { label: "Log a new entry", desc: "Record how you're feeling right now", href: "/tracker", color: SAGE_DARK },
                   { label: "Run the assessment", desc: "Map symptoms and get pattern insights", href: "/compass", color: TEAL },
-                  { label: "Generate a report", desc: "Create a PDF to bring to your doctor", href: "/tracker", color: WARM_GRAY },
+                  { label: "Generate a report", desc: "Create a PDF to bring to your doctor", href: "/tracker?report=1", color: WARM_GRAY },
                   { label: "Add appointment", desc: "Schedule a visit and prep your report", href: null, color: "#7a6fa0" },
                   { label: "Account settings", desc: "Manage your profile and subscription", href: "/account", color: INK_LIGHT },
                 ].map(({ label, desc, href, color }) => href ? (
@@ -1152,296 +1152,9 @@ export default function CareCompassDashboard() {
         <p style={s.footerDisclaimer}>Care Compass is not a medical service and does not provide medical advice, diagnosis, or treatment.</p>
       </footer>
 
-      <SageChatbot />
-
     </div>
   );
 }
-
-/* ─── Sage Chatbot + Firefly Fly-in ──────────────────────────────────────── */
-const SAGE_KEYFRAMES = `
-  @keyframes ffDrift {
-    0%,100% { transform: translate(0,0); }
-    33%      { transform: translate(0.6px,-0.8px); }
-    66%      { transform: translate(-0.5px,0.6px); }
-  }
-  @keyframes ffWingL {
-    0%,100% { transform-origin:50% 50%; transform: rotate(0deg) scaleY(1); opacity:0.55; }
-    50%      { transform-origin:50% 50%; transform: rotate(-18deg) scaleY(0.82); opacity:0.8; }
-  }
-  @keyframes ffWingR {
-    0%,100% { transform-origin:50% 50%; transform: rotate(0deg) scaleY(1); opacity:0.55; }
-    50%      { transform-origin:50% 50%; transform: rotate(18deg) scaleY(0.82); opacity:0.8; }
-  }
-  @keyframes ffLeaf {
-    0%,100% { transform-origin:36px 36px; transform:scale(1); }
-    50%      { transform-origin:36px 36px; transform:scale(1.03); }
-  }
-  @keyframes ffAntL {
-    0%,100% { transform: rotate(0deg); }
-    50%      { transform: rotate(-5deg); }
-  }
-  @keyframes ffAntR {
-    0%,100% { transform: rotate(0deg); }
-    50%      { transform: rotate(5deg); }
-  }
-  @keyframes sageIn {
-    from { opacity: 0; transform: translateY(12px) scale(0.95); }
-    to   { opacity: 1; transform: translateY(0) scale(1); }
-  }
-  @keyframes ffFlyIn {
-    0%   { top: -80px; left: 50vw; transform: translate(-50%,0) scale(1.4); opacity: 0; }
-    8%   { opacity: 1; }
-    30%  { top: 22vh; left: 65vw; transform: translate(-50%,0) scale(1.3) rotate(-12deg); }
-    55%  { top: 45vh; left: 25vw; transform: translate(-50%,0) scale(1.2) rotate(8deg); }
-    75%  { top: 70vh; left: 75vw; transform: translate(-50%,0) scale(1.1) rotate(-6deg); }
-    90%  { top: calc(100vh - 120px); left: calc(100vw - 80px); transform: translate(-50%,0) scale(0.85); }
-    100% { top: calc(100vh - 100px); left: calc(100vw - 58px); transform: translate(-50%,0) scale(1); opacity: 1; }
-  }
-  @keyframes ffLand {
-    0%   { transform: scale(1.1); }
-    60%  { transform: scale(0.92); }
-    100% { transform: scale(1); }
-  }
-`;
-
-const FireflyMark = ({ size = 36, style: extraStyle = {} }) => (
-  <svg width={size} height={size} viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg"
-    style={{ animation: "ffDrift 4s ease-in-out infinite", display: "block", ...extraStyle }}>
-    <circle cx="36" cy="36" r="34" fill="#e8f0eb" stroke="#7a9e87" strokeWidth="1"/>
-    <g style={{ animation: "ffLeaf 3.5s ease-in-out infinite" }}>
-      <ellipse cx="36" cy="17" rx="7" ry="17" fill="#4a7058"/>
-      <ellipse cx="36" cy="55" rx="5.5" ry="13" fill="#7a9e87" opacity="0.55"/>
-      <ellipse cx="55" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.8"/>
-      <ellipse cx="17" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.45"/>
-      <ellipse cx="36" cy="36" rx="4.5" ry="11" fill="#4a7058" opacity="0.35" transform="rotate(42 36 36) translate(0 -14)"/>
-      <ellipse cx="36" cy="36" rx="4.5" ry="11" fill="#4a7058" opacity="0.35" transform="rotate(-42 36 36) translate(0 -14)"/>
-      <ellipse cx="36" cy="36" rx="3.5" ry="9" fill="#4a9fa5" opacity="0.5" transform="rotate(135 36 36) translate(0 -14)"/>
-      <ellipse cx="36" cy="36" rx="3.5" ry="9" fill="#4a9fa5" opacity="0.5" transform="rotate(-135 36 36) translate(0 -14)"/>
-    </g>
-    <ellipse cx="36" cy="36" rx="4" ry="6.5" fill="#2d4a35"/>
-    <ellipse cx="28" cy="34" rx="8" ry="3.5" fill="#a8d4b0" opacity="0.55"
-      style={{ animation: "ffWingL 0.6s ease-in-out infinite" }}/>
-    <ellipse cx="44" cy="34" rx="8" ry="3.5" fill="#a8d4b0" opacity="0.55"
-      style={{ animation: "ffWingR 0.6s ease-in-out infinite", animationDelay: "0.05s" }}/>
-    <g style={{ transformOrigin: "34.5px 30px", animation: "ffAntL 2.8s ease-in-out infinite" }}>
-      <line x1="34.5" y1="30" x2="31" y2="25" stroke="#4a7058" strokeWidth="0.9" strokeLinecap="round"/>
-      <circle cx="31" cy="24.5" fill="#a8ffb0">
-        <animate attributeName="r" values="1;1.6;1" dur="2.4s" repeatCount="indefinite"/>
-        <animate attributeName="opacity" values="0.4;0.9;0.4" dur="2.4s" repeatCount="indefinite"/>
-      </circle>
-    </g>
-    <g style={{ transformOrigin: "37.5px 30px", animation: "ffAntR 2.8s ease-in-out infinite", animationDelay: "0.4s" }}>
-      <line x1="37.5" y1="30" x2="41" y2="25" stroke="#4a7058" strokeWidth="0.9" strokeLinecap="round"/>
-      <circle cx="41" cy="24.5" fill="#a8ffb0">
-        <animate attributeName="r" values="1;1.6;1" dur="2.4s" begin="0.5s" repeatCount="indefinite"/>
-        <animate attributeName="opacity" values="0.4;0.9;0.4" dur="2.4s" begin="0.5s" repeatCount="indefinite"/>
-      </circle>
-    </g>
-    <ellipse cx="34.2" cy="33.5" fill="#b8f0b0">
-      <animate attributeName="rx" values="1.3;1.3;1.3;0.2;1.3" dur="5s" keyTimes="0;0.7;0.85;0.9;1" repeatCount="indefinite"/>
-      <animate attributeName="ry" values="1.3;1.3;1.3;0.15;1.3" dur="5s" keyTimes="0;0.7;0.85;0.9;1" repeatCount="indefinite"/>
-    </ellipse>
-    <ellipse cx="37.8" cy="33.5" fill="#b8f0b0">
-      <animate attributeName="rx" values="1.3;1.3;1.3;0.2;1.3" dur="5s" keyTimes="0;0.7;0.85;0.9;1" begin="0.08s" repeatCount="indefinite"/>
-      <animate attributeName="ry" values="1.3;1.3;1.3;0.15;1.3" dur="5s" keyTimes="0;0.7;0.85;0.9;1" begin="0.08s" repeatCount="indefinite"/>
-    </ellipse>
-    <circle cx="36" cy="41" r="3" fill="#7fff7a" opacity="0.18"/>
-    <circle cx="36" cy="41" fill="#c8ffb0">
-      <animate attributeName="r" values="2.8;4;2.8" dur="1.8s" repeatCount="indefinite"/>
-      <animate attributeName="opacity" values="0.25;1;0.25" dur="1.8s" repeatCount="indefinite"/>
-    </circle>
-  </svg>
-);
-
-const DASHBOARD_SYSTEM_PROMPT = `You are Sage, the friendly Care Compass guide embedded in the user's personal dashboard. Care Compass helps people with chronic illness track symptoms, prepare for appointments, understand patterns, and navigate their health journey.
-
-You can help the user understand their dashboard, explain features like the symptom tracker, appointment prep, AI insights, and doctor reports. You can also offer encouragement and general guidance about using Care Compass effectively.
-
-Do not provide medical advice or interpret their specific symptoms. If they share health concerns, validate them warmly and encourage them to use the full Care Compass tools or speak with their doctor.
-
-Keep responses warm, supportive, and concise — 2-4 sentences. No bullet points or markdown.`;
-
-const DASHBOARD_SUGGESTIONS = [
-  "What should I do first?",
-  "How does the tracker work?",
-  "What are AI insights?",
-  "How do I prep for an appointment?",
-  "What's a doctor report?",
-  "How do I log symptoms?",
-];
-
-function SageChatbot() {
-  // fly-in states: "flying" | "landing" | "landed"
-  const [flyState, setFlyState] = useState("flying");
-  const [open, setOpen] = useState(false);
-  const [greeting, setGreeting] = useState(false);
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const messagesEndRef = useRef(null);
-
-  // Fly-in sequence: fly for 2.2s, land bounce for 0.4s, then show FAB + greeting
-  useEffect(() => {
-    const flyTimer = setTimeout(() => setFlyState("landing"), 2200);
-    const landTimer = setTimeout(() => {
-      setFlyState("landed");
-      setTimeout(() => setGreeting(true), 800);
-    }, 2600);
-    return () => { clearTimeout(flyTimer); clearTimeout(landTimer); };
-  }, []);
-
-  useEffect(() => {
-    if (open && messagesEndRef.current)
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
-  }, [messages, open]);
-
-  const sendMessageWith = async (text) => {
-    if (!text || loading) return;
-    const newMessages = [...messages, { role: "user", content: text }];
-    setMessages(newMessages);
-    setInput("");
-    setLoading(true);
-    try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          system: DASHBOARD_SYSTEM_PROMPT,
-          messages: newMessages,
-        }),
-      });
-      const data = await res.json();
-      const reply = data.content?.[0]?.text || "I'm having trouble connecting. Please try again in a moment.";
-      setMessages([...newMessages, { role: "assistant", content: reply }]);
-    } catch {
-      setMessages([...newMessages, { role: "assistant", content: "I'm having trouble connecting. Please try again in a moment." }]);
-    }
-    setLoading(false);
-  };
-
-  const sendMessage = async () => {
-    const text = input.trim();
-    if (!text || loading) return;
-    await sendMessageWith(text);
-  };
-
-  const handleKey = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
-  };
-
-  const openChat = () => { setOpen(true); setGreeting(false); };
-
-  return (
-    <>
-      <style>{SAGE_KEYFRAMES}</style>
-
-      {/* ── Fly-in firefly ── */}
-      {flyState === "flying" && (
-        <div style={{
-          position: "fixed", zIndex: 9999, pointerEvents: "none",
-          animation: "ffFlyIn 2.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards",
-        }}>
-          <FireflyMark size={80} />
-        </div>
-      )}
-
-      {/* ── Landing bounce ── */}
-      {flyState === "landing" && (
-        <div style={{
-          position: "fixed", bottom: "1.5rem", right: "1.5rem", zIndex: 9999, pointerEvents: "none",
-          animation: "ffLand 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards",
-        }}>
-          <FireflyMark size={68} />
-        </div>
-      )}
-
-      {/* ── Greeting bubble ── */}
-      {flyState === "landed" && greeting && !open && (
-        <div style={ss.greeting}>
-          <p style={ss.greetingText}>Hi, I'm Sage! I'm here to help you navigate your dashboard. 🌿</p>
-          <p style={ss.greetingAttrib}>— <strong>Your Care Compass guide</strong></p>
-          <button style={ss.greetingClose} onClick={() => setGreeting(false)} aria-label="Dismiss">✕</button>
-        </div>
-      )}
-
-      {/* ── Chat drawer ── */}
-      {open && (
-        <div style={ss.drawer}>
-          <div style={ss.drawerHeader}>
-            <div style={ss.drawerHeaderLeft}>
-              <FireflyMark size={44} />
-              <div>
-                <div style={ss.drawerName}>Sage</div>
-                <div style={ss.drawerSub}>Your Care Compass guide</div>
-              </div>
-            </div>
-            <button style={ss.drawerClose} onClick={() => setOpen(false)} aria-label="Close">✕</button>
-          </div>
-          <div style={ss.messages}>
-            {messages.length === 0 && (
-              <div>
-                <div style={ss.emptyState}>How can I help you today?</div>
-                <div style={ss.suggestedWrap}>
-                  {DASHBOARD_SUGGESTIONS.map(q => (
-                    <button key={q} style={ss.suggestedPill} onClick={() => sendMessageWith(q)}>{q}</button>
-                  ))}
-                </div>
-              </div>
-            )}
-            {messages.map((m, i) => (
-              <div key={i} style={m.role === "user" ? ss.userBubble : ss.sageBubble}>{m.content}</div>
-            ))}
-            {loading && <div style={ss.sageBubble}><span style={ss.typing}>●&nbsp;●&nbsp;●</span></div>}
-            <div ref={messagesEndRef} />
-          </div>
-          <div style={ss.inputRow}>
-            <input style={ss.chatInput} value={input} onChange={e => setInput(e.target.value)}
-              onKeyDown={handleKey} placeholder="Ask Sage a question…" disabled={loading} />
-            <button style={ss.sendBtn} onClick={sendMessage} disabled={loading || !input.trim()} aria-label="Send">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
-              </svg>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ── FAB (shown after landing) ── */}
-      {flyState === "landed" && !open && (
-        <button style={ss.fab} onClick={openChat} aria-label="Chat with Sage">
-          <FireflyMark size={48} />
-        </button>
-      )}
-    </>
-  );
-}
-
-const ss = {
-  fab: { position: "fixed", bottom: "1.5rem", right: "1.5rem", width: 68, height: 68, borderRadius: "50%", background: "#e8f0eb", border: "2px solid #c2d9c8", boxShadow: "0 4px 24px rgba(74,112,88,0.18)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9000, padding: 0 },
-  greeting: { position: "fixed", bottom: "5.75rem", right: "1.5rem", background: "#fff", borderRadius: "1rem", boxShadow: "0 4px 32px rgba(0,0,0,0.10)", padding: "1rem 1.25rem 0.85rem", maxWidth: 260, zIndex: 9000, animation: "sageIn 0.4s cubic-bezier(0.34,1.56,0.64,1)" },
-  greetingText: { margin: "0 0 0.3rem", fontSize: "0.92rem", color: "#2d2926", lineHeight: 1.55, paddingRight: "1rem" },
-  greetingAttrib: { margin: 0, fontSize: "0.78rem", color: "#7a9e87" },
-  greetingClose: { position: "absolute", top: "0.5rem", right: "0.6rem", background: "none", border: "none", cursor: "pointer", color: "#aaa", fontSize: "0.75rem", padding: "2px 4px", lineHeight: 1 },
-  drawer: { position: "fixed", bottom: "1.5rem", right: "1.5rem", width: 340, maxWidth: "calc(100vw - 2rem)", maxHeight: "70vh", background: "#fff", borderRadius: "1.25rem", boxShadow: "0 8px 48px rgba(0,0,0,0.14)", border: "1px solid rgba(0,0,0,0.07)", display: "flex", flexDirection: "column", zIndex: 9000, overflow: "hidden", animation: "sageIn 0.35s cubic-bezier(0.34,1.56,0.64,1)" },
-  drawerHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "1rem 1.1rem", borderBottom: "1px solid rgba(0,0,0,0.06)", background: "#fafaf8" },
-  drawerHeaderLeft: { display: "flex", alignItems: "center", gap: "0.75rem" },
-  drawerName: { fontWeight: 700, fontSize: "0.95rem", color: "#2d2926", lineHeight: 1.2 },
-  drawerSub: { fontSize: "0.75rem", color: "#7a9e87" },
-  drawerClose: { background: "none", border: "none", cursor: "pointer", color: "#aaa", fontSize: "1rem", padding: "4px", lineHeight: 1 },
-  messages: { flex: 1, overflowY: "auto", padding: "1rem", display: "flex", flexDirection: "column", gap: "0.75rem" },
-  emptyState: { fontSize: "0.875rem", color: "#aaa", textAlign: "center", lineHeight: 1.6, padding: "1rem 0.5rem 0.75rem", fontStyle: "italic" },
-  suggestedWrap: { display: "flex", flexWrap: "wrap", gap: "0.45rem", justifyContent: "center", padding: "0 0.25rem 0.5rem" },
-  suggestedPill: { background: "#f0f7f2", border: "1px solid #c2d9c8", borderRadius: "100px", padding: "0.4rem 0.85rem", fontSize: "0.78rem", color: "#4a7058", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", lineHeight: 1.4 },
-  userBubble: { alignSelf: "flex-end", background: "#4a7058", color: "#fff", borderRadius: "1rem 1rem 0.25rem 1rem", padding: "0.65rem 0.9rem", fontSize: "0.88rem", lineHeight: 1.5, maxWidth: "82%" },
-  sageBubble: { alignSelf: "flex-start", background: "#e8f0eb", color: "#2d2926", borderRadius: "1rem 1rem 1rem 0.25rem", padding: "0.65rem 0.9rem", fontSize: "0.88rem", lineHeight: 1.5, maxWidth: "82%" },
-  typing: { color: "#7a9e87", letterSpacing: "0.1em", fontSize: "0.75rem" },
-  inputRow: { display: "flex", gap: "0.5rem", padding: "0.75rem", borderTop: "1px solid rgba(0,0,0,0.06)", background: "#fafaf8" },
-  chatInput: { flex: 1, padding: "0.65rem 0.9rem", borderRadius: "0.75rem", border: "1.5px solid rgba(0,0,0,0.1)", fontSize: "0.88rem", fontFamily: "inherit", color: "#2d2926", background: "#fff", outline: "none" },
-  sendBtn: { width: 40, height: 40, borderRadius: "0.75rem", background: "#4a7058", color: "#fff", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
-};
 
 function getTimeOfDay() {
   const h = new Date().getHours();
