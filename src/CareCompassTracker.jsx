@@ -1351,6 +1351,73 @@ const PHASE_STYLES = {
   luteal:     { bg: "#f5f3ff", border: LAVENDER,  dot: LAVENDER,  label: "Luteal" },
 };
 
+const PHASE_INFO = {
+  period:     { title: "Period", color: ROSE,     desc: "The start of your cycle — menstrual bleeding. Day 1 of your period is Day 1 of your cycle. Logged period days are shown with a filled dot." },
+  follicular: { title: "Follicular phase", color: SAGE_DARK, desc: "Follows your period. Estrogen rises and a follicle develops in your ovary. Energy typically increases and mood often lifts during this phase." },
+  ovulation:  { title: "Ovulation", color: TEAL,  desc: "An egg is released from the ovary — typically around the midpoint of your cycle. You may notice increased energy, libido, or mild one-sided cramping (mittelschmerz). Fertility is highest." },
+  luteal:     { title: "Luteal phase", color: LAVENDER, desc: "After ovulation, progesterone rises to prepare for potential pregnancy. This phase often brings PMS symptoms like bloating, mood changes, fatigue, and breast tenderness." },
+};
+
+function PhaseLegend() {
+  const [open, setOpen] = React.useState(false);
+  const ref = React.useRef(null);
+
+  React.useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  return (
+    <div style={{ padding: "0.875rem 1.25rem", borderTop: "1px solid rgba(0,0,0,0.06)", display: "flex", flexWrap: "wrap", gap: "0.875rem", alignItems: "center", position: "relative" }}>
+      {Object.entries(PHASE_STYLES).map(([phase, ps]) => (
+        <div key={phase} style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+          <div style={{ width: 10, height: 10, borderRadius: "50%", background: ps.dot }}/>
+          <span style={{ fontSize: "0.75rem", color: WARM_GRAY }}>{ps.label}</span>
+        </div>
+      ))}
+      <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+        <div style={{ width: 10, height: 10, borderRadius: "50%", background: ROSE, border: `2px solid ${ROSE}` }}/>
+        <span style={{ fontSize: "0.75rem", color: WARM_GRAY }}>Logged period day</span>
+      </div>
+
+      {/* Info button */}
+      <div ref={ref} style={{ marginLeft: "auto", position: "relative" }}>
+        <button
+          onClick={() => setOpen(o => !o)}
+          title="What do these phases mean?"
+          style={{ width: 22, height: 22, borderRadius: "50%", background: open ? ROSE_LIGHT : "#f0f0ee", border: `1.5px solid ${open ? ROSE : "rgba(0,0,0,0.13)"}`, color: open ? ROSE : WARM_GRAY, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, fontFamily: "inherit", fontSize: "0.72rem", fontWeight: 700, transition: "all 0.15s", flexShrink: 0 }}
+          aria-label="Phase legend info"
+        >i</button>
+
+        {open && (
+          <div style={{ position: "absolute", bottom: "calc(100% + 10px)", right: 0, width: 300, background: "#fff", borderRadius: "1rem", border: "1.5px solid rgba(0,0,0,0.1)", boxShadow: "0 8px 32px rgba(0,0,0,0.13)", zIndex: 50, overflow: "hidden" }}>
+            {/* Arrow */}
+            <div style={{ position: "absolute", bottom: -8, right: 7, width: 14, height: 14, background: "#fff", border: "1.5px solid rgba(0,0,0,0.1)", borderTop: "none", borderLeft: "none", transform: "rotate(45deg)", borderRadius: "0 0 3px 0" }}/>
+            <div style={{ padding: "0.875rem 1rem 0.75rem", borderBottom: "1px solid rgba(0,0,0,0.07)" }}>
+              <p style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: 0 }}>About cycle phases</p>
+            </div>
+            <div style={{ padding: "0.75rem 1rem", display: "flex", flexDirection: "column", gap: "0.875rem" }}>
+              {Object.entries(PHASE_INFO).map(([key, info]) => (
+                <div key={key} style={{ display: "flex", gap: "0.625rem", alignItems: "flex-start" }}>
+                  <div style={{ width: 9, height: 9, borderRadius: "50%", background: info.color, flexShrink: 0, marginTop: "0.3rem" }}/>
+                  <div>
+                    <p style={{ fontSize: "0.78rem", fontWeight: 700, color: info.color, margin: "0 0 0.2rem" }}>{info.title}</p>
+                    <p style={{ fontSize: "0.75rem", color: WARM_GRAY, margin: 0, lineHeight: 1.6 }}>{info.desc}</p>
+                  </div>
+                </div>
+              ))}
+              <p style={{ fontSize: "0.7rem", color: "#bbb", margin: "0.25rem 0 0", fontStyle: "italic", lineHeight: 1.5 }}>
+                Phases marked on the calendar are predictions based on your logged period dates. They are not medical advice.
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function CycleTab({ globalEntries }) {
   const [cycles, setCycles] = useState(() => {
     try { const s = localStorage.getItem(CYCLE_KEY); return s ? JSON.parse(s) : []; } catch { return []; }
@@ -1548,18 +1615,7 @@ function CycleTab({ globalEntries }) {
           </div>
 
           {/* Phase legend */}
-          <div style={{ padding: "0.875rem 1.25rem", borderTop: "1px solid rgba(0,0,0,0.06)", display: "flex", flexWrap: "wrap", gap: "0.875rem" }}>
-            {Object.entries(PHASE_STYLES).map(([phase, ps]) => (
-              <div key={phase} style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                <div style={{ width: 10, height: 10, borderRadius: "50%", background: ps.dot }}/>
-                <span style={{ fontSize: "0.75rem", color: WARM_GRAY }}>{ps.label}</span>
-              </div>
-            ))}
-            <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-              <div style={{ width: 10, height: 10, borderRadius: "50%", background: ROSE, border: `2px solid ${ROSE}` }}/>
-              <span style={{ fontSize: "0.75rem", color: WARM_GRAY }}>Logged period day</span>
-            </div>
-          </div>
+          <PhaseLegend />
 
           {cycles.length === 0 && (
             <div style={{ padding: "2rem", textAlign: "center", color: WARM_GRAY, fontSize: "0.875rem", fontStyle: "italic" }}>
@@ -2418,16 +2474,16 @@ End with a one-line footer: "This document was prepared by the patient using Car
   const ALL_TABS = [
     { id: "log", label: "Log" },
     { id: "bp", label: "Blood Pressure" },
+    { id: "cycle", label: "Cycle Tracker" },
     { id: "trends", label: "Trends" },
     { id: "insights", label: "AI Insights" },
     { id: "report", label: "Doctor Report" },
     { id: "labs", label: "Lab Results" },
     { id: "er", label: "ER Report" },
-    { id: "cycle", label: "Cycle Tracker" },
   ];
 
-  const DEFAULT_TAB_ORDER = ["log", "bp", "trends", "insights", "report", "labs", "er", "cycle"];
-  const DEFAULT_HIDDEN = ["cycle", "er"]; // hidden by default, user can enable
+  const DEFAULT_TAB_ORDER = ["log", "bp", "cycle", "trends", "insights", "report", "labs", "er"];
+  const DEFAULT_HIDDEN = ["er"]; // hidden by default, user can enable
 
   const TAB_ORDER_KEY  = "cc-tab-order";
   const TAB_HIDDEN_KEY = "cc-tab-hidden";
