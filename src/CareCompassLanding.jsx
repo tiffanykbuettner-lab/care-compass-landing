@@ -265,15 +265,17 @@ const SUGGESTED_QUESTIONS = [
 
 function SageChatbot() {
   const [open, setOpen] = useState(false);
-  const [greeting, setGreeting] = useState(false);
+  const [greetPhase, setGreetPhase] = useState("hidden"); // "hidden" | "showing" | "fading" | "gone"
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
-    const timer = setTimeout(() => setGreeting(true), 4000);
-    return () => clearTimeout(timer);
+    const t1 = setTimeout(() => setGreetPhase("showing"), 4000);
+    const t2 = setTimeout(() => setGreetPhase("fading"),  7500);
+    const t3 = setTimeout(() => setGreetPhase("gone"),    8300);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
   }, []);
 
   useEffect(() => {
@@ -291,7 +293,7 @@ function SageChatbot() {
     try {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
           max_tokens: 1000,
@@ -318,16 +320,21 @@ function SageChatbot() {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
 
-  const openChat = () => { setOpen(true); setGreeting(false); };
+  const openChat = () => { setOpen(true); setGreetPhase("gone"); };
 
   return (
     <>
-      {/* Greeting bubble */}
-      {greeting && !open && (
-        <div style={sageStyles.greeting}>
+      {/* Auto-fading greeting bubble */}
+      {(greetPhase === "showing" || greetPhase === "fading") && !open && (
+        <div style={{
+          ...sageStyles.greeting,
+          animation: greetPhase === "showing"
+            ? "sageIn 0.45s cubic-bezier(0.34,1.56,0.64,1) forwards"
+            : "sageOut 0.7s ease forwards",
+          pointerEvents: greetPhase === "fading" ? "none" : "auto",
+        }}>
           <p style={sageStyles.greetingText}>Hi, I'm Sage! Got questions about Care Compass? I'm here to help.</p>
           <p style={sageStyles.greetingAttrib}>— <strong>Your Care Compass guide</strong></p>
-          <button style={sageStyles.greetingClose} onClick={() => setGreeting(false)} aria-label="Dismiss">✕</button>
         </div>
       )}
 
@@ -656,12 +663,7 @@ export default function CareCompassLanding() {
           <FadeIn delay={0.55}>
             <a href="#waitlist" style={styles.ctaButton}>Join the Waitlist →</a>
           </FadeIn>
-          <FadeIn delay={0.75}>
-            <div style={{ marginTop: "2.5rem", display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem" }}>
-              <IconCompass size={96} />
-              <p style={{ fontSize: "0.8rem", color: "#7a9e87", margin: 0, letterSpacing: "0.06em", textTransform: "uppercase", fontWeight: 600 }}>Meet Sage, your guide</p>
-            </div>
-          </FadeIn>
+
         </div>
         <div style={styles.heroScroll} aria-hidden="true">
           <div style={styles.scrollLine} />
@@ -917,6 +919,10 @@ export default function CareCompassLanding() {
         @keyframes sageIn {
           from { opacity: 0; transform: translateY(12px) scale(0.95); }
           to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes sageOut {
+          from { opacity: 1; transform: translateY(0) scale(1); }
+          to   { opacity: 0; transform: translateY(8px) scale(0.97); }
         }
       `}</style>
       <SageChatbot />
