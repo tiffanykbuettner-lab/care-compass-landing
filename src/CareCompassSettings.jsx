@@ -1993,6 +1993,7 @@ const SAGE_KEYFRAMES = `
   @keyframes ffAntL  { 0%,100%{transform:rotate(0deg)} 50%{transform:rotate(-5deg)} }
   @keyframes ffAntR  { 0%,100%{transform:rotate(0deg)} 50%{transform:rotate(5deg)} }
   @keyframes sageIn  { from{opacity:0;transform:translateY(12px) scale(0.95)} to{opacity:1;transform:translateY(0) scale(1)} }
+  @keyframes sageGreetOut { from{opacity:1;transform:translateY(0) scale(1)} to{opacity:0;transform:translateY(6px) scale(0.97)} }
 `;
 
 const FireflyMark = ({ size = 36 }) => (
@@ -2060,16 +2061,19 @@ const DEFAULT_SUGGESTIONS = [
 ];
 
 function SageChatbot({ activePanel }) {
-  const [open, setOpen] = useState(false);
-  const [greeting, setGreeting] = useState(false);
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const messagesEndRef = useRef(null);
+  const [open, setOpen]             = useState(false);
+  const [greetPhase, setGreetPhase] = useState("hidden"); // "hidden" | "showing" | "fading" | "gone"
+  const [messages, setMessages]     = useState([]);
+  const [input, setInput]           = useState("");
+  const [loading, setLoading]       = useState(false);
+  const messagesEndRef              = useRef(null);
 
+  // Auto-fade: appears at 5s, fades at 8.5s, gone at 9.2s — no dismiss needed
   useEffect(() => {
-    const t = setTimeout(() => setGreeting(true), 5000);
-    return () => clearTimeout(t);
+    const t1 = setTimeout(() => setGreetPhase("showing"), 5000);
+    const t2 = setTimeout(() => setGreetPhase("fading"),  8500);
+    const t3 = setTimeout(() => setGreetPhase("gone"),    9200);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
   }, []);
 
   useEffect(() => {
@@ -2089,7 +2093,12 @@ function SageChatbot({ activePanel }) {
     try {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method:"POST",
-        headers:{ "Content-Type":"application/json" },
+        headers:{
+          "Content-Type":"application/json",
+          "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY,
+          "anthropic-version":"2023-06-01",
+          "anthropic-dangerous-direct-browser-access":"true",
+        },
         body:JSON.stringify({
           model:"claude-sonnet-4-20250514",
           max_tokens:1000,
@@ -2107,18 +2116,27 @@ function SageChatbot({ activePanel }) {
   };
 
   const sendMessage = async () => { const t = input.trim(); if (t) await sendMessageWith(t); };
-  const handleKey = (e) => { if (e.key==="Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } };
+  const handleKey   = (e) => { if (e.key==="Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } };
+  const openChat    = () => { setOpen(true); setGreetPhase("gone"); };
 
   return (
     <>
       <style>{SAGE_KEYFRAMES}</style>
-      {greeting && !open && (
-        <div style={ss.greeting}>
+
+      {/* Auto-fading greeting — no dismiss button needed */}
+      {(greetPhase === "showing" || greetPhase === "fading") && !open && (
+        <div style={{
+          ...ss.greeting,
+          animation: greetPhase === "showing"
+            ? "sageIn 0.45s cubic-bezier(0.34,1.56,0.64,1) forwards"
+            : "sageGreetOut 0.65s ease forwards",
+          pointerEvents: greetPhase === "fading" ? "none" : "auto",
+        }}>
           <p style={ss.greetingText}>Hi, I'm Sage! Need help with your settings? 🌿</p>
           <p style={ss.greetingAttrib}>— <strong>Your Care Compass guide</strong></p>
-          <button style={ss.greetingClose} onClick={() => setGreeting(false)} aria-label="Dismiss">✕</button>
         </div>
       )}
+
       {open && (
         <div style={ss.drawer}>
           <div style={ss.drawerHeader}>
@@ -2159,8 +2177,9 @@ function SageChatbot({ activePanel }) {
           </div>
         </div>
       )}
+
       {!open && (
-        <button style={ss.fab} onClick={() => { setOpen(true); setGreeting(false); }} aria-label="Chat with Sage">
+        <button style={ss.fab} onClick={openChat} aria-label="Chat with Sage">
           <FireflyMark size={48}/>
         </button>
       )}
