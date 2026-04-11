@@ -2427,7 +2427,7 @@ End with a one-line footer: "This document was prepared by the patient using Car
   ];
 
   const DEFAULT_TAB_ORDER = ["log", "bp", "trends", "insights", "report", "labs", "er", "cycle"];
-  const DEFAULT_HIDDEN = ["cycle", "er"]; // hidden by default, user can enable
+  const DEFAULT_HIDDEN = []; // all tabs visible by default; user can hide/reorder
 
   const TAB_ORDER_KEY  = "cc-tab-order";
   const TAB_HIDDEN_KEY = "cc-tab-hidden";

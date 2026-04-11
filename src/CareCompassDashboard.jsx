@@ -739,10 +739,10 @@ function SageChatbot() {
 
   const suggestions = skippedSetup || skippedAssessment ? DASHBOARD_SUGGESTIONS_NUDGE : DASHBOARD_SUGGESTIONS;
   const greetingText = skippedSetup
-    ? "Hi, I'm Sage! 🌿 A quick profile setup will make your experience much better — ready?"
+    ? "A quick profile setup will make your experience much better — ready?"
     : skippedAssessment
-    ? "Hi, I'm Sage! 🌿 Ready to take your assessment? It's the best first step."
-    : "Hi, I'm Sage! 🌿 Questions about your dashboard? I'm here to help.";
+    ? "Ready to take your assessment? It's the best first step."
+    : "Questions about your dashboard? I'm here to help.";
 
   const [greetPhase, setGreetPhase] = useState("hidden"); // "hidden" | "showing" | "fading" | "gone"
   const [open, setOpen]             = useState(false);
