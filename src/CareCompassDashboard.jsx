@@ -705,6 +705,10 @@ const DASHBOARD_SYSTEM_PROMPT = `You are Sage, the friendly Care Compass guide o
 
 Help users understand their dashboard, navigate features, set up appointments, understand their tracking data, or get started with Care Compass. Be warm, encouraging, and concise — 2-3 sentences max. No bullet points or markdown. Never give medical advice.`;
 
+const DASHBOARD_SYSTEM_PROMPT_NUDGE_ASSESSMENT = `You are Sage, the friendly Care Compass guide on the dashboard. This user is brand new — they've set up their account but haven't taken the Care Compass assessment yet.
+
+Your top priority is gently encouraging them to take the assessment when relevant. The assessment is the most important first step — it maps their symptoms with AI and generates their first insights report. If they ask what to do first, or how to get started, point them to the assessment at /compass. Be warm, never pushy. 2-3 sentences max. No bullet points or markdown. Never give medical advice.`;
+
 const DASHBOARD_SUGGESTIONS = [
   "How do I log my symptoms?",
   "What does the AI Insights feature do?",
@@ -714,7 +718,26 @@ const DASHBOARD_SUGGESTIONS = [
   "How is my data kept private?",
 ];
 
+const DASHBOARD_SUGGESTIONS_NUDGE = [
+  "What is the assessment?",
+  "How long does the assessment take?",
+  "Can I skip the assessment and start tracking?",
+  "What happens after I take the assessment?",
+  "How do I log my symptoms?",
+  "How is my data kept private?",
+];
+
 function SageChatbot() {
+  const skippedAssessment = (() => {
+    try { return localStorage.getItem("cc-skipped-assessment") === "true"; } catch { return false; }
+  })();
+
+  const systemPrompt   = skippedAssessment ? DASHBOARD_SYSTEM_PROMPT_NUDGE_ASSESSMENT : DASHBOARD_SYSTEM_PROMPT;
+  const suggestions    = skippedAssessment ? DASHBOARD_SUGGESTIONS_NUDGE : DASHBOARD_SUGGESTIONS;
+  const greetingText   = skippedAssessment
+    ? "Hi, I'm Sage! 🌿 Ready to take your assessment? It's the best first step."
+    : "Hi, I'm Sage! 🌿 Questions about your dashboard? I'm here to help.";
+
   const [greetPhase, setGreetPhase] = useState("hidden"); // "hidden" | "showing" | "fading" | "gone"
   const [open, setOpen]             = useState(false);
   const [messages, setMessages]     = useState([]);
@@ -753,7 +776,7 @@ function SageChatbot() {
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
           max_tokens: 1000,
-          system: DASHBOARD_SYSTEM_PROMPT,
+          system: systemPrompt,
           messages: newMessages,
         }),
       });
@@ -787,7 +810,7 @@ function SageChatbot() {
           pointerEvents: greetPhase === "fading" ? "none" : "auto",
         }}>
           <p style={{ margin: "0 0 0.2rem", fontSize: "0.88rem", fontWeight: 600, color: "#4a7058" }}>Hi, I'm Sage! 🌿</p>
-          <p style={{ margin: 0, fontSize: "0.82rem", color: "#2d2926", lineHeight: 1.5 }}>Questions about your dashboard? I'm here to help.</p>
+          <p style={{ margin: 0, fontSize: "0.82rem", color: "#2d2926", lineHeight: 1.5 }}>{greetingText}</p>
         </div>
       )}
 
@@ -817,11 +840,11 @@ function SageChatbot() {
           <div style={{ flex: 1, overflowY: "auto", padding: "1rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
             {messages.length === 0 && (
               <div>
-                <div style={{ fontSize: "0.875rem", color: "#aaa", textAlign: "center", lineHeight: 1.6, padding: "1rem 0.5rem 0.75rem", fontStyle: "italic" }}>
+                  <div style={{ fontSize: "0.875rem", color: "#aaa", textAlign: "center", lineHeight: 1.6, padding: "1rem 0.5rem 0.75rem", fontStyle: "italic" }}>
                   Ask me anything about your Care Compass dashboard.
                 </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "0.45rem", justifyContent: "center", padding: "0 0.25rem 0.5rem" }}>
-                  {DASHBOARD_SUGGESTIONS.map(q => (
+                  {suggestions.map(q => (
                     <button key={q} onClick={() => sendMessageWith(q)}
                       style={{ background: "#f0f7f2", border: "1px solid #c2d9c8", borderRadius: "100px", padding: "0.4rem 0.85rem", fontSize: "0.78rem", color: "#4a7058", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", lineHeight: 1.4 }}>
                       {q}
@@ -911,9 +934,18 @@ export default function CareCompassDashboard() {
     try { return localStorage.getItem("cc-first-assessment-done") === "true"; } catch { return false; }
   });
 
+  const [showSkippedAssessment, setShowSkippedAssessment] = useState(() => {
+    try { return localStorage.getItem("cc-skipped-assessment") === "true"; } catch { return false; }
+  });
+
   const dismissPostAssessment = () => {
     setShowPostAssessment(false);
     try { localStorage.removeItem("cc-first-assessment-done"); } catch {}
+  };
+
+  const dismissSkippedAssessment = () => {
+    setShowSkippedAssessment(false);
+    try { localStorage.removeItem("cc-skipped-assessment"); } catch {}
   };
 
   // ── Appointments state ────────────────────────────────────────────────────
@@ -1076,6 +1108,43 @@ export default function CareCompassDashboard() {
               + Log Entry
             </button>
           </div>
+
+          {/* ── Skipped-assessment nudge banner ── */}
+          {showSkippedAssessment && !isNew && !showPostAssessment && (
+            <div style={{ background: `linear-gradient(135deg, ${TEAL_LIGHT}, ${SAGE_LIGHT})`, borderRadius: "1.25rem", border: `1px solid ${TEAL}`, padding: "1.25rem 1.5rem", marginBottom: "0.5rem", position: "relative", display: "flex", gap: "1rem", alignItems: "flex-start", flexWrap: "wrap" }}>
+              <button
+                onClick={dismissSkippedAssessment}
+                style={{ position: "absolute", top: "1rem", right: "1rem", background: "none", border: "none", cursor: "pointer", color: WARM_GRAY, padding: "4px", lineHeight: 1, opacity: 0.6 }}
+                aria-label="Dismiss">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
+              </button>
+              <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#fff", border: `1.5px solid ${TEAL}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
+                </svg>
+              </div>
+              <div style={{ flex: 1, minWidth: 200, paddingRight: "1.5rem" }}>
+                <p style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: TEAL, margin: "0 0 0.25rem" }}>Your next step</p>
+                <h3 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.05rem", fontWeight: 700, color: INK, margin: "0 0 0.35rem" }}>
+                  Ready to take your assessment?
+                </h3>
+                <p style={{ fontSize: "0.85rem", color: INK_LIGHT, margin: "0 0 1rem", lineHeight: 1.6 }}>
+                  The Care Compass assessment maps your symptoms with AI and generates your first personalised insights report. It takes about 10–15 minutes and is the foundation for everything else in the app.
+                </p>
+                <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "center" }}>
+                  <a href="/compass"
+                    onClick={dismissSkippedAssessment}
+                    style={{ background: TEAL, color: "#fff", borderRadius: "100px", padding: "0.6rem 1.25rem", fontSize: "0.875rem", fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" }}>
+                    Take the assessment →
+                  </a>
+                  <button onClick={dismissSkippedAssessment}
+                    style={{ background: "none", border: "none", fontSize: "0.82rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit", textDecoration: "underline", textDecorationColor: "rgba(0,0,0,0.2)", padding: 0 }}>
+                    Dismiss for now
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* ── Post-assessment welcome banner (shows once after first assessment) ── */}
           {showPostAssessment && !isNew && (
