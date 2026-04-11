@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { AuthProvider } from './AuthContext'
 import CareCompassLanding from './CareCompassLanding'
 import PrivacyPolicy from './PrivacyPolicy'
 import CareCompassPOC from './CareCompassPOC'
@@ -11,18 +12,20 @@ import CareCompassWelcome from './CareCompassWelcome'
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<CareCompassLanding />} />
-        <Route path="/privacy" element={<PrivacyPolicy />} />
-        <Route path="/compass" element={<CareCompassPOC />} />
-        <Route path="/tracker" element={<CareCompassTracker />} />
-        <Route path="/pricing" element={<CareCompassPricing />} />
-        <Route path="/login" element={<CareCompassLogin />} />
-        <Route path="/signup" element={<CareCompassSignup />} />
-        <Route path="/dashboard" element={<CareCompassDashboard />} />
-        <Route path="/welcome" element={<CareCompassWelcome />} />
-      </Routes>
-    </BrowserRouter>
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<CareCompassLanding />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/compass" element={<CareCompassPOC />} />
+          <Route path="/tracker" element={<CareCompassTracker />} />
+          <Route path="/pricing" element={<CareCompassPricing />} />
+          <Route path="/login" element={<CareCompassLogin />} />
+          <Route path="/signup" element={<CareCompassSignup />} />
+          <Route path="/dashboard" element={<CareCompassDashboard />} />
+          <Route path="/welcome" element={<CareCompassWelcome />} />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   )
 }

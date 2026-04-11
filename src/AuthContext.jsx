@@ -1,118 +1,57 @@
 /**
- * AuthContext.jsx
- * 
- * Mock auth layer — drop-in ready for Clerk.
- * 
- * TO INTEGRATE CLERK:
- * 1. npm install @clerk/clerk-react
- * 2. Wrap App in <ClerkProvider publishableKey={...}>
- * 3. Replace useAuth() calls with Clerk's useUser() / useAuth()
- * 4. Replace signIn / signOut / signUp with Clerk equivalents
- * 5. Remove this file
- * 
- * The AUTH_KEY in localStorage mimics a session token.
- * Real Clerk sessions are managed server-side and far more secure.
+ * AuthContext.jsx — Mock auth layer
+ *
+ * Temporary stand-in until Clerk is integrated.
+ * All routes are effectively public for cross-device testing.
+ * Replace this file with the real Clerk-backed implementation
+ * when Clerk + Supabase BAA is finalised.
+ *
+ * Exports:
+ *   AuthProvider  — wraps the app, required by useAuth()
+ *   useAuth       — returns { user, signUp, signIn, signOut, loading }
  */
 
-import React, { createContext, useContext, useState, useEffect } from "react";
-
-const AUTH_KEY = "cc-auth-session";
-const PROFILE_KEY = "cc-auth-profile";
+import React, { createContext, useContext, useState } from "react";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser]       = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  // On mount — restore session from localStorage
-  useEffect(() => {
+  const [user, setUser] = useState(() => {
+    // Persist a mock session across page refreshes
     try {
-      const session = localStorage.getItem(AUTH_KEY);
-      const profile = localStorage.getItem(PROFILE_KEY);
-      if (session && profile) {
-        setUser(JSON.parse(profile));
-      }
-    } catch {}
-    setLoading(false);
-  }, []);
+      const stored = localStorage.getItem("cc-mock-user");
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [loading] = useState(false);
 
-  /**
-   * signIn — mock login
-   * Replace with: await signIn.create({ identifier: email, password })
-   */
-  const signIn = async ({ email, password }) => {
-    // Mock: any email/password works
-    const profile = {
-      id: "mock-" + Date.now(),
-      email,
-      firstName: email.split("@")[0],
-      displayName: email.split("@")[0],
-      subscriptionTier: "pro",
-      isNewUser: false,
-      createdAt: new Date().toISOString(),
-    };
-    // Restore display name from account settings if set
-    try {
-      const stored = localStorage.getItem("cc-display-name");
-      if (stored) profile.displayName = stored;
-      const fullName = localStorage.getItem("cc-full-name");
-      if (fullName) profile.firstName = fullName.split(" ")[0];
-    } catch {}
-    localStorage.setItem(AUTH_KEY, JSON.stringify({ token: "mock-token", expires: Date.now() + 86400000 * 30 }));
-    localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
-    setUser(profile);
-    return profile;
+  const signUp = async ({ email, password, firstName } = {}) => {
+    // Clerk integration point: replace with real SignUp flow
+    const mockUser = { id: "mock-" + Date.now(), email, firstName: firstName || "" };
+    setUser(mockUser);
+    try { localStorage.setItem("cc-mock-user", JSON.stringify(mockUser)); } catch {}
+    return mockUser;
   };
 
-  /**
-   * signUp — mock registration
-   * Replace with: await signUp.create({ emailAddress, password, firstName })
-   */
-  const signUp = async ({ email, password, firstName }) => {
-    const displayName = firstName || email.split("@")[0];
-    const profile = {
-      id: "mock-" + Date.now(),
-      email,
-      firstName: displayName,
-      displayName,
-      subscriptionTier: "pro",
-      isNewUser: true,
-      createdAt: new Date().toISOString(),
-    };
-    localStorage.setItem(AUTH_KEY, JSON.stringify({ token: "mock-token", expires: Date.now() + 86400000 * 30 }));
-    localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
-    localStorage.setItem("cc-display-name", displayName);
-    localStorage.setItem("cc-full-name", firstName || "");
-    // Mark as new user — dismisses after first dashboard visit
-    localStorage.removeItem("cc-onboarded");
-    localStorage.setItem("cc-onboarding-step", "1"); // Start at step 1
-    setUser(profile);
-    return profile;
+  const signIn = async ({ email } = {}) => {
+    // Clerk integration point: replace with real SignIn flow
+    const mockUser = { id: "mock-" + Date.now(), email };
+    setUser(mockUser);
+    try { localStorage.setItem("cc-mock-user", JSON.stringify(mockUser)); } catch {}
+    return mockUser;
   };
 
-  /**
-   * signOut — clears session
-   * Replace with: await signOut()
-   */
-  const signOut = () => {
-    localStorage.removeItem(AUTH_KEY);
-    localStorage.removeItem(PROFILE_KEY);
+  const signOut = async () => {
+    // Clerk integration point: replace with real SignOut flow
     setUser(null);
+    try { localStorage.removeItem("cc-mock-user"); } catch {}
     window.location.href = "/";
   };
 
-  /**
-   * updateUser — update display name etc after account settings save
-   */
-  const updateUser = (updates) => {
-    const updated = { ...user, ...updates };
-    setUser(updated);
-    try { localStorage.setItem(PROFILE_KEY, JSON.stringify(updated)); } catch {}
-  };
-
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut, updateUser, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{ user, signUp, signIn, signOut, loading }}>
       {children}
     </AuthContext.Provider>
   );
