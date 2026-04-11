@@ -907,6 +907,14 @@ export default function CareCompassDashboard() {
     } catch {}
   }, []);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showPostAssessment, setShowPostAssessment] = useState(() => {
+    try { return localStorage.getItem("cc-first-assessment-done") === "true"; } catch { return false; }
+  });
+
+  const dismissPostAssessment = () => {
+    setShowPostAssessment(false);
+    try { localStorage.removeItem("cc-first-assessment-done"); } catch {}
+  };
 
   // ── Appointments state ────────────────────────────────────────────────────
   const [appointments, setAppointments] = useState([]);
@@ -1068,6 +1076,66 @@ export default function CareCompassDashboard() {
               + Log Entry
             </button>
           </div>
+
+          {/* ── Post-assessment welcome banner (shows once after first assessment) ── */}
+          {showPostAssessment && !isNew && (
+            <div style={{ background: `linear-gradient(135deg, ${SAGE_LIGHT}, ${TEAL_LIGHT})`, borderRadius: "1.25rem", border: `1px solid ${SAGE}`, padding: "1.5rem 1.75rem", marginBottom: "0.5rem", position: "relative" }}>
+              <button
+                onClick={dismissPostAssessment}
+                style={{ position: "absolute", top: "1rem", right: "1rem", background: "none", border: "none", cursor: "pointer", color: WARM_GRAY, fontSize: "1rem", padding: "4px", lineHeight: 1, opacity: 0.6 }}
+                aria-label="Dismiss">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
+              </button>
+
+              <div style={{ display: "flex", gap: "1rem", alignItems: "flex-start", flexWrap: "wrap" }}>
+                <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#fff", border: `1.5px solid ${SAGE}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <BotanicalMark size={28}/>
+                </div>
+                <div style={{ flex: 1, minWidth: 240 }}>
+                  <p style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: SAGE_DARK, margin: "0 0 0.3rem" }}>Welcome to Care Compass</p>
+                  <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.2rem", fontWeight: 700, color: INK, margin: "0 0 0.4rem", lineHeight: 1.3 }}>
+                    Your assessment is saved. Here's what to do next.
+                  </h2>
+                  <p style={{ fontSize: "0.875rem", color: INK_LIGHT, margin: "0 0 1.25rem", lineHeight: 1.65 }}>
+                    Your insights are a starting point — daily tracking is what turns them into patterns your doctor can act on. Start with one entry today while your symptoms are top of mind.
+                  </p>
+                  <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+                    <a href="/tracker"
+                      onClick={dismissPostAssessment}
+                      style={{ background: SAGE_DARK, color: "#fff", borderRadius: "100px", padding: "0.65rem 1.4rem", fontSize: "0.875rem", fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" }}>
+                      Log your first entry →
+                    </a>
+                    <a href="/account"
+                      style={{ background: "#fff", color: SAGE_DARK, border: `1.5px solid ${SAGE}`, borderRadius: "100px", padding: "0.65rem 1.4rem", fontSize: "0.875rem", fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" }}>
+                      Complete your profile
+                    </a>
+                  </div>
+                </div>
+              </div>
+
+              {/* Three next steps */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "0.75rem", marginTop: "1.25rem", paddingTop: "1.25rem", borderTop: "1px solid rgba(0,0,0,0.07)" }}>
+                {[
+                  { num: "1", title: "Log today's symptoms", desc: "Even a quick entry helps us start finding patterns.", href: "/tracker", cta: "Open tracker →", onClick: dismissPostAssessment },
+                  { num: "2", title: "Add an appointment", desc: "Save an upcoming visit and Care Compass will prep your report automatically.", href: null, cta: "Add appointment →", onClick: () => { dismissPostAssessment(); setShowApptForm(true); window.scrollTo({ top: 0, behavior: "smooth" }); } },
+                  { num: "3", title: "Complete your profile", desc: "Add medications and care team to personalise your AI insights.", href: "/account", cta: "Account settings →", onClick: dismissPostAssessment },
+                ].map((step, i) => (
+                  <div key={i} style={{ background: "rgba(255,255,255,0.65)", borderRadius: "0.875rem", padding: "0.875rem 1rem" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.35rem" }}>
+                      <div style={{ width: 22, height: 22, borderRadius: "50%", background: SAGE_DARK, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.7rem", fontWeight: 700, flexShrink: 0 }}>{step.num}</div>
+                      <p style={{ fontSize: "0.85rem", fontWeight: 600, color: INK, margin: 0 }}>{step.title}</p>
+                    </div>
+                    <p style={{ fontSize: "0.78rem", color: WARM_GRAY, margin: "0 0 0.6rem", lineHeight: 1.55 }}>{step.desc}</p>
+                    {step.href ? (
+                      <a href={step.href} onClick={step.onClick} style={{ fontSize: "0.78rem", color: SAGE_DARK, fontWeight: 600, textDecoration: "none" }}>{step.cta}</a>
+                    ) : (
+                      <button onClick={step.onClick} style={{ fontSize: "0.78rem", color: SAGE_DARK, fontWeight: 600, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", padding: 0 }}>{step.cta}</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* ── New user empty state ── */}
           {isNew && (

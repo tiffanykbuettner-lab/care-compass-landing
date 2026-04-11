@@ -478,23 +478,31 @@ function GuidanceOutput({ guidance, onReset, onEdit, userName }) {
       <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }} className="no-print">
         <div style={s.trackerPrompt}>
           <div style={s.trackerPromptLeft}>
-            <p style={s.trackerPromptTitle}>Build on these insights with daily tracking</p>
-            <p style={s.trackerPromptDesc}>Log your symptoms, food, sleep, and stress every day to uncover patterns over time — and generate reports to bring to every appointment.</p>
+            <p style={s.trackerPromptTitle}>Your insights are saved — here's what to do next</p>
+            <p style={s.trackerPromptDesc}>Head to your dashboard to set up daily tracking, prepare for appointments, and get the most out of Care Compass.</p>
           </div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.5rem", flexShrink: 0 }}>
             <a
-              href="/tracker"
+              href="/dashboard"
               style={s.trackerPromptBtn}
-              onClick={() => { try { localStorage.setItem("cc-onboarding-step", "complete"); } catch {} }}
+              onClick={() => {
+                try {
+                  localStorage.setItem("cc-onboarding-step", "complete");
+                  // Only set first-assessment flag once — retakes should not re-trigger the welcome
+                  if (!localStorage.getItem("cc-first-assessment-done")) {
+                    localStorage.setItem("cc-first-assessment-done", "true");
+                  }
+                } catch {}
+              }}
             >
-              Start Tracking →
+              Go to my dashboard →
             </a>
             <a
-              href="/dashboard"
+              href="/tracker"
               style={{ fontSize: "0.78rem", color: WARM_GRAY, textDecoration: "underline", textDecorationColor: "rgba(0,0,0,0.2)", whiteSpace: "nowrap" }}
               onClick={() => { try { localStorage.setItem("cc-onboarding-step", "complete"); } catch {} }}
             >
-              Go to my dashboard
+              Start tracking now
             </a>
           </div>
         </div>
