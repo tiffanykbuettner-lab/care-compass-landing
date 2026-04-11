@@ -488,10 +488,16 @@ function GuidanceOutput({ guidance, onReset, onEdit, userName }) {
               onClick={() => {
                 try {
                   localStorage.setItem("cc-onboarding-step", "complete");
-                  // Only set first-assessment flag once — retakes should not re-trigger the welcome
+                  // Set assessment done — only on first completion; retakes don't re-trigger welcome flow
+                  if (!localStorage.getItem("cc-assessment-done")) {
+                    localStorage.setItem("cc-assessment-done", "true");
+                  }
+                  // Also set the dashboard post-assessment banner flag (first time only)
                   if (!localStorage.getItem("cc-first-assessment-done")) {
                     localStorage.setItem("cc-first-assessment-done", "true");
                   }
+                  // Clear skipped-assessment flag now that they've done it
+                  localStorage.removeItem("cc-skipped-assessment");
                 } catch {}
               }}
             >

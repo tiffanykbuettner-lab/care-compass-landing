@@ -2550,6 +2550,13 @@ export default function CareCompassSettings() {
               {/* CTA */}
               <a
                 href={isSetupMode ? "/welcome?step=2" : "/dashboard"}
+                onClick={() => {
+                  try {
+                    localStorage.setItem("cc-setup-complete", "true");
+                    // Remove skipped-setup flag if they've now completed it
+                    localStorage.removeItem("cc-skipped-setup");
+                  } catch {}
+                }}
                 style={{
                   background: SAGE_DARK, color: "#fff", textDecoration: "none",
                   padding: "0.95rem", borderRadius: "100px", fontSize: "1rem",
@@ -2557,7 +2564,7 @@ export default function CareCompassSettings() {
                   display: "block",
                 }}
               >
-                Let's get started →
+                {isSetupMode ? "Continue to assessment →" : "Let's get started →"}
               </a>
             </div>
           </div>

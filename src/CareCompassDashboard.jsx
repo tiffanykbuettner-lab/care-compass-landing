@@ -728,13 +728,19 @@ const DASHBOARD_SUGGESTIONS_NUDGE = [
 ];
 
 function SageChatbot() {
-  const skippedAssessment = (() => {
-    try { return localStorage.getItem("cc-skipped-assessment") === "true"; } catch { return false; }
+  const skippedSetup       = (() => { try { return localStorage.getItem("cc-skipped-setup") === "true" && localStorage.getItem("cc-setup-complete") !== "true"; } catch { return false; } })();
+  const skippedAssessment  = (() => {
+    try { return localStorage.getItem("cc-skipped-assessment") === "true" && localStorage.getItem("cc-assessment-done") !== "true"; } catch { return false; }
   })();
 
-  const systemPrompt   = skippedAssessment ? DASHBOARD_SYSTEM_PROMPT_NUDGE_ASSESSMENT : DASHBOARD_SYSTEM_PROMPT;
-  const suggestions    = skippedAssessment ? DASHBOARD_SUGGESTIONS_NUDGE : DASHBOARD_SUGGESTIONS;
-  const greetingText   = skippedAssessment
+  const systemPrompt = skippedSetup
+    ? DASHBOARD_SYSTEM_PROMPT_NUDGE_ASSESSMENT.replace("hasn't taken the Care Compass assessment yet", "hasn't set up their profile or taken the assessment yet. Your top priority is nudging them to set up their profile first at /account?setup=true, then take the assessment at /compass.")
+    : skippedAssessment ? DASHBOARD_SYSTEM_PROMPT_NUDGE_ASSESSMENT : DASHBOARD_SYSTEM_PROMPT;
+
+  const suggestions = skippedSetup || skippedAssessment ? DASHBOARD_SUGGESTIONS_NUDGE : DASHBOARD_SUGGESTIONS;
+  const greetingText = skippedSetup
+    ? "Hi, I'm Sage! 🌿 A quick profile setup will make your experience much better — ready?"
+    : skippedAssessment
     ? "Hi, I'm Sage! 🌿 Ready to take your assessment? It's the best first step."
     : "Hi, I'm Sage! 🌿 Questions about your dashboard? I'm here to help.";
 
@@ -919,13 +925,13 @@ export default function CareCompassDashboard() {
     document.head.appendChild(style);
     return () => { const el = document.getElementById("dashboard-responsive"); if (el) el.remove(); };
   }, []);
-  // UI demo states — in production these come from Supabase + Clerk
   // Check onboarding step — redirect new users to welcome splash
   useEffect(() => {
     try {
       const step = localStorage.getItem("cc-onboarding-step");
-      if (step === "1" || step === "2") {
-        window.location.href = `/welcome?step=${step}`;
+      // Redirect to welcome if they haven't been through the flow at all
+      if (!step || step === "1" || step === "2") {
+        window.location.href = "/welcome";
       }
     } catch {}
   }, []);
@@ -934,13 +940,22 @@ export default function CareCompassDashboard() {
     try { return localStorage.getItem("cc-first-assessment-done") === "true"; } catch { return false; }
   });
 
+  // Skipped states — detect which steps are still incomplete
+  const [showSkippedSetup, setShowSkippedSetup] = useState(() => {
+    try { return localStorage.getItem("cc-skipped-setup") === "true" && localStorage.getItem("cc-setup-complete") !== "true"; } catch { return false; }
+  });
   const [showSkippedAssessment, setShowSkippedAssessment] = useState(() => {
-    try { return localStorage.getItem("cc-skipped-assessment") === "true"; } catch { return false; }
+    try { return localStorage.getItem("cc-skipped-assessment") === "true" && localStorage.getItem("cc-assessment-done") !== "true"; } catch { return false; }
   });
 
   const dismissPostAssessment = () => {
     setShowPostAssessment(false);
     try { localStorage.removeItem("cc-first-assessment-done"); } catch {}
+  };
+
+  const dismissSkippedSetup = () => {
+    setShowSkippedSetup(false);
+    try { localStorage.removeItem("cc-skipped-setup"); } catch {}
   };
 
   const dismissSkippedAssessment = () => {
@@ -1109,27 +1124,54 @@ export default function CareCompassDashboard() {
             </button>
           </div>
 
-          {/* ── Skipped-assessment nudge banner ── */}
-          {showSkippedAssessment && !isNew && !showPostAssessment && (
-            <div style={{ background: `linear-gradient(135deg, ${TEAL_LIGHT}, ${SAGE_LIGHT})`, borderRadius: "1.25rem", border: `1px solid ${TEAL}`, padding: "1.25rem 1.5rem", marginBottom: "0.5rem", position: "relative", display: "flex", gap: "1rem", alignItems: "flex-start", flexWrap: "wrap" }}>
-              <button
-                onClick={dismissSkippedAssessment}
+          {/* ── Skipped setup nudge — shown first if profile not set up ── */}
+          {showSkippedSetup && !isNew && !showPostAssessment && (
+            <div style={{ background: `linear-gradient(135deg, ${SAGE_LIGHT}, #f0f9f4)`, borderRadius: "1.25rem", border: `1px solid ${SAGE}`, padding: "1.25rem 1.5rem", marginBottom: "0.5rem", position: "relative", display: "flex", gap: "1rem", alignItems: "flex-start", flexWrap: "wrap" }}>
+              <button onClick={dismissSkippedSetup}
                 style={{ position: "absolute", top: "1rem", right: "1rem", background: "none", border: "none", cursor: "pointer", color: WARM_GRAY, padding: "4px", lineHeight: 1, opacity: 0.6 }}
                 aria-label="Dismiss">
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
               </button>
-              <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#fff", border: `1.5px solid ${TEAL}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
-                </svg>
-              </div>
+              <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#fff", border: `1.5px solid ${SAGE}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: "1.25rem" }}>⚙️</div>
               <div style={{ flex: 1, minWidth: 200, paddingRight: "1.5rem" }}>
-                <p style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: TEAL, margin: "0 0 0.25rem" }}>Your next step</p>
+                <p style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: SAGE_DARK, margin: "0 0 0.25rem" }}>Step 1 of 3 — Profile setup</p>
                 <h3 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.05rem", fontWeight: 700, color: INK, margin: "0 0 0.35rem" }}>
-                  Ready to take your assessment?
+                  Your profile is still empty
                 </h3>
                 <p style={{ fontSize: "0.85rem", color: INK_LIGHT, margin: "0 0 1rem", lineHeight: 1.6 }}>
-                  The Care Compass assessment maps your symptoms with AI and generates your first personalised insights report. It takes about 10–15 minutes and is the foundation for everything else in the app.
+                  Adding your medications, care team, and health history makes your AI insights significantly more accurate. It only takes 5–10 minutes.
+                </p>
+                <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "center" }}>
+                  <a href="/account?setup=true"
+                    onClick={dismissSkippedSetup}
+                    style={{ background: SAGE_DARK, color: "#fff", borderRadius: "100px", padding: "0.6rem 1.25rem", fontSize: "0.875rem", fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" }}>
+                    Set up my profile →
+                  </a>
+                  <button onClick={dismissSkippedSetup}
+                    style={{ background: "none", border: "none", fontSize: "0.82rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit", textDecoration: "underline", textDecorationColor: "rgba(0,0,0,0.2)", padding: 0 }}>
+                    Dismiss for now
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Skipped assessment nudge — shown after setup is done (or dismissed) ── */}
+          {showSkippedAssessment && !showSkippedSetup && !isNew && !showPostAssessment && (
+            <div style={{ background: `linear-gradient(135deg, ${TEAL_LIGHT}, #f0f9fb)`, borderRadius: "1.25rem", border: `1px solid ${TEAL}`, padding: "1.25rem 1.5rem", marginBottom: "0.5rem", position: "relative", display: "flex", gap: "1rem", alignItems: "flex-start", flexWrap: "wrap" }}>
+              <button onClick={dismissSkippedAssessment}
+                style={{ position: "absolute", top: "1rem", right: "1rem", background: "none", border: "none", cursor: "pointer", color: WARM_GRAY, padding: "4px", lineHeight: 1, opacity: 0.6 }}
+                aria-label="Dismiss">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
+              </button>
+              <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#fff", border: `1.5px solid ${TEAL}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: "1.25rem" }}>🧭</div>
+              <div style={{ flex: 1, minWidth: 200, paddingRight: "1.5rem" }}>
+                <p style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: TEAL, margin: "0 0 0.25rem" }}>Step 2 of 3 — Assessment</p>
+                <h3 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.05rem", fontWeight: 700, color: INK, margin: "0 0 0.35rem" }}>
+                  Ready to map your symptoms?
+                </h3>
+                <p style={{ fontSize: "0.85rem", color: INK_LIGHT, margin: "0 0 1rem", lineHeight: 1.6 }}>
+                  The Care Compass assessment maps your symptoms with AI, surfaces patterns across your health, and generates your first personalised insights report. Takes 10–15 minutes.
                 </p>
                 <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "center" }}>
                   <a href="/compass"
