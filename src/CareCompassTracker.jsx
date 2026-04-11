@@ -1351,84 +1351,6 @@ const PHASE_STYLES = {
   luteal:     { bg: "#f5f3ff", border: LAVENDER,  dot: LAVENDER,  label: "Luteal" },
 };
 
-const PHASE_INFO = {
-  period:     { title: "Period", color: ROSE,     desc: "The start of your cycle — menstrual bleeding. Day 1 of your period is Day 1 of your cycle. Logged period days are shown with a filled dot." },
-  follicular: { title: "Follicular phase", color: SAGE_DARK, desc: "Follows your period. Estrogen rises and a follicle develops in your ovary. Energy typically increases and mood often lifts during this phase." },
-  ovulation:  { title: "Ovulation", color: TEAL,  desc: "An egg is released from the ovary — typically around the midpoint of your cycle. You may notice increased energy, libido, or mild one-sided cramping (mittelschmerz). Fertility is highest." },
-  luteal:     { title: "Luteal phase", color: LAVENDER, desc: "After ovulation, progesterone rises to prepare for potential pregnancy. This phase often brings PMS symptoms like bloating, mood changes, fatigue, and breast tenderness." },
-};
-
-function PhaseLegend() {
-  const [open, setOpen] = React.useState(false);
-  const btnRef = React.useRef(null);
-  const [popoverPos, setPopoverPos] = React.useState({ bottom: 0, right: 0 });
-
-  React.useEffect(() => {
-    const handler = (e) => { if (btnRef.current && !btnRef.current.contains(e.target)) setOpen(false); };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  const handleToggle = () => {
-    if (!open && btnRef.current) {
-      const rect = btnRef.current.getBoundingClientRect();
-      setPopoverPos({
-        bottom: window.innerHeight - rect.top + 8,
-        right: window.innerWidth - rect.right,
-      });
-    }
-    setOpen(o => !o);
-  };
-
-  return (
-    <div style={{ padding: "0.875rem 1.25rem", borderTop: "1px solid rgba(0,0,0,0.06)", display: "flex", flexWrap: "wrap", gap: "0.875rem", alignItems: "center" }}>
-      {Object.entries(PHASE_STYLES).map(([phase, ps]) => (
-        <div key={phase} style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-          <div style={{ width: 10, height: 10, borderRadius: "50%", background: ps.dot }}/>
-          <span style={{ fontSize: "0.75rem", color: WARM_GRAY }}>{ps.label}</span>
-        </div>
-      ))}
-      <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-        <div style={{ width: 10, height: 10, borderRadius: "50%", background: ROSE, border: `2px solid ${ROSE}` }}/>
-        <span style={{ fontSize: "0.75rem", color: WARM_GRAY }}>Logged period day</span>
-      </div>
-
-      {/* Info button — popover uses fixed positioning to escape overflow:hidden */}
-      <div style={{ marginLeft: "auto" }}>
-        <button
-          ref={btnRef}
-          onClick={handleToggle}
-          title="What do these phases mean?"
-          style={{ width: 22, height: 22, borderRadius: "50%", background: open ? ROSE_LIGHT : "#f0f0ee", border: `1.5px solid ${open ? ROSE : "rgba(0,0,0,0.13)"}`, color: open ? ROSE : WARM_GRAY, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, fontFamily: "inherit", fontSize: "0.72rem", fontWeight: 700, transition: "all 0.15s", flexShrink: 0 }}
-          aria-label="Phase legend info"
-        >i</button>
-      </div>
-
-      {open && (
-        <div style={{ position: "fixed", bottom: popoverPos.bottom, right: popoverPos.right, width: 300, background: "#fff", borderRadius: "1rem", border: "1.5px solid rgba(0,0,0,0.1)", boxShadow: "0 8px 32px rgba(0,0,0,0.15)", zIndex: 200 }}>
-          <div style={{ padding: "0.875rem 1rem 0.75rem", borderBottom: "1px solid rgba(0,0,0,0.07)" }}>
-            <p style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: 0 }}>About cycle phases</p>
-          </div>
-          <div style={{ padding: "0.75rem 1rem", display: "flex", flexDirection: "column", gap: "0.875rem" }}>
-            {Object.entries(PHASE_INFO).map(([key, info]) => (
-              <div key={key} style={{ display: "flex", gap: "0.625rem", alignItems: "flex-start" }}>
-                <div style={{ width: 9, height: 9, borderRadius: "50%", background: info.color, flexShrink: 0, marginTop: "0.3rem" }}/>
-                <div>
-                  <p style={{ fontSize: "0.78rem", fontWeight: 700, color: info.color, margin: "0 0 0.2rem" }}>{info.title}</p>
-                  <p style={{ fontSize: "0.75rem", color: WARM_GRAY, margin: 0, lineHeight: 1.6 }}>{info.desc}</p>
-                </div>
-              </div>
-            ))}
-            <p style={{ fontSize: "0.7rem", color: "#bbb", margin: "0.25rem 0 0", fontStyle: "italic", lineHeight: 1.5 }}>
-              Phases marked on the calendar are predictions based on your logged period dates. They are not medical advice.
-            </p>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 function CycleTab({ globalEntries }) {
   const [cycles, setCycles] = useState(() => {
     try { const s = localStorage.getItem(CYCLE_KEY); return s ? JSON.parse(s) : []; } catch { return []; }
@@ -1626,7 +1548,18 @@ function CycleTab({ globalEntries }) {
           </div>
 
           {/* Phase legend */}
-          <PhaseLegend />
+          <div style={{ padding: "0.875rem 1.25rem", borderTop: "1px solid rgba(0,0,0,0.06)", display: "flex", flexWrap: "wrap", gap: "0.875rem" }}>
+            {Object.entries(PHASE_STYLES).map(([phase, ps]) => (
+              <div key={phase} style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                <div style={{ width: 10, height: 10, borderRadius: "50%", background: ps.dot }}/>
+                <span style={{ fontSize: "0.75rem", color: WARM_GRAY }}>{ps.label}</span>
+              </div>
+            ))}
+            <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+              <div style={{ width: 10, height: 10, borderRadius: "50%", background: ROSE, border: `2px solid ${ROSE}` }}/>
+              <span style={{ fontSize: "0.75rem", color: WARM_GRAY }}>Logged period day</span>
+            </div>
+          </div>
 
           {cycles.length === 0 && (
             <div style={{ padding: "2rem", textAlign: "center", color: WARM_GRAY, fontSize: "0.875rem", fontStyle: "italic" }}>
@@ -2001,8 +1934,8 @@ export default function CareCompassTracker() {
 
   const isFirstEntryToday = !entries.some(e => new Date(e.timestamp).toDateString() === new Date().toDateString());
 
-  const openNew = () => { setEditingEntry(null); setForm({ ...blankForm, sleep: isFirstEntryToday ? 7 : null }); setShowForm(true); };
-  const openEdit = (entry) => { setEditingEntry(entry); setForm({ ...entry, photos: entry.photos || [] }); setShowForm(true); };
+  const openNew  = () => { setEditingEntry(null); setForm({ ...blankForm, sleep: isFirstEntryToday ? 7 : null }); setShowForm(true); document.body.style.overflow = "hidden"; };
+  const openEdit = (entry) => { setEditingEntry(entry); setForm({ ...entry, photos: entry.photos || [] }); setShowForm(true); document.body.style.overflow = "hidden"; };
 
   const handlePhotoUpload = (e) => {
     const files = Array.from(e.target.files);
@@ -2050,7 +1983,7 @@ export default function CareCompassTracker() {
     } else {
       saveEntries([{ ...finalForm, id: Date.now(), timestamp: new Date().toISOString() }, ...entries]);
     }
-    setShowForm(false); setEditingEntry(null); setForm(blankForm);
+    setShowForm(false); setEditingEntry(null); setForm(blankForm); document.body.style.overflow = "";
     setSaved(true); setTimeout(() => setSaved(false), 3000);
   };
 
@@ -2485,16 +2418,16 @@ End with a one-line footer: "This document was prepared by the patient using Car
   const ALL_TABS = [
     { id: "log", label: "Log" },
     { id: "bp", label: "Blood Pressure" },
-    { id: "cycle", label: "Cycle Tracker" },
     { id: "trends", label: "Trends" },
     { id: "insights", label: "AI Insights" },
     { id: "report", label: "Doctor Report" },
     { id: "labs", label: "Lab Results" },
     { id: "er", label: "ER Report" },
+    { id: "cycle", label: "Cycle Tracker" },
   ];
 
-  const DEFAULT_TAB_ORDER = ["log", "bp", "cycle", "trends", "insights", "report", "labs", "er"];
-  const DEFAULT_HIDDEN = []; // all tabs visible by default; user can hide via config
+  const DEFAULT_TAB_ORDER = ["log", "bp", "trends", "insights", "report", "labs", "er", "cycle"];
+  const DEFAULT_HIDDEN = ["cycle", "er"]; // hidden by default, user can enable
 
   const TAB_ORDER_KEY  = "cc-tab-order";
   const TAB_HIDDEN_KEY = "cc-tab-hidden";
@@ -4250,9 +4183,9 @@ End with a one-line footer: "This document was prepared by the patient using Car
       )}
 
       {showForm && (
-        <div style={s.modalOverlay} onClick={() => setShowForm(false)}>
+        <div style={s.modalOverlay} onClick={() => { setShowForm(false); document.body.style.overflow = ""; }}>
           <div style={s.modal} onClick={e => e.stopPropagation()}>
-            <div style={s.modalHeader}><h2 style={s.modalTitle}>{editingEntry ? "Edit entry" : "Log an entry"}</h2><button onClick={() => setShowForm(false)} style={s.modalClose}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg></button></div>
+            <div style={s.modalHeader}><h2 style={s.modalTitle}>{editingEntry ? "Edit entry" : "Log an entry"}</h2><button onClick={() => { setShowForm(false); document.body.style.overflow = ""; }} style={s.modalClose}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg></button></div>
             <div style={s.modalBody}>
               <div style={s.formGroup}>
                 <label style={s.label}>What symptoms are you experiencing?</label>
@@ -4336,7 +4269,7 @@ End with a one-line footer: "This document was prepared by the patient using Car
                 )}
               </div>
             </div>
-            <div style={s.modalFooter}><button onClick={() => setShowForm(false)} style={s.cancelBtn}>Cancel</button><button onClick={handleSubmit} style={s.saveBtn}>{editingEntry ? "Update Entry →" : "Save Entry →"}</button></div>
+            <div style={s.modalFooter}><button onClick={() => { setShowForm(false); document.body.style.overflow = ""; }} style={s.cancelBtn}>Cancel</button><button onClick={handleSubmit} style={s.saveBtn}>{editingEntry ? "Update Entry →" : "Save Entry →"}</button></div>
           </div>
         </div>
       )}
@@ -4658,12 +4591,12 @@ const s = {
   reportTd: { padding: "0.6rem 0.75rem", borderBottom: `1px solid rgba(0,0,0,0.05)`, verticalAlign: "top", color: INK_LIGHT, lineHeight: 1.5 },
   reportFooter: { borderTop: `1px solid ${SAGE_LIGHT}`, paddingTop: "1rem", textAlign: "center" },
   reportFooterText: { fontSize: "0.75rem", color: "#aaa", margin: 0 },
-  modalOverlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 200, display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0" },
-  modal: { background: "#fff", borderRadius: "1.25rem 1.25rem 0 0", width: "100%", maxWidth: 680, height: "92vh", display: "flex", flexDirection: "column", overflow: "hidden", boxSizing: "border-box" },
+  modalOverlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 200, display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0", overscrollBehavior: "none", WebkitTapHighlightColor: "transparent" },
+  modal: { background: "#fff", borderRadius: "1.25rem 1.25rem 0 0", width: "100%", maxWidth: 680, height: "92vh", maxHeight: "92dvh", display: "flex", flexDirection: "column", overflow: "hidden", boxSizing: "border-box", willChange: "transform" },
   modalHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.25rem 1.5rem", borderBottom: `1px solid rgba(0,0,0,0.07)` },
   modalTitle: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.2rem", fontWeight: 700, color: INK, margin: 0 },
   modalClose: { background: "transparent", border: "none", color: WARM_GRAY, fontSize: "1rem", cursor: "pointer" },
-  modalBody: { flex: 1, overflowY: "auto", overflowX: "hidden", padding: "1.25rem", display: "flex", flexDirection: "column", gap: "1.25rem", boxSizing: "border-box", width: "100%" },
+  modalBody: { flex: 1, overflowY: "auto", overflowX: "hidden", padding: "1.25rem", display: "flex", flexDirection: "column", gap: "1.25rem", boxSizing: "border-box", width: "100%", WebkitOverflowScrolling: "touch" },
   modalFooter: { padding: "1rem 1.5rem", borderTop: `1px solid rgba(0,0,0,0.07)`, display: "flex", justifyContent: "flex-end", gap: "0.75rem" },
   formGroup: { display: "flex", flexDirection: "column", gap: "0.4rem", flex: 1 },
   formRow: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem" },
