@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { Icon } from "./SageIcons";
 
 const SAGE        = "#7a9e87";
 const SAGE_LIGHT  = "#e8f0eb";
@@ -27,7 +28,7 @@ const flag = {
 const STEPS = [
   {
     num: 1,
-    icon: "⚙️",
+    iconName: "leaf",
     title: "Set up your profile",
     desc: "Add your medications, care team, conditions, and health history. This context makes every AI insight significantly more accurate.",
     details: [
@@ -44,7 +45,7 @@ const STEPS = [
   },
   {
     num: 2,
-    icon: "🧭",
+    iconName: "compass",
     title: "Take the assessment",
     desc: "A comprehensive symptom map across every body system. AI surfaces patterns, suggests which specialists to see, and generates questions for your doctor.",
     details: [
@@ -61,7 +62,7 @@ const STEPS = [
   },
   {
     num: 3,
-    icon: "📋",
+    iconName: "pulse",
     title: "Start tracking daily",
     desc: "Log how you feel in real time — symptoms, food, sleep, medications, and activity. The more you track, the sharper your patterns become.",
     details: [
@@ -183,7 +184,7 @@ export default function CareCompassWelcome() {
                       boxShadow: st === "active" ? `0 0 0 4px ${SAGE_LIGHT}` : "none",
                     }}>
                       {st === "done"
-                        ? <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3.5 3.5 6-7" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        ? <Icon name="check" size={12} color="#fff" />
                         : <span style={{ fontSize: "0.72rem", fontWeight: 700, color: st === "active" ? "#fff" : "#bbb" }}>{step.num}</span>
                       }
                     </div>
@@ -219,7 +220,7 @@ export default function CareCompassWelcome() {
                     <div style={s.cardTopLeft}>
                       <div style={{ ...s.numBadge, background: isActive || isDone ? SAGE_DARK : "#e0dbd5" }}>
                         {isDone
-                          ? <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3.5 3.5 6-7" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                          ? <Icon name="check" size={14} color="#fff" />
                           : <span style={{ fontSize: "0.75rem", fontWeight: 700, color: isActive ? "#fff" : "#bbb" }}>{step.num}</span>
                         }
                       </div>
@@ -232,7 +233,13 @@ export default function CareCompassWelcome() {
                         <p style={s.cardTime}>⏱ {step.time}</p>
                       </div>
                     </div>
-                    <span style={{ fontSize: "1.75rem", flexShrink: 0 }}>{step.icon}</span>
+                    <div style={{
+                      width: 40, height: 40, borderRadius: "0.625rem", flexShrink: 0,
+                      background: isActive ? SAGE_LIGHT : isDone ? SAGE_LIGHT : "#efefec",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                      <Icon name={step.iconName} size={20} color={isActive || isDone ? SAGE_DARK : "#bbb"} />
+                    </div>
                   </div>
 
                   {/* Expanded content for active + done */}
@@ -242,7 +249,7 @@ export default function CareCompassWelcome() {
                       <ul style={s.detailList}>
                         {step.details.map(d => (
                           <li key={d} style={s.detailItem}>
-                            <div style={s.dot}/>
+                            <Icon name="leaf" size={13} color={SAGE} style={{ flexShrink: 0, marginTop: "0.1rem" }} />
                             <span style={s.detailText}>{d}</span>
                           </li>
                         ))}
