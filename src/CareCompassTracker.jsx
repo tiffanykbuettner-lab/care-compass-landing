@@ -56,10 +56,12 @@ function VoiceMicButton({ value, onChange, size = 34, style: extraStyle = {} }) 
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) return;
 
-    // Explicitly request mic permission — triggers the browser prompt if not yet granted
+    // Explicitly request mic permission — triggers the browser prompt if not yet granted.
+    // We keep the stream open briefly so Chrome doesn't revoke the permission context
+    // before recognition.start() acquires the mic.
+    let permStream = null;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach(t => t.stop()); // release immediately, SR will re-acquire
+      permStream = await navigator.mediaDevices.getUserMedia({ audio: true });
       setPermState("granted");
       setShowTip(false);
     } catch (err) {
@@ -75,7 +77,11 @@ function VoiceMicButton({ value, onChange, size = 34, style: extraStyle = {} }) 
     recognition.lang           = "en-US";
     recognitionRef.current     = recognition;
 
-    recognition.onstart = () => setListening(true);
+    recognition.onstart = () => {
+      // Safe to release the permission stream now that SR has acquired the mic
+      if (permStream) { permStream.getTracks().forEach(t => t.stop()); permStream = null; }
+      setListening(true);
+    };
 
     recognition.onresult = (e) => {
       let interim = "";
@@ -478,67 +484,98 @@ function BPReadingCard({ reading, onDelete }) {
 
 
 /* ─── Med picker in log modal ───────────────────────────────────────────── */
-function MedPicker({ medications, selectedIds, onToggle, onAddAll, manualText, onManualChange, onSaveUnlisted }) {
-  const [showList, setShowList] = React.useState(false);
+function MedPicker({ medications, selectedIds, onToggle, onAddAll, manualText, onManualChange, onSaveUnlisted, onScanAdd }) {
+  const [showList, setShowList]       = React.useState(false);
+  const [scanning, setScanning]       = React.useState(false);
+  const [scanError, setScanError]     = React.useState("");
+  const [scanPreview, setScanPreview] = React.useState(null);
+  const [scannedMed, setScannedMed]   = React.useState(null);
+  const scanInputRef = React.useRef(null);
+
   const selectedMeds = medications.filter(m => selectedIds.includes(m.id));
-  const hasSelected = selectedMeds.length > 0;
+  const hasSelected  = selectedMeds.length > 0;
+
+  const handleScan = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    e.target.value = "";
+    setScanError(""); setScannedMed(null);
+    const reader = new FileReader();
+    reader.onload = evt => setScanPreview(evt.target.result);
+    reader.readAsDataURL(file);
+    setScanning(true);
+    try {
+      const base64 = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload  = () => resolve(r.result.split(",")[1]);
+        r.onerror = reject;
+        r.readAsDataURL(file);
+      });
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-6", max_tokens: 500,
+          messages: [{ role: "user", content: [
+            { type: "image", source: { type: "base64", media_type: file.type || "image/jpeg", data: base64 } },
+            { type: "text", text: `Photo of a prescription or supplement bottle. Extract info and respond ONLY with JSON (no markdown):\n{"name":"medication name","dose":"strength e.g. 25mg","frequency":"e.g. Once daily","notes":"important instructions or empty string"}\nIf unreadable: {"name":"","dose":"","frequency":"","notes":""}` },
+          ]}],
+        }),
+      });
+      const data   = await response.json();
+      const text   = data.content?.[0]?.text || "";
+      const parsed = JSON.parse(text.replace(/```json|```/g, "").trim());
+      if (parsed.name) { setScannedMed(parsed); setScanPreview(null); }
+      else { setScanError("Couldn't read the label clearly. Try a clearer photo or type it below."); setScanPreview(null); }
+    } catch { setScanError("Something went wrong scanning. Please try again or type it in."); setScanPreview(null); }
+    setScanning(false);
+  };
+
+  const confirmScanned = (saveToList) => {
+    if (!scannedMed) return;
+    if (onScanAdd) onScanAdd(scannedMed, saveToList);
+    setScannedMed(null);
+  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
 
-      {/* ── Pill tag row for selected meds ── */}
+      {/* ── Selected pill tags ── */}
       {hasSelected && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
           {selectedMeds.map(med => (
-            <span
-              key={med.id}
-              style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem", background: SAGE_LIGHT, color: SAGE_DARK, borderRadius: "100px", padding: "0.25rem 0.75rem", fontSize: "0.78rem", fontWeight: 600 }}
-            >
+            <span key={med.id} style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem", background: SAGE_LIGHT, color: SAGE_DARK, borderRadius: "100px", padding: "0.25rem 0.75rem", fontSize: "0.78rem", fontWeight: 600 }}>
               {med.name}{med.dose ? ` ${med.dose}` : ""}
-              <button
-                onClick={() => onToggle(med.id)}
-                style={{ background: "none", border: "none", cursor: "pointer", color: SAGE_DARK, fontSize: "0.85rem", padding: 0, lineHeight: 1, display: "flex", alignItems: "center" }}
-              >×</button>
+              <button onClick={() => onToggle(med.id)} style={{ background: "none", border: "none", cursor: "pointer", color: SAGE_DARK, fontSize: "0.85rem", padding: 0, lineHeight: 1, display: "flex", alignItems: "center" }}>×</button>
             </span>
           ))}
         </div>
       )}
 
-      {/* ── Expandable medication list ── */}
+      {/* ── Expandable saved list ── */}
       {medications.length > 0 && (
         <div style={{ border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: "0.75rem", overflow: "hidden" }}>
-          {/* Header / toggle */}
-          <button
-            onClick={() => setShowList(s => !s)}
-            style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.6rem 0.9rem", background: showList ? SAGE_LIGHT : "#fafaf8", border: "none", cursor: "pointer", fontFamily: "inherit" }}
-          >
+          <button onClick={() => setShowList(s => !s)}
+            style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.6rem 0.9rem", background: showList ? SAGE_LIGHT : "#fafaf8", border: "none", cursor: "pointer", fontFamily: "inherit" }}>
             <span style={{ fontSize: "0.82rem", fontWeight: 600, color: SAGE_DARK }}>
               {hasSelected ? `${selectedMeds.length} selected` : "Select from your medications"}
             </span>
             <span style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              {!hasSelected && medications.length > 0 && (
-                <span
-                  onClick={e => { e.stopPropagation(); onAddAll(); }}
-                  style={{ fontSize: "0.72rem", fontWeight: 600, color: SAGE_DARK, background: "rgba(74,112,88,0.1)", borderRadius: "100px", padding: "0.15rem 0.6rem", cursor: "pointer" }}
-                >Add all</span>
+              {!hasSelected && (
+                <span onClick={e => { e.stopPropagation(); onAddAll(); }}
+                  style={{ fontSize: "0.72rem", fontWeight: 600, color: SAGE_DARK, background: "rgba(74,112,88,0.1)", borderRadius: "100px", padding: "0.15rem 0.6rem", cursor: "pointer" }}>Add all</span>
               )}
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ transform: showList ? "rotate(180deg)" : "none", transition: "transform 0.2s", color: SAGE_DARK }}>
                 <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </span>
           </button>
-
-          {/* Checkbox list */}
           {showList && (
             <div style={{ borderTop: "1px solid rgba(0,0,0,0.07)", padding: "0.5rem 0.75rem", display: "flex", flexDirection: "column", gap: "0.1rem", maxHeight: "200px", overflowY: "auto" }}>
               {medications.map(med => (
                 <label key={med.id} style={{ display: "flex", alignItems: "center", gap: "0.65rem", cursor: "pointer", padding: "0.4rem 0.25rem", borderRadius: "0.4rem" }}>
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.includes(med.id)}
-                    onChange={() => onToggle(med.id)}
-                    style={{ accentColor: SAGE_DARK, width: 15, height: 15, flexShrink: 0 }}
-                  />
+                  <input type="checkbox" checked={selectedIds.includes(med.id)} onChange={() => onToggle(med.id)}
+                    style={{ accentColor: SAGE_DARK, width: 15, height: 15, flexShrink: 0 }}/>
                   <span style={{ fontSize: "0.875rem", color: INK, flex: 1 }}>
                     {med.name}
                     {med.dose && <span style={{ color: WARM_GRAY, marginLeft: "0.35rem", fontSize: "0.82rem" }}>{med.dose}</span>}
@@ -551,27 +588,76 @@ function MedPicker({ medications, selectedIds, onToggle, onAddAll, manualText, o
         </div>
       )}
 
-      {/* ── Other / unlisted ── */}
+      {/* ── Scan bottle label ── */}
+      <label style={{ cursor: scanning ? "default" : "pointer" }}>
+        <input ref={scanInputRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={handleScan} disabled={scanning}/>
+        <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem", padding: "0.55rem 0.9rem", borderRadius: "0.65rem", border: `1.5px dashed ${scanning ? "#ccc" : SAGE}`, background: scanning ? "#fafaf8" : SAGE_LIGHT, color: scanning ? WARM_GRAY : SAGE_DARK, fontSize: "0.82rem", fontWeight: 600, cursor: scanning ? "default" : "pointer", opacity: scanning ? 0.7 : 1, transition: "all 0.15s" }}>
+          {scanning ? (
+            <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ animation: "spin 1s linear infinite" }}><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>Scanning label...</>
+          ) : (
+            <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>Scan bottle label</>
+          )}
+        </span>
+      </label>
+
+      {/* ── Scan preview ── */}
+      {scanPreview && scanning && (
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", background: SAGE_LIGHT, borderRadius: "0.65rem", padding: "0.75rem 1rem" }}>
+          <img src={scanPreview} alt="Scanning" style={{ width: 52, height: 52, objectFit: "cover", borderRadius: "0.4rem", border: "1px solid rgba(0,0,0,0.1)", flexShrink: 0 }}/>
+          <div>
+            <p style={{ fontSize: "0.82rem", fontWeight: 600, color: SAGE_DARK, margin: "0 0 0.15rem" }}>Reading label...</p>
+            <p style={{ fontSize: "0.75rem", color: WARM_GRAY, margin: 0 }}>Claude is extracting medication info from your photo</p>
+          </div>
+        </div>
+      )}
+
+      {/* ── Scan error ── */}
+      {scanError && (
+        <div style={{ background: "#fdecea", borderRadius: "0.65rem", padding: "0.6rem 0.9rem", fontSize: "0.8rem", color: "#c0392b", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.5rem" }}>
+          <span>{scanError}</span>
+          <button onClick={() => setScanError("")} style={{ background: "none", border: "none", cursor: "pointer", color: "#c0392b", flexShrink: 0, padding: 0, display: "flex" }}>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+          </button>
+        </div>
+      )}
+
+      {/* ── Scanned result confirmation ── */}
+      {scannedMed && (
+        <div style={{ background: SAGE_LIGHT, borderRadius: "0.75rem", border: `1.5px solid ${SAGE}`, padding: "0.875rem 1rem", display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.5rem" }}>
+            <div>
+              <p style={{ fontSize: "0.72rem", fontWeight: 700, color: SAGE_DARK, textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 0.2rem" }}>Label scanned ✓</p>
+              <p style={{ fontSize: "0.95rem", fontWeight: 700, color: INK, margin: "0 0 0.1rem" }}>{scannedMed.name}{scannedMed.dose ? ` · ${scannedMed.dose}` : ""}</p>
+              {scannedMed.frequency && <p style={{ fontSize: "0.78rem", color: WARM_GRAY, margin: 0 }}>{scannedMed.frequency}{scannedMed.notes ? ` · ${scannedMed.notes}` : ""}</p>}
+            </div>
+            <button onClick={() => setScannedMed(null)} style={{ background: "none", border: "none", cursor: "pointer", color: WARM_GRAY, padding: 0, flexShrink: 0, display: "flex" }}>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+            </button>
+          </div>
+          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+            <button onClick={() => confirmScanned(false)}
+              style={{ flex: 1, background: SAGE_DARK, color: "#fff", border: "none", borderRadius: "100px", padding: "0.5rem 1rem", fontSize: "0.8rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+              Add to this log
+            </button>
+            <button onClick={() => confirmScanned(true)}
+              style={{ flex: 1, background: "#fff", color: SAGE_DARK, border: `1.5px solid ${SAGE}`, borderRadius: "100px", padding: "0.5rem 1rem", fontSize: "0.8rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+              Add + save to my list
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Free-type / unlisted ── */}
       <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
         <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "#4a4540" }}>
           {medications.length > 0 ? "Other / unlisted medications" : "Medications taken"}
         </span>
-        <textarea
-          value={manualText}
-          onChange={e => onManualChange(e.target.value)}
+        <textarea value={manualText} onChange={e => onManualChange(e.target.value)}
           placeholder={medications.length > 0 ? "Any other medications not in your list..." : "Any medications or supplements?"}
-          rows={2}
-          style={{ padding: "0.65rem 0.9rem", borderRadius: "0.65rem", border: "1.5px solid rgba(0,0,0,0.12)", fontSize: "0.875rem", color: INK, background: "#fafaf8", outline: "none", fontFamily: "inherit", resize: "vertical", lineHeight: 1.6, boxSizing: "border-box", width: "100%" }}
-        />
-        {/* Save unlisted to list option */}
+          rows={2} style={{ padding: "0.65rem 0.9rem", borderRadius: "0.65rem", border: "1.5px solid rgba(0,0,0,0.12)", fontSize: "0.875rem", color: INK, background: "#fafaf8", outline: "none", fontFamily: "inherit", resize: "vertical", lineHeight: 1.6, boxSizing: "border-box", width: "100%" }}/>
         {manualText.trim() && (
           <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", fontSize: "0.75rem", color: SAGE_DARK }}>
-            <input
-              type="checkbox"
-              checked={onSaveUnlisted?.enabled || false}
-              onChange={() => onSaveUnlisted?.toggle()}
-              style={{ accentColor: SAGE_DARK, width: 13, height: 13 }}
-            />
+            <input type="checkbox" checked={onSaveUnlisted?.enabled || false} onChange={() => onSaveUnlisted?.toggle()} style={{ accentColor: SAGE_DARK, width: 13, height: 13 }}/>
             Save to my medication list in Account Settings
           </label>
         )}
@@ -4259,6 +4345,20 @@ End with a one-line footer: "This document was prepared by the patient using Car
                         onAddAll={() => setEveningForm(f => ({ ...f, selectedMedIds: medications.map(m => m.id) }))}
                         manualText={eveningForm.medications}
                         onManualChange={val => setEveningForm(f => ({ ...f, medications: val }))}
+                        onScanAdd={(scanned, saveToList) => {
+                          const medStr = scanned.name + (scanned.dose ? ` ${scanned.dose}` : "");
+                          setEveningForm(f => ({ ...f, medications: f.medications ? `${f.medications}, ${medStr}` : medStr }));
+                          if (saveToList) {
+                            try {
+                              const existing = JSON.parse(localStorage.getItem(MED_STORAGE_KEY) || "[]");
+                              if (!existing.some(m => m.name.toLowerCase() === scanned.name.toLowerCase())) {
+                                existing.push({ id: Date.now() + Math.random(), name: scanned.name, dose: scanned.dose || "", frequency: scanned.frequency || "", notes: scanned.notes || "", reminder: false, reminderTime: "08:00" });
+                                localStorage.setItem(MED_STORAGE_KEY, JSON.stringify(existing));
+                                setMedications(existing);
+                              }
+                            } catch {}
+                          }
+                        }}
                       />
                     </div>
                     <div style={s.formGroup}>
@@ -4380,6 +4480,20 @@ End with a one-line footer: "This document was prepared by the patient using Car
                   onSaveUnlisted={{
                     enabled: form.saveUnlistedMed,
                     toggle: () => setForm(f => ({ ...f, saveUnlistedMed: !f.saveUnlistedMed }))
+                  }}
+                  onScanAdd={(scanned, saveToList) => {
+                    const medStr = scanned.name + (scanned.dose ? ` ${scanned.dose}` : "");
+                    setForm(f => ({ ...f, medications: f.medications ? `${f.medications}, ${medStr}` : medStr }));
+                    if (saveToList) {
+                      try {
+                        const existing = JSON.parse(localStorage.getItem(MED_STORAGE_KEY) || "[]");
+                        if (!existing.some(m => m.name.toLowerCase() === scanned.name.toLowerCase())) {
+                          existing.push({ id: Date.now() + Math.random(), name: scanned.name, dose: scanned.dose || "", frequency: scanned.frequency || "", notes: scanned.notes || "", reminder: false, reminderTime: "08:00" });
+                          localStorage.setItem(MED_STORAGE_KEY, JSON.stringify(existing));
+                          setMedications(existing);
+                        }
+                      } catch {}
+                    }
                   }}
                 />
               </div>
