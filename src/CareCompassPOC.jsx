@@ -14,17 +14,16 @@ const LOADING_STYLES = `
   0%, 100% { box-shadow: 0 0 0 0 rgba(192,57,43,0.35); }
   50%       { box-shadow: 0 0 0 7px rgba(192,57,43,0); }
 }
+  0% { width: 0%; }
+  10% { width: 15%; }
+  30% { width: 40%; }
+  60% { width: 65%; }
+  80% { width: 80%; }
+  95% { width: 92%; }
+  100% { width: 95%; }
+}
 `;
 
-/* ─── Voice-to-text mic button ───────────────────────────────────────────── */
-/**
- * Reusable mic button using the Web Speech API.
- * Props:
- *   value      — current string value of the field
- *   onChange   — (newValue: string) => void
- *   size       — button diameter in px (default 34)
- *   style      — extra style overrides
- */
 function VoiceMicButton({ value, onChange, size = 34, style: extraStyle = {} }) {
   const [listening, setListening]   = React.useState(false);
   const [supported, setSupported]   = React.useState(true);
@@ -178,108 +177,6 @@ function VoiceMicButton({ value, onChange, size = 34, style: extraStyle = {} }) 
         </div>
       )}
     </div>
-  );
-}
-) {
-  const [listening, setListening] = React.useState(false);
-  const [supported, setSupported] = React.useState(true);
-  const recognitionRef = React.useRef(null);
-  const committedRef   = React.useRef(value ?? ""); // tracks committed (final) text
-
-  // Keep committedRef in sync when value is changed externally
-  React.useEffect(() => { committedRef.current = value ?? ""; }, [value]);
-
-  React.useEffect(() => {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { setSupported(false); return; }
-  }, []);
-
-  const startListening = () => {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) return;
-
-    const recognition = new SR();
-    recognition.continuous      = true;
-    recognition.interimResults  = true;
-    recognition.lang            = "en-US";
-    recognitionRef.current      = recognition;
-
-    recognition.onstart = () => setListening(true);
-
-    recognition.onresult = (e) => {
-      let interim = "";
-      let finalChunk = "";
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const t = e.results[i][0].transcript;
-        if (e.results[i].isFinal) finalChunk += t;
-        else interim += t;
-      }
-      if (finalChunk) {
-        const base = committedRef.current;
-        const joined = base ? base.trimEnd() + " " + finalChunk.trim() : finalChunk.trim();
-        committedRef.current = joined;
-        onChange(joined + (interim ? " " + interim : ""));
-      } else {
-        onChange(committedRef.current + (interim ? (committedRef.current ? " " : "") + interim : ""));
-      }
-    };
-
-    recognition.onerror = (e) => {
-      if (e.error !== "aborted") console.warn("Speech error:", e.error);
-      setListening(false);
-    };
-
-    recognition.onend = () => setListening(false);
-
-    recognition.start();
-  };
-
-  const stopListening = () => {
-    recognitionRef.current?.stop();
-    setListening(false);
-  };
-
-  const toggle = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    listening ? stopListening() : startListening();
-  };
-
-  if (!supported) return null;
-
-  return (
-    <button
-      type="button"
-      onClick={toggle}
-      title={listening ? "Stop recording" : "Speak to fill in this field"}
-      aria-label={listening ? "Stop voice input" : "Start voice input"}
-      style={{
-        width: size, height: size, borderRadius: "50%", flexShrink: 0,
-        border: listening ? "2px solid #c0392b" : "1.5px solid rgba(0,0,0,0.12)",
-        background: listening ? "#fdeaea" : "#fff",
-        color: listening ? "#c0392b" : "#7a9e87",
-        cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-        animation: listening ? "voicePulse 1.2s ease-in-out infinite" : "none",
-        transition: "background 0.15s, border-color 0.15s, color 0.15s",
-        padding: 0,
-        ...extraStyle,
-      }}
-    >
-      {listening ? (
-        /* Stop / waveform icon */
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-          <rect x="3" y="3" width="10" height="10" rx="2" fill="currentColor"/>
-        </svg>
-      ) : (
-        /* Microphone icon */
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-          <rect x="5" y="1" width="6" height="8" rx="3" stroke="currentColor" strokeWidth="1.4" fill="none"/>
-          <path d="M3 8a5 5 0 0010 0"/>
-          <line x1="8" y1="13" x2="8" y2="15"/>
-          <line x1="5" y1="15" x2="11" y2="15"/>
-        </svg>
-      )}
-    </button>
   );
 }
 
@@ -569,12 +466,8 @@ function SymptomRow({ system, examples, hints, value, onChange }) {
           style={{ ...s.symptomTextarea, paddingRight: "2.5rem", width: "100%", boxSizing: "border-box" }}
           rows={2}
         />
-        <VoiceMicButton
-          value={value}
-          onChange={onChange}
-          size={28}
-          style={{ position: "absolute", bottom: "0.45rem", right: "0.45rem" }}
-        />
+        <VoiceMicButton value={value} onChange={onChange} size={28}
+          style={{ position: "absolute", bottom: "0.45rem", right: "0.45rem" }}/>
       </div>
     </div>
   );
