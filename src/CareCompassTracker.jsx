@@ -564,7 +564,8 @@ function SearchableSelect({ value, onChange, options, placeholder = "Select...",
     return () => document.removeEventListener("mousedown", handler);
   }, []);
   const selectedLabel = options.find(o => (o.value !== undefined ? o.value : o) === value)?.label ?? value ?? "";
-  const filtered = options.filter(o => { const l = o.label ?? o; return !query || l.toLowerCase().includes(query.toLowerCase()); });
+  const toLabel = (o) => String(o?.label ?? o ?? "");
+  const filtered = options.filter(o => { const l = toLabel(o); return !query || l.toLowerCase().includes(query.toLowerCase()); });
   return (
     <div ref={ref} style={{ position: "relative", width: "100%" }}>
       <div onClick={() => { setOpen(o => !o); setTimeout(() => inputRef.current?.focus(), 50); }}
@@ -584,7 +585,7 @@ function SearchableSelect({ value, onChange, options, placeholder = "Select...",
           {filtered.length === 0 ? <div style={{ padding: "0.75rem 1rem", fontSize: "0.85rem", color: "#aaa" }}>No matches</div>
           : filtered.map((o, i) => {
             const val = o.value !== undefined ? o.value : o;
-            const label = o.label ?? o;
+            const label = toLabel(o);
             const isSel = val === value;
             return <div key={String(val)+i} onMouseDown={() => { onChange(val); setOpen(false); setQuery(""); }}
               style={{ padding: "0.65rem 1rem", fontSize: "0.875rem", cursor: "pointer", color: isSel ? SAGE_DARK : INK, background: isSel ? SAGE_LIGHT : "transparent", fontWeight: isSel ? 600 : 400, fontFamily: "inherit", borderBottom: i < filtered.length-1 ? "1px solid rgba(0,0,0,0.04)" : "none" }}
@@ -4084,7 +4085,7 @@ End with a one-line footer: "This document was prepared by the patient using Car
                       <MedPicker
                         medications={medications}
                         selectedIds={eveningForm.selectedMedIds || []}
-                        onToggle={id => setEveningForm(f => ({ ...f, selectedMedIds: f.selectedMedIds.includes(id) ? f.selectedMedIds.filter(i => i !== id) : [...f.selectedMedIds, id] }))}
+                        onToggle={id => setEveningForm(f => ({ ...f, selectedMedIds: (f.selectedMedIds || []).includes(id) ? (f.selectedMedIds || []).filter(i => i !== id) : [...(f.selectedMedIds || []), id] }))}
                         onAddAll={() => setEveningForm(f => ({ ...f, selectedMedIds: medications.map(m => m.id) }))}
                         manualText={eveningForm.medications}
                         onManualChange={val => setEveningForm(f => ({ ...f, medications: val }))}
@@ -4187,9 +4188,9 @@ End with a one-line footer: "This document was prepared by the patient using Car
                   selectedIds={form.selectedMedIds || []}
                   onToggle={id => setForm(f => ({
                     ...f,
-                    selectedMedIds: f.selectedMedIds.includes(id)
-                      ? f.selectedMedIds.filter(i => i !== id)
-                      : [...f.selectedMedIds, id]
+                    selectedMedIds: (f.selectedMedIds || []).includes(id)
+                      ? (f.selectedMedIds || []).filter(i => i !== id)
+                      : [...(f.selectedMedIds || []), id]
                   }))}
                   onAddAll={() => setForm(f => ({ ...f, selectedMedIds: medications.map(m => m.id) }))}
                   manualText={form.medications}
