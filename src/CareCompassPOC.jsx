@@ -638,7 +638,7 @@ function GuidanceOutput({ guidance, onReset, onEdit, userName }) {
       </div>
 
       {/* Ask Sage about this report */}
-      <InsightChat reportType="assessment" reportText={guidance || ""} />
+      <InsightChat reportType="assessment" reportText={guidance || ""} onRerun={(ctx) => handleAnalyze(1, ctx)} />
 
       {/* Post-assessment CTAs */}
       <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }} className="no-print">
@@ -699,16 +699,21 @@ function GuidanceOutput({ guidance, onReset, onEdit, userName }) {
  *   reportText  — the full AI-generated text for this report (injected as context)
  *   accentColor — optional hex for the header stripe (defaults to SAGE_DARK)
  */
-function InsightChat({ reportType, reportText, accentColor }) {
-  const [open, setOpen]         = React.useState(false);
-  const [messages, setMessages] = React.useState([]);
-  const [input, setInput]       = React.useState("");
-  const [loading, setLoading]   = React.useState(false);
-  const [note, setNote]         = React.useState("");
-  const [noteSaved, setNoteSaved] = React.useState(false);
-  const [tab, setTab]           = React.useState("chat"); // "chat" | "note"
+function InsightChat({ reportType, reportText, accentColor, onRerun }) {
+  const [open, setOpen]             = React.useState(false);
+  const [messages, setMessages]     = React.useState([]);
+  const [input, setInput]           = React.useState("");
+  const [loading, setLoading]       = React.useState(false);
+  const [note, setNote]             = React.useState("");
+  const [noteSaved, setNoteSaved]   = React.useState(false);
+  const [tab, setTab]               = React.useState("chat");
+  const [rerunning, setRerunning]   = React.useState(false);
   const endRef = React.useRef(null);
   const accent = accentColor || "#4a7058";
+
+  // All user messages joined — this is the additional context to inject on re-run
+  const userContext = messages.filter(m => m.role === "user").map(m => m.content).join("\n").trim();
+  const hasContext  = userContext.length > 20 && !!onRerun;
 
   React.useEffect(() => {
     if (open && endRef.current) endRef.current.scrollIntoView({ behavior: "smooth" });
@@ -906,6 +911,30 @@ Your role:
             )}
             <div ref={endRef}/>
           </div>
+
+          {/* Re-run banner — appears once user has shared meaningful context */}
+          {hasContext && (
+            <div style={{ margin: "0 0.75rem 0.75rem", background: "#f0f7f2", border: `1.5px solid ${accent}44`, borderRadius: "0.875rem", padding: "0.875rem 1rem", display: "flex", flexDirection: "column", gap: "0.625rem" }}>
+              <div>
+                <p style={{ fontSize: "0.82rem", fontWeight: 700, color: "#2d2926", margin: "0 0 0.2rem" }}>Re-run with your new context?</p>
+                <p style={{ fontSize: "0.75rem", color: "#6b6560", margin: 0, lineHeight: 1.55 }}>
+                  You've shared information Sage thinks would improve this report. Re-running will generate a fresh report with everything you've mentioned included.
+                </p>
+              </div>
+              <div style={{ background: "#fff", borderRadius: "0.6rem", padding: "0.5rem 0.75rem", fontSize: "0.75rem", color: "#4a4540", fontStyle: "italic", lineHeight: 1.55, border: "1px solid rgba(0,0,0,0.07)", maxHeight: 72, overflowY: "auto" }}>
+                {userContext.length > 200 ? userContext.slice(0, 200) + "…" : userContext}
+              </div>
+              <button
+                onClick={async () => {
+                  setRerunning(true);
+                  try { await onRerun(userContext); } finally { setRerunning(false); }
+                }}
+                disabled={rerunning}
+                style={{ background: rerunning ? "#aaa" : accent, color: "#fff", border: "none", borderRadius: "100px", padding: "0.6rem 1.25rem", fontSize: "0.82rem", fontWeight: 600, cursor: rerunning ? "default" : "pointer", fontFamily: "inherit", alignSelf: "flex-start" }}>
+                {rerunning ? "Re-running…" : "↻ Re-run report with this context"}
+              </button>
+            </div>
+          )}
 
           {/* Input row */}
           <div style={{ padding: "0.75rem", borderTop: "1px solid rgba(0,0,0,0.06)", background: "#fafaf8", display: "flex", gap: "0.5rem" }}>
@@ -1288,7 +1317,7 @@ export default function CareCompassPOC() {
   const filledSystems = Object.entries(symptoms).filter(([, v]) => v.trim());
   const allSymptoms   = filledSystems.map(([sys, desc]) => `${sys}: ${desc}`).join("\n");
 
-  const handleAnalyze = async (attempt = 1) => {
+  const handleAnalyze = async (attempt = 1, extraContext = "") => {
     const MAX_ATTEMPTS = 3;
     setLoading(true);
     setError(null);
@@ -1371,7 +1400,10 @@ Please provide a Care Compass Insight Report with these sections:
 ## Patterns Worth Exploring
 ## Specialists Who May Help
 ## Questions to Bring to Your Doctor
-## A Note From Care Compass`;
+## A Note From Care Compass${extraContext ? `
+
+ADDITIONAL CONTEXT FROM USER (incorporate this into your analysis — this was shared after the original report and contains important supplementary history):
+${extraContext}` : ""}`;
 
     try {
       const response = await fetch("https://api.anthropic.com/v1/messages", {

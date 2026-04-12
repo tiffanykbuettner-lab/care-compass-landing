@@ -2233,7 +2233,7 @@ export default function CareCompassTracker() {
 
   const uniqueDaysLogged = new Set(entries.map(e => new Date(e.timestamp).toDateString())).size;
 
-  const handleInsights = async () => {
+  const handleInsights = async (extraContext) => {
     if (uniqueDaysLogged < 3) return;
     setLoadingInsights(true); setInsights(null);
     try {
@@ -2267,6 +2267,11 @@ export default function CareCompassTracker() {
 APPOINTMENT CONTEXT: This report is being generated to prepare for an upcoming ${apptContext.specialty} appointment${apptContext.doctor ? ` with ${apptContext.doctor}` : ""}${apptContext.date ? ` on ${new Date(apptContext.date + "T12:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}` : ""}${apptContext.reason ? `. Reason for visit: ${apptContext.reason}` : ""}.
 
 Please tailor your analysis specifically for a ${apptContext.specialty} visit. Focus on symptoms, patterns, and findings most relevant to ${apptContext.specialty} conditions. Prioritize insights the ${apptContext.specialty} would find most actionable. Add a ## Questions to Raise with Your ${apptContext.specialty} section at the end with specific, targeted questions based on the data.` : "";
+
+      const extraContextBlock = extraContext ? `
+
+ADDITIONAL CONTEXT PROVIDED BY USER (incorporate this into your analysis — treat it as important supplementary history that was not captured in the tracker entries above):
+${extraContext}` : "";
 
       const response = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" }, body: JSON.stringify({ model: "claude-opus-4-6", max_tokens: 8000, messages: [{ role: "user", content: `You are Care Compass, a compassionate health navigation assistant. Analyze these symptom tracker entries and identify patterns, triggers, and insights to discuss with a doctor.
 
@@ -2310,7 +2315,7 @@ Please provide a warm, specific analysis:
 ## What's Improving vs Worsening
 ## Questions to Bring to Your Doctor
 
-Never diagnose. Focus on patterns across days AND within-day timing. Be specific about which days or time patterns seem significant. If logged symptoms don't fully align with any existing diagnosis the user may have mentioned, gently note what the pattern does suggest and encourage them to explore it with their doctor. Many chronic illness patients carry incomplete or incorrect diagnoses — validating their lived experience is as important as pattern recognition.` + apptPromptContext + (bpReadings.length > 0 ? `
+Never diagnose. Focus on patterns across days AND within-day timing. Be specific about which days or time patterns seem significant. If logged symptoms don't fully align with any existing diagnosis the user may have mentioned, gently note what the pattern does suggest and encourage them to explore it with their doctor. Many chronic illness patients carry incomplete or incorrect diagnoses — validating their lived experience is as important as pattern recognition.` + apptPromptContext + extraContextBlock + (bpReadings.length > 0 ? `
 
 BLOOD PRESSURE READINGS (most recent first):
 ` + bpReadings.slice(0, 20).map(r => formatBPTime(r.timestamp) + ": " + r.systolic + "/" + r.diastolic + " mmHg" + (r.pulse ? " | Pulse: " + r.pulse + " bpm" : "") + (r.notes ? " | Notes: " + r.notes : "") + " — " + bpCategory(r.systolic, r.diastolic).label).join("\n") + `
@@ -2333,7 +2338,7 @@ IMPORTANT: Cross-reference cycle dates with symptom entries. Look for symptom fl
 
   const handlePrint = () => { const style = document.createElement("style"); style.innerHTML = `@media print { .no-print { display: none !important; } @page { margin: 1.5cm; } }`; document.head.appendChild(style); window.print(); setTimeout(() => document.head.removeChild(style), 1000); };
 
-  const handleGenerateReport = async () => {
+  const handleGenerateReport = async (extraContext) => {
     if (!entries.length) return;
     setReportView("generating");
     setReportAI(null);
@@ -2397,7 +2402,10 @@ Honest assessment of trends. Note if patterns are unclear.
 ## Suggested Next Steps
 2-3 concrete things to discuss or request (tests, referrals, adjustments).
 
-Never diagnose. Use language like "worth discussing", "the data suggests".`;
+Never diagnose. Use language like "worth discussing", "the data suggests".${extraContext ? `
+
+ADDITIONAL CONTEXT FROM USER (incorporate this — it was shared after the original report was generated and contains important supplementary information):
+${extraContext}` : ""}`;
     try {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
@@ -2410,7 +2418,7 @@ Never diagnose. Use language like "worth discussing", "the data suggests".`;
     setReportView("report");
   };
 
-  const handleGenerateER = async () => {
+  const handleGenerateER = async (extraContext) => {
     if (!entries.length && !erPrompt.chiefComplaint.trim()) return;
     setErView("generating");
     setErAI(null);
@@ -2484,7 +2492,10 @@ List of current providers with specialties. Include this so ER staff know who to
 ## What This Patient Needs From This Visit
 Clear, specific statement of what the patient is seeking — diagnosis, pain management, imaging, IV fluids, etc. Frame as clinical goals.
 
-End with a one-line footer: "This document was prepared by the patient using Care Compass health tracking software. joincarecompass.com"`;
+End with a one-line footer: "This document was prepared by the patient using Care Compass health tracking software. joincarecompass.com"${extraContext ? `
+
+ADDITIONAL CONTEXT FROM USER (incorporate this — shared after the original report was generated):
+${extraContext}` : ""}`;
 
     try {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -3266,7 +3277,7 @@ End with a one-line footer: "This document was prepared by the patient using Car
                       <button onClick={handleInsights} style={s.rerunBtn}>Re-run Analysis →</button>
                     </div>
                   </div>
-                  <InsightChat reportType="insights" reportText={insights || ""} />
+                  <InsightChat reportType="insights" reportText={insights || ""} onRerun={handleInsights} />
                 </div>
               )}
             </div>
@@ -3478,7 +3489,7 @@ End with a one-line footer: "This document was prepared by the patient using Car
                     <div style={s.reportFooter}>
                       <p style={s.reportFooterText}>Generated by Care Compass · joincarecompass.com · Not a medical record or medical advice. Review with your healthcare provider.</p>
                     </div>
-                    <InsightChat reportType="doctor" reportText={reportAI || ""} />
+                    <InsightChat reportType="doctor" reportText={reportAI || ""} onRerun={handleGenerateReport} />
                   </div>
                 </div>
               )}
@@ -3939,7 +3950,7 @@ End with a one-line footer: "This document was prepared by the patient using Car
                     <div style={s.reportFooter}>
                       <p style={s.reportFooterText}>Generated by Care Compass · joincarecompass.com · This is not a medical record. Please review with your healthcare provider.</p>
                     </div>
-                    <InsightChat reportType="er" reportText={erAI || ""} accentColor="#c0392b" />
+                    <InsightChat reportType="er" reportText={erAI || ""} accentColor="#c0392b" onRerun={handleGenerateER} />
                   </div>
                 </div>
               )}
@@ -4614,16 +4625,21 @@ const FireflyMark = ({ size = 36 }) => (
  *   reportText  — the full AI-generated text for this report (injected as context)
  *   accentColor — optional hex for the header stripe (defaults to SAGE_DARK)
  */
-function InsightChat({ reportType, reportText, accentColor }) {
-  const [open, setOpen]         = React.useState(false);
-  const [messages, setMessages] = React.useState([]);
-  const [input, setInput]       = React.useState("");
-  const [loading, setLoading]   = React.useState(false);
-  const [note, setNote]         = React.useState("");
-  const [noteSaved, setNoteSaved] = React.useState(false);
-  const [tab, setTab]           = React.useState("chat"); // "chat" | "note"
+function InsightChat({ reportType, reportText, accentColor, onRerun }) {
+  const [open, setOpen]             = React.useState(false);
+  const [messages, setMessages]     = React.useState([]);
+  const [input, setInput]           = React.useState("");
+  const [loading, setLoading]       = React.useState(false);
+  const [note, setNote]             = React.useState("");
+  const [noteSaved, setNoteSaved]   = React.useState(false);
+  const [tab, setTab]               = React.useState("chat");
+  const [rerunning, setRerunning]   = React.useState(false);
   const endRef = React.useRef(null);
   const accent = accentColor || "#4a7058";
+
+  // All user messages joined — this is the additional context to inject on re-run
+  const userContext = messages.filter(m => m.role === "user").map(m => m.content).join("\n").trim();
+  const hasContext  = userContext.length > 20 && !!onRerun;
 
   React.useEffect(() => {
     if (open && endRef.current) endRef.current.scrollIntoView({ behavior: "smooth" });
@@ -4821,6 +4837,30 @@ Your role:
             )}
             <div ref={endRef}/>
           </div>
+
+          {/* Re-run banner — appears once user has shared meaningful context */}
+          {hasContext && (
+            <div style={{ margin: "0 0.75rem 0.75rem", background: "#f0f7f2", border: `1.5px solid ${accent}44`, borderRadius: "0.875rem", padding: "0.875rem 1rem", display: "flex", flexDirection: "column", gap: "0.625rem" }}>
+              <div>
+                <p style={{ fontSize: "0.82rem", fontWeight: 700, color: "#2d2926", margin: "0 0 0.2rem" }}>Re-run with your new context?</p>
+                <p style={{ fontSize: "0.75rem", color: "#6b6560", margin: 0, lineHeight: 1.55 }}>
+                  You've shared information Sage thinks would improve this report. Re-running will generate a fresh report with everything you've mentioned included.
+                </p>
+              </div>
+              <div style={{ background: "#fff", borderRadius: "0.6rem", padding: "0.5rem 0.75rem", fontSize: "0.75rem", color: "#4a4540", fontStyle: "italic", lineHeight: 1.55, border: "1px solid rgba(0,0,0,0.07)", maxHeight: 72, overflowY: "auto" }}>
+                {userContext.length > 200 ? userContext.slice(0, 200) + "…" : userContext}
+              </div>
+              <button
+                onClick={async () => {
+                  setRerunning(true);
+                  try { await onRerun(userContext); } finally { setRerunning(false); }
+                }}
+                disabled={rerunning}
+                style={{ background: rerunning ? "#aaa" : accent, color: "#fff", border: "none", borderRadius: "100px", padding: "0.6rem 1.25rem", fontSize: "0.82rem", fontWeight: 600, cursor: rerunning ? "default" : "pointer", fontFamily: "inherit", alignSelf: "flex-start" }}>
+                {rerunning ? "Re-running…" : "↻ Re-run report with this context"}
+              </button>
+            </div>
+          )}
 
           {/* Input row */}
           <div style={{ padding: "0.75rem", borderTop: "1px solid rgba(0,0,0,0.06)", background: "#fafaf8", display: "flex", gap: "0.5rem" }}>
