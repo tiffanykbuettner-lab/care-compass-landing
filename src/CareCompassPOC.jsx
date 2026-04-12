@@ -637,6 +637,9 @@ function GuidanceOutput({ guidance, onReset, onEdit, userName }) {
         </div>
       </div>
 
+      {/* Ask Sage about this report */}
+      <InsightChat reportType="assessment" reportText={guidance || ""} />
+
       {/* Post-assessment CTAs */}
       <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }} className="no-print">
         <div style={s.trackerPrompt}>
@@ -686,6 +689,247 @@ function GuidanceOutput({ guidance, onReset, onEdit, userName }) {
     </div>
   );
 }
+
+
+/* ─── InsightChat — inline "Ask Sage about this report" panel ─────────────── */
+/**
+ * Self-contained panel that appears at the bottom of any AI-generated result.
+ * Props:
+ *   reportType  — "insights" | "doctor" | "er" | "labs" | "assessment"
+ *   reportText  — the full AI-generated text for this report (injected as context)
+ *   accentColor — optional hex for the header stripe (defaults to SAGE_DARK)
+ */
+function InsightChat({ reportType, reportText, accentColor }) {
+  const [open, setOpen]         = React.useState(false);
+  const [messages, setMessages] = React.useState([]);
+  const [input, setInput]       = React.useState("");
+  const [loading, setLoading]   = React.useState(false);
+  const [note, setNote]         = React.useState("");
+  const [noteSaved, setNoteSaved] = React.useState(false);
+  const [tab, setTab]           = React.useState("chat"); // "chat" | "note"
+  const endRef = React.useRef(null);
+  const accent = accentColor || "#4a7058";
+
+  React.useEffect(() => {
+    if (open && endRef.current) endRef.current.scrollIntoView({ behavior: "smooth" });
+  }, [messages, open]);
+
+  const SUGGESTIONS = {
+    insights: [
+      "What does this pattern mean for my day-to-day life?",
+      "Which of these findings should I prioritise with my doctor?",
+      "I forgot to mention I had surgery — does that change anything?",
+      "Can you explain what you mean by [section name]?",
+    ],
+    doctor: [
+      "Can you help me prepare for how to explain this to my doctor?",
+      "I remembered something I didn't log — how do I add it?",
+      "What does this term in my report mean?",
+      "Which questions here are most important to raise?",
+    ],
+    er: [
+      "What information is most important for triage staff?",
+      "I want to add an allergy I forgot — can you help?",
+      "How do I explain my condition quickly to a nurse?",
+      "What should I do if staff dismiss my history?",
+    ],
+    labs: [
+      "What does this result mean in plain language?",
+      "My doctor said this is normal — why does the report flag it?",
+      "I had a follow-up test since this — does that matter?",
+      "Which result should I ask my doctor about first?",
+    ],
+    assessment: [
+      "Can you explain what this pattern means?",
+      "I forgot to mention a previous surgery or test.",
+      "Which specialist recommendation should I follow up on first?",
+      "What questions should I bring to my first appointment?",
+    ],
+  };
+
+  const systemPrompt = `You are Sage, a warm and knowledgeable Care Compass health navigation guide. The user is reviewing an AI-generated ${reportType} report and has questions or wants to add context.
+
+REPORT CONTENT (use this as your primary reference — answer questions based on it):
+---
+${(reportText || "").slice(0, 6000)}
+---
+
+Your role:
+- Help the user understand specific terms, findings, or recommendations in their report
+- If they mention something they forgot to include (a surgery, test, medication, condition), acknowledge it, explain how it might be relevant to what the report says, and suggest they note it down or re-run the report
+- Be warm, specific, and reference actual content from their report where relevant
+- Never diagnose or prescribe. Use language like "worth discussing with your doctor", "may be relevant because..."
+- Keep responses concise — 2-4 sentences unless the question genuinely needs more
+- No bullet points or markdown symbols. Write in natural prose.
+- If they ask something unrelated to their health or this report, gently redirect.`;
+
+  const send = async (text) => {
+    const t = (text || input).trim();
+    if (!t || loading) return;
+    const next = [...messages, { role: "user", content: t }];
+    setMessages(next);
+    setInput("");
+    setLoading(true);
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+        body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 600, system: systemPrompt, messages: next }),
+      });
+      const data  = await res.json();
+      const reply = data.content?.[0]?.text || "I'm having trouble connecting. Please try again.";
+      setMessages([...next, { role: "assistant", content: reply }]);
+    } catch {
+      setMessages([...next, { role: "assistant", content: "Something went wrong. Please try again." }]);
+    }
+    setLoading(false);
+  };
+
+  const saveNote = () => {
+    if (!note.trim()) return;
+    try {
+      const key  = `cc-insight-notes-${reportType}`;
+      const existing = JSON.parse(localStorage.getItem(key) || "[]");
+      existing.push({ text: note.trim(), timestamp: new Date().toISOString() });
+      localStorage.setItem(key, JSON.stringify(existing));
+    } catch {}
+    setNoteSaved(true);
+    setTimeout(() => setNoteSaved(false), 3000);
+    setNote("");
+  };
+
+  const suggestions = SUGGESTIONS[reportType] || SUGGESTIONS.insights;
+
+  /* ── Collapsed teaser ── */
+  if (!open) return (
+    <div className="no-print" style={{ background: "#fff", borderRadius: "1.25rem", border: `1.5px solid ${accent}22`, padding: "1.1rem 1.5rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", flexWrap: "wrap", marginTop: "0.5rem" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "0.875rem" }}>
+        <div style={{ width: 38, height: 38, borderRadius: "50%", background: "#e8f0eb", border: "1.5px solid #c2d9c8", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <svg width="18" height="18" viewBox="0 0 72 72" fill="none">
+            <ellipse cx="36" cy="17" rx="7" ry="17" fill="#4a7058"/>
+            <ellipse cx="55" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.8"/>
+            <ellipse cx="17" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.45"/>
+            <circle cx="36" cy="36" r="7" fill="#4a7058"/>
+            <circle cx="36" cy="36" r="3" fill="#e8f0eb"/>
+          </svg>
+        </div>
+        <div>
+          <p style={{ fontSize: "0.875rem", fontWeight: 700, color: "#2d2926", margin: "0 0 0.1rem" }}>Questions about this report?</p>
+          <p style={{ fontSize: "0.78rem", color: "#6b6560", margin: 0 }}>Ask Sage to explain any finding, or add something you forgot to include.</p>
+        </div>
+      </div>
+      <button onClick={() => setOpen(true)}
+        style={{ background: accent, color: "#fff", border: "none", borderRadius: "100px", padding: "0.6rem 1.25rem", fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+        Ask Sage →
+      </button>
+    </div>
+  );
+
+  /* ── Open panel ── */
+  return (
+    <div className="no-print" style={{ background: "#fff", borderRadius: "1.25rem", border: `1.5px solid ${accent}33`, overflow: "hidden", marginTop: "0.5rem" }}>
+
+      {/* Header */}
+      <div style={{ background: accent, padding: "0.875rem 1.25rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
+          <svg width="16" height="16" viewBox="0 0 72 72" fill="none">
+            <ellipse cx="36" cy="17" rx="7" ry="17" fill="#e8f0eb"/>
+            <ellipse cx="55" cy="36" rx="17" ry="7" fill="#e0f2f4" opacity="0.9"/>
+            <circle cx="36" cy="36" r="7" fill="#e8f0eb"/>
+          </svg>
+          <span style={{ fontWeight: 700, fontSize: "0.92rem", color: "#fff" }}>Ask Sage about this report</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <button onClick={() => setTab("chat")} style={{ background: tab === "chat" ? "rgba(255,255,255,0.25)" : "transparent", color: "#fff", border: "none", borderRadius: "100px", padding: "0.3rem 0.75rem", fontSize: "0.78rem", fontWeight: tab === "chat" ? 700 : 400, cursor: "pointer", fontFamily: "inherit" }}>Chat</button>
+          <button onClick={() => setTab("note")} style={{ background: tab === "note" ? "rgba(255,255,255,0.25)" : "transparent", color: "#fff", border: "none", borderRadius: "100px", padding: "0.3rem 0.75rem", fontSize: "0.78rem", fontWeight: tab === "note" ? 700 : 400, cursor: "pointer", fontFamily: "inherit" }}>Add a note</button>
+          <button onClick={() => setOpen(false)} style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "50%", width: 28, height: 28, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: "0.85rem" }}>✕</button>
+        </div>
+      </div>
+
+      {tab === "note" ? (
+        /* ── Add-a-note tab ── */
+        <div style={{ padding: "1.25rem", display: "flex", flexDirection: "column", gap: "0.875rem" }}>
+          <div>
+            <p style={{ fontSize: "0.875rem", fontWeight: 600, color: "#2d2926", margin: "0 0 0.25rem" }}>Add something you remembered</p>
+            <p style={{ fontSize: "0.78rem", color: "#6b6560", margin: 0, lineHeight: 1.6 }}>Forgot a previous surgery, test result, or medication? Jot it here — it'll be saved and you can reference it when you re-run this report or share it with your doctor.</p>
+          </div>
+          <div style={{ position: "relative" }}>
+            <textarea
+              value={note}
+              onChange={e => setNote(e.target.value)}
+              placeholder="e.g. Had gallbladder removed in 2019. Also had a thyroid ultrasound in March — it showed a small nodule they said was benign..."
+              rows={4}
+              style={{ width: "100%", boxSizing: "border-box", padding: "0.75rem 1rem", borderRadius: "0.75rem", border: "1.5px solid rgba(0,0,0,0.12)", fontSize: "0.875rem", color: "#2d2926", background: "#fafaf8", outline: "none", fontFamily: "inherit", resize: "vertical", lineHeight: 1.6 }}
+            />
+          </div>
+          <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+            <button onClick={saveNote} disabled={!note.trim()}
+              style={{ background: note.trim() ? accent : "#ccc", color: "#fff", border: "none", borderRadius: "100px", padding: "0.65rem 1.5rem", fontSize: "0.875rem", fontWeight: 600, cursor: note.trim() ? "pointer" : "default", fontFamily: "inherit" }}>
+              Save note →
+            </button>
+            {noteSaved && <span style={{ fontSize: "0.82rem", color: accent, fontWeight: 600 }}>✓ Saved</span>}
+          </div>
+          <p style={{ fontSize: "0.75rem", color: "#aaa", margin: 0, fontStyle: "italic" }}>Notes are saved to this device only. To update your report with this information, switch to Chat and tell Sage, or re-run the report and include it.</p>
+        </div>
+      ) : (
+        /* ── Chat tab ── */
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          {/* Message area */}
+          <div style={{ maxHeight: 340, overflowY: "auto", padding: "1rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+            {messages.length === 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
+                <p style={{ fontSize: "0.82rem", color: "#6b6560", margin: 0, fontStyle: "italic", textAlign: "center", paddingBottom: "0.5rem" }}>I've read your report. Ask me anything about it, or tap a suggestion below.</p>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+                  {suggestions.map(q => (
+                    <button key={q} onClick={() => send(q)}
+                      style={{ background: "#f0f7f2", border: "1px solid #c2d9c8", borderRadius: "100px", padding: "0.35rem 0.875rem", fontSize: "0.78rem", color: "#4a7058", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", lineHeight: 1.4, textAlign: "left" }}>
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {messages.map((m, i) => (
+              <div key={i} style={{
+                alignSelf: m.role === "user" ? "flex-end" : "flex-start",
+                background: m.role === "user" ? accent : "#e8f0eb",
+                color: m.role === "user" ? "#fff" : "#2d2926",
+                borderRadius: m.role === "user" ? "1rem 1rem 0.25rem 1rem" : "1rem 1rem 1rem 0.25rem",
+                padding: "0.65rem 0.9rem", fontSize: "0.875rem", lineHeight: 1.6,
+                maxWidth: "85%",
+              }}>{m.content}</div>
+            ))}
+            {loading && (
+              <div style={{ alignSelf: "flex-start", background: "#e8f0eb", borderRadius: "1rem 1rem 1rem 0.25rem", padding: "0.65rem 0.9rem" }}>
+                <span style={{ color: "#7a9e87", letterSpacing: "0.1em", fontSize: "0.75rem" }}>●&nbsp;●&nbsp;●</span>
+              </div>
+            )}
+            <div ref={endRef}/>
+          </div>
+
+          {/* Input row */}
+          <div style={{ padding: "0.75rem", borderTop: "1px solid rgba(0,0,0,0.06)", background: "#fafaf8", display: "flex", gap: "0.5rem" }}>
+            <input
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
+              placeholder="Ask about this report…"
+              disabled={loading}
+              style={{ flex: 1, padding: "0.65rem 0.9rem", borderRadius: "0.75rem", border: "1.5px solid rgba(0,0,0,0.1)", fontSize: "0.875rem", fontFamily: "inherit", color: "#2d2926", background: "#fff", outline: "none" }}
+            />
+            <button onClick={() => send()} disabled={loading || !input.trim()}
+              style={{ width: 40, height: 40, borderRadius: "0.75rem", background: (loading || !input.trim()) ? "#ccc" : accent, color: "#fff", border: "none", cursor: (loading || !input.trim()) ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 /* ─── Sage keyframes ─────────────────────────────────────────────────────── */
 const SAGE_KEYFRAMES = `
