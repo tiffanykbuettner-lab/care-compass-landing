@@ -25,10 +25,9 @@ const LOADING_STYLES = `
 `;
 
 function VoiceMicButton({ value, onChange, size = 34, style: extraStyle = {} }) {
-  const [listening, setListening]   = React.useState(false);
-  const [supported, setSupported]   = React.useState(true);
-  const [permState, setPermState]   = React.useState("unknown"); // "unknown"|"granted"|"denied"
-  const [showTip, setShowTip]       = React.useState(false);
+  const [listening, setListening] = React.useState(false);
+  const [supported, setSupported] = React.useState(true);
+  const [errMsg, setErrMsg]       = React.useState(""); // "" | "denied" | "capture"
   const recognitionRef = React.useRef(null);
   const committedRef   = React.useRef(value ?? "");
 
@@ -36,44 +35,24 @@ function VoiceMicButton({ value, onChange, size = 34, style: extraStyle = {} }) 
 
   React.useEffect(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { setSupported(false); return; }
-    // Read current permission state without prompting
-    if (navigator.permissions) {
-      navigator.permissions.query({ name: "microphone" }).then(status => {
-        setPermState(status.state);
-        status.onchange = () => setPermState(status.state);
-      }).catch(() => {});
-    }
+    if (!SR) setSupported(false);
   }, []);
 
-  const startListening = async () => {
+  const start = () => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) return;
+    if (!SR || listening) return;
+    setErrMsg("");
 
-    // Explicitly request mic permission — triggers the browser prompt if not yet granted
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach(t => t.stop()); // release immediately, SR will re-acquire
-      setPermState("granted");
-      setShowTip(false);
-    } catch (err) {
-      setPermState("denied");
-      setShowTip(true);
-      setTimeout(() => setShowTip(false), 5000);
-      return;
-    }
+    const rec = new SR();
+    rec.continuous     = true;
+    rec.interimResults = true;
+    rec.lang           = navigator.language || "en-US";
+    recognitionRef.current = rec;
 
-    const recognition = new SR();
-    recognition.continuous     = true;
-    recognition.interimResults = true;
-    recognition.lang           = "en-US";
-    recognitionRef.current     = recognition;
+    rec.onstart = () => setListening(true);
 
-    recognition.onstart = () => setListening(true);
-
-    recognition.onresult = (e) => {
-      let interim = "";
-      let finalChunk = "";
+    rec.onresult = (e) => {
+      let interim = "", finalChunk = "";
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const t = e.results[i][0].transcript;
         if (e.results[i].isFinal) finalChunk += t;
@@ -84,65 +63,72 @@ function VoiceMicButton({ value, onChange, size = 34, style: extraStyle = {} }) 
         const joined = base ? base.trimEnd() + " " + finalChunk.trim() : finalChunk.trim();
         committedRef.current = joined;
         onChange(joined + (interim ? " " + interim : ""));
-      } else {
-        onChange(committedRef.current + (interim ? (committedRef.current ? " " : "") + interim : ""));
+      } else if (interim) {
+        const base = committedRef.current;
+        onChange(base ? base.trimEnd() + " " + interim : interim);
       }
     };
 
-    recognition.onerror = (e) => {
-      if (e.error === "not-allowed") {
-        setPermState("denied");
-        setShowTip(true);
-        setTimeout(() => setShowTip(false), 5000);
-      } else if (e.error !== "aborted") {
-        console.warn("Speech error:", e.error);
+    rec.onerror = (e) => {
+      if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+        setErrMsg("denied");
+      } else if (e.error === "audio-capture") {
+        setErrMsg("capture");
+      } else if (e.error !== "aborted" && e.error !== "no-speech") {
+        setErrMsg("denied");
       }
       setListening(false);
     };
 
-    recognition.onend = () => setListening(false);
-    recognition.start();
+    rec.onend = () => setListening(false);
+
+    try { rec.start(); }
+    catch (err) { setErrMsg("denied"); setListening(false); }
   };
 
-  const stopListening = () => { recognitionRef.current?.stop(); setListening(false); };
+  const stop = () => {
+    try { recognitionRef.current?.stop(); } catch {}
+    setListening(false);
+  };
 
   const toggle = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (listening) stopListening();
-    else startListening();
+    setErrMsg("");
+    listening ? stop() : start();
   };
 
   if (!supported) return null;
 
-  const isDenied = permState === "denied";
+  const tipText = errMsg === "capture"
+    ? "Mic in use by another app. Close other tabs or apps using the mic, then try again."
+    : "Microphone blocked. Click the 🔒 icon in your address bar → allow microphone → try again.";
 
   return (
     <div style={{ position: "relative", display: "inline-flex", flexShrink: 0 }}>
       <button
         type="button"
         onClick={toggle}
-        title={isDenied ? "Microphone blocked — click for help" : listening ? "Stop recording" : "Tap to speak"}
+        title={errMsg ? tipText : listening ? "Stop recording" : "Tap to speak"}
         aria-label={listening ? "Stop voice input" : "Start voice input"}
         style={{
-          width: size, height: size, borderRadius: "50%", flexShrink: 0,
-          border: isDenied
+          width: size, height: size, borderRadius: "50%", flexShrink: 0, padding: 0,
+          border: errMsg
             ? "1.5px solid #e8a838"
             : listening
               ? "2px solid #c0392b"
               : "1.5px solid rgba(0,0,0,0.12)",
-          background: isDenied ? "#fef3da" : listening ? "#fdeaea" : "#fff",
-          color: isDenied ? "#8a5a00" : listening ? "#c0392b" : "#7a9e87",
+          background: errMsg ? "#fef3da" : listening ? "#fdeaea" : "#fff",
+          color:      errMsg ? "#8a5a00" : listening ? "#c0392b" : "#7a9e87",
           cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
           animation: listening ? "voicePulse 1.2s ease-in-out infinite" : "none",
           transition: "background 0.15s, border-color 0.15s, color 0.15s",
-          padding: 0, ...extraStyle,
+          ...extraStyle,
         }}
       >
-        {isDenied ? (
-          /* Warning / blocked state */
-          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-            <rect x="5" y="1" width="6" height="8" rx="3" stroke="currentColor" strokeWidth="1.4" fill="none" strokeDasharray="2 1.5"/>
+        {errMsg ? (
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+            <rect x="5" y="1" width="6" height="8" rx="3" fill="none" strokeDasharray="2 1.5"/>
             <path d="M3 8a5 5 0 0010 0"/>
             <line x1="8" y1="13" x2="8" y2="15"/>
             <line x1="5" y1="15" x2="11" y2="15"/>
@@ -153,8 +139,8 @@ function VoiceMicButton({ value, onChange, size = 34, style: extraStyle = {} }) 
             <rect x="3" y="3" width="10" height="10" rx="2" fill="currentColor"/>
           </svg>
         ) : (
-          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-            <rect x="5" y="1" width="6" height="8" rx="3" stroke="currentColor" strokeWidth="1.4" fill="none"/>
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+            <rect x="5" y="1" width="6" height="8" rx="3" fill="none"/>
             <path d="M3 8a5 5 0 0010 0"/>
             <line x1="8" y1="13" x2="8" y2="15"/>
             <line x1="5" y1="15" x2="11" y2="15"/>
@@ -162,25 +148,25 @@ function VoiceMicButton({ value, onChange, size = 34, style: extraStyle = {} }) 
         )}
       </button>
 
-      {/* Permission-denied tooltip */}
-      {showTip && (
-        <div style={{
+      {errMsg && (
+        <div onClick={() => setErrMsg("")} style={{
           position: "absolute", bottom: "calc(100% + 8px)", right: 0,
           background: "#2d2926", color: "#fff", borderRadius: "0.6rem",
-          padding: "0.6rem 0.8rem", fontSize: "0.72rem", lineHeight: 1.5,
-          width: 220, zIndex: 1000, boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
-          pointerEvents: "none",
+          padding: "0.65rem 0.875rem", fontSize: "0.72rem", lineHeight: 1.6,
+          width: 230, zIndex: 1000, boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
+          cursor: "pointer",
         }}>
-          <strong style={{ display: "block", marginBottom: "0.2rem" }}>Microphone blocked</strong>
-          Click the 🔒 or camera icon in your browser's address bar, allow the microphone, then try again.
-          <div style={{ position: "absolute", bottom: -5, right: 10, width: 10, height: 10, background: "#2d2926", transform: "rotate(45deg)", borderRadius: 1 }}/>
+          <strong style={{ display: "block", marginBottom: "0.25rem", fontSize: "0.75rem" }}>
+            {errMsg === "capture" ? "Mic busy" : "Microphone blocked"}
+          </strong>
+          {tipText}
+          <div style={{ position: "absolute", bottom: -5, right: 12, width: 10, height: 10, background: "#2d2926", transform: "rotate(45deg)", borderRadius: 1 }}/>
         </div>
       )}
     </div>
   );
 }
 
-/* ─── Brand tokens ───────────────────────────────────────────────────────── */
 const SAGE       = "#7a9e87";
 const SAGE_LIGHT = "#e8f0eb";
 const SAGE_DARK  = "#4a7058";
