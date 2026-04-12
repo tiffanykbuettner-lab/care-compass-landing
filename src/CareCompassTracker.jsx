@@ -1934,8 +1934,8 @@ export default function CareCompassTracker() {
 
   const isFirstEntryToday = !entries.some(e => new Date(e.timestamp).toDateString() === new Date().toDateString());
 
-  const openNew  = () => { setEditingEntry(null); setForm({ ...blankForm, sleep: isFirstEntryToday ? 7 : null }); setShowForm(true); document.body.style.overflow = "hidden"; };
-  const openEdit = (entry) => { setEditingEntry(entry); setForm({ ...entry, photos: entry.photos || [] }); setShowForm(true); document.body.style.overflow = "hidden"; };
+  const openNew  = () => { setEditingEntry(null); setForm({ ...blankForm, sleep: isFirstEntryToday ? 7 : null }); setShowForm(true); };
+  const openEdit = (entry) => { setEditingEntry(entry); setForm({ ...entry, photos: entry.photos || [] }); setShowForm(true); };
 
   const handlePhotoUpload = (e) => {
     const files = Array.from(e.target.files);
@@ -1983,7 +1983,7 @@ export default function CareCompassTracker() {
     } else {
       saveEntries([{ ...finalForm, id: Date.now(), timestamp: new Date().toISOString() }, ...entries]);
     }
-    setShowForm(false); setEditingEntry(null); setForm(blankForm); document.body.style.overflow = "";
+    setShowForm(false); setEditingEntry(null); setForm(blankForm);
     setSaved(true); setTimeout(() => setSaved(false), 3000);
   };
 
@@ -4183,9 +4183,9 @@ End with a one-line footer: "This document was prepared by the patient using Car
       )}
 
       {showForm && (
-        <div style={s.modalOverlay} onClick={() => { setShowForm(false); document.body.style.overflow = ""; }}>
+        <div style={s.modalOverlay} onClick={() => { setShowForm(false); }}>
           <div style={s.modal} onClick={e => e.stopPropagation()}>
-            <div style={s.modalHeader}><h2 style={s.modalTitle}>{editingEntry ? "Edit entry" : "Log an entry"}</h2><button onClick={() => { setShowForm(false); document.body.style.overflow = ""; }} style={s.modalClose}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg></button></div>
+            <div style={s.modalHeader}><h2 style={s.modalTitle}>{editingEntry ? "Edit entry" : "Log an entry"}</h2><button onClick={() => { setShowForm(false); }} style={s.modalClose}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg></button></div>
             <div style={s.modalBody}>
               <div style={s.formGroup}>
                 <label style={s.label}>What symptoms are you experiencing?</label>
@@ -4269,7 +4269,7 @@ End with a one-line footer: "This document was prepared by the patient using Car
                 )}
               </div>
             </div>
-            <div style={s.modalFooter}><button onClick={() => { setShowForm(false); document.body.style.overflow = ""; }} style={s.cancelBtn}>Cancel</button><button onClick={handleSubmit} style={s.saveBtn}>{editingEntry ? "Update Entry →" : "Save Entry →"}</button></div>
+            <div style={s.modalFooter}><button onClick={() => { setShowForm(false); }} style={s.cancelBtn}>Cancel</button><button onClick={handleSubmit} style={s.saveBtn}>{editingEntry ? "Update Entry →" : "Save Entry →"}</button></div>
           </div>
         </div>
       )}
@@ -4591,8 +4591,8 @@ const s = {
   reportTd: { padding: "0.6rem 0.75rem", borderBottom: `1px solid rgba(0,0,0,0.05)`, verticalAlign: "top", color: INK_LIGHT, lineHeight: 1.5 },
   reportFooter: { borderTop: `1px solid ${SAGE_LIGHT}`, paddingTop: "1rem", textAlign: "center" },
   reportFooterText: { fontSize: "0.75rem", color: "#aaa", margin: 0 },
-  modalOverlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 200, display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0", overscrollBehavior: "none", WebkitTapHighlightColor: "transparent" },
-  modal: { background: "#fff", borderRadius: "1.25rem 1.25rem 0 0", width: "100%", maxWidth: 680, height: "92vh", maxHeight: "92dvh", display: "flex", flexDirection: "column", overflow: "hidden", boxSizing: "border-box", willChange: "transform" },
+  modalOverlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 200, display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0", overscrollBehavior: "none", WebkitTapHighlightColor: "transparent", WebkitOverflowScrolling: "touch" },
+  modal: { background: "#fff", borderRadius: "1.25rem 1.25rem 0 0", width: "100%", maxWidth: 680, height: "90vh", maxHeight: "90vh", display: "flex", flexDirection: "column", overflow: "hidden", boxSizing: "border-box" },
   modalHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.25rem 1.5rem", borderBottom: `1px solid rgba(0,0,0,0.07)` },
   modalTitle: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.2rem", fontWeight: 700, color: INK, margin: 0 },
   modalClose: { background: "transparent", border: "none", color: WARM_GRAY, fontSize: "1rem", cursor: "pointer" },
