@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "./AuthContext";
+import { Icon, MorningSunIcon, EveningMoonIcon } from "./SageIcons";
 
 const INSIGHTS_LOADING_STYLES = `
 @keyframes insightProgress {
@@ -141,19 +142,25 @@ function LineChart({ entries, field, color = SAGE }) {
 function EntryCard({ entry, onDelete, onEdit }) {
   const [expanded, setExpanded] = useState(false);
   const date = new Date(entry.timestamp);
+  const isMorning = entry.tag === "Morning check-in";
+  const isEvening = entry.tag === "Evening check-in";
   return (
     <div style={s.entryCard}>
       <div style={s.entryCardHeader} onClick={() => setExpanded(e => !e)}>
         <div style={s.entryCardLeft}>
           <div style={{ ...s.severityBadge, background: severityColor(entry.severity) }}>{entry.severity}/10</div>
           <div>
-            <p style={s.entryDate}>{date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} · {date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</p>
+            <p style={s.entryDate}>
+              {date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} · {date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+              {isMorning && <span style={{ display:"inline-flex", alignItems:"center", gap:"0.25rem", marginLeft:"0.5rem", background:"#fef3da", color:"#8a5a00", borderRadius:"100px", padding:"0.1rem 0.5rem", fontSize:"0.68rem", fontWeight:600, verticalAlign:"middle" }}><MorningSunIcon size={13} /> Morning</span>}
+              {isEvening && <span style={{ display:"inline-flex", alignItems:"center", gap:"0.25rem", marginLeft:"0.5rem", background:"#f0eef9", color:"#7c5cbf", borderRadius:"100px", padding:"0.1rem 0.5rem", fontSize:"0.68rem", fontWeight:600, verticalAlign:"middle" }}><EveningMoonIcon size={13} /> Evening</span>}
+            </p>
             <p style={s.entryPreview}>{entry.symptoms || "No symptoms noted"}</p>
           </div>
         </div>
         <div style={s.entryCardRight}>
           <button onClick={e => { e.stopPropagation(); onEdit(entry); }} style={s.editEntryBtn}>Edit</button>
-          <button onClick={e => { e.stopPropagation(); onDelete(entry.id); }} style={{ ...s.deleteBtn, color: "#bbb" }} title="Delete entry"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg></button>
+          <button onClick={e => { e.stopPropagation(); onDelete(entry.id); }} style={{ ...s.deleteBtn, color: "#bbb" }} title="Delete entry"><Icon name="close" size={16} /></button>
           <span style={s.expandChevron}>{expanded ? "▲" : "▼"}</span>
         </div>
       </div>
@@ -292,7 +299,7 @@ function BPReadingCard({ reading, onDelete }) {
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.2rem" }}>
             <span style={{ background: cat.bg, color: cat.color, fontSize: "0.7rem", fontWeight: 700, padding: "0.15rem 0.6rem", borderRadius: "100px" }}>{cat.label}</span>
-            {reading.pulse && <span style={{ fontSize: "0.75rem", color: WARM_GRAY, display:"inline-flex", alignItems:"center", gap:"0.25rem" }}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M1 8h3l2-5 2 10 2-6 1 3h4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg> {reading.pulse} bpm</span>}
+            {reading.pulse && <span style={{ fontSize: "0.75rem", color: WARM_GRAY, display:"inline-flex", alignItems:"center", gap:"0.25rem" }}><Icon name="pulse" size={16} /> {reading.pulse} bpm</span>}
             {reading.arm && <span style={{ fontSize: "0.72rem", color: "#aaa" }}>{reading.arm} arm</span>}
           </div>
           <div style={{ fontSize: "0.78rem", color: WARM_GRAY }}>{formatBPTime(reading.timestamp)}</div>
@@ -300,7 +307,7 @@ function BPReadingCard({ reading, onDelete }) {
           {reading.position && <div style={{ fontSize: "0.72rem", color: "#aaa" }}>{reading.position}</div>}
         </div>
       </div>
-      <button onClick={() => onDelete(reading.id)} style={{ background: "none", border: "none", color: "#ddd", cursor: "pointer", fontSize: "1rem", padding: "0.25rem", flexShrink: 0 }}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg></button>
+      <button onClick={() => onDelete(reading.id)} style={{ background: "none", border: "none", color: "#ddd", cursor: "pointer", fontSize: "1rem", padding: "0.25rem", flexShrink: 0 }}><Icon name="close" size={16} /></button>
     </div>
   );
 }
@@ -1062,12 +1069,12 @@ function LabResultsTab({ entries }) {
   };
 
   // ── Icons ──────────────────────────────────────────────────────────────────
-  const LOCK_ICON  = <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0 }}><rect x="3" y="7" width="10" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M5 7V5a3 3 0 016 0v2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="8" cy="10.5" r="1" fill="currentColor"/></svg>;
-  const CLIP_ICON  = <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0 }}><rect x="3" y="3" width="10" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M6 3V2h4v1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M5.5 8h5M5.5 11h3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>;
-  const ATTACH_ICO = <svg width="22" height="22" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle" }}><path d="M13 7.5l-5.5 5.5a4 4 0 01-5.7-5.6L7 2.3a2.5 2.5 0 013.5 3.5L5.3 11a1 1 0 01-1.4-1.4l4.8-4.9" stroke={SAGE_DARK} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>;
-  const TIP_ICON   = <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0 }}><path d="M8 2a4 4 0 00-1.5 7.7V11h3V9.7A4 4 0 008 2z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><path d="M6.5 11v1.5a1.5 1.5 0 003 0V11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>;
-  const BACK_ICO   = <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle" }}><path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>;
-  const TRASH_ICO  = <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle" }}><path d="M2 4h12M5 4V2h6v2M3 4l1 10h8l1-10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><path d="M6 7v5M10 7v5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>;
+  const LOCK_ICON  = <Icon name="lock" size={14} />;
+  const CLIP_ICON  = <Icon name="clipboard" size={16} />;
+  const ATTACH_ICO = <Icon name="attachment" size={22} color={SAGE_DARK} />;
+  const TIP_ICON   = <Icon name="tip" size={16} />;
+  const BACK_ICO   = <Icon name="back" size={12} />;
+  const TRASH_ICO  = <Icon name="trash" size={12} />;
 
   const inputStyle = { width: "100%", boxSizing: "border-box", padding: "0.65rem 0.9rem", borderRadius: "0.65rem", border: "1.5px solid rgba(0,0,0,0.12)", fontSize: "0.875rem", color: INK, background: OFF_WHITE, outline: "none", fontFamily: "inherit" };
   const labelStyle = { fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: WARM_GRAY, display: "block", marginBottom: "0.35rem", fontFamily: "sans-serif" };
@@ -1306,7 +1313,7 @@ function LabResultsTab({ entries }) {
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }} onClick={() => setConfirmDeleteLabId(null)}>
           <div style={{ background: "#fff", borderRadius: "1.25rem", padding: "2rem", maxWidth: 360, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }} onClick={e => e.stopPropagation()}>
             <div style={{ display:"flex", justifyContent:"center", marginBottom:"0.75rem", color:"#c0392b" }}>
-              <svg width="32" height="32" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M5 4V2h6v2M3 4l1 10h8l1-10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><path d="M6 7v5M10 7v5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
+              <Icon name="trash" size={32} />
             </div>
             <h3 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.15rem", fontWeight: 700, color: INK, margin: "0 0 0.5rem", textAlign: "center" }}>Delete this result?</h3>
             <p style={{ fontSize: "0.85rem", color: WARM_GRAY, textAlign: "center", margin: "0 0 1.5rem", lineHeight: 1.6 }}>This result and its analysis will be permanently removed. This cannot be undone.</p>
@@ -1603,7 +1610,7 @@ function CycleTab({ globalEntries }) {
                         style={{ background: "none", border: "1px solid rgba(0,0,0,0.1)", borderRadius: "0.375rem", padding: "0.3rem 0.65rem", fontSize: "0.72rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit" }}>Edit</button>
                       <button onClick={() => handleDelete(c.id)}
                         style={{ background: "none", border: "1px solid #f5c0c0", borderRadius: "0.375rem", padding: "0.3rem 0.5rem", color: "#c0392b", cursor: "pointer" }}>
-                        <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                        <Icon name="close" size={12} />
                       </button>
                     </div>
                   </div>
@@ -1681,7 +1688,7 @@ function CycleTab({ globalEntries }) {
               {/* Symptom overlap note */}
               {globalEntries?.length > 0 && cycles.length > 0 && (
                 <div style={{ background: SAGE_LIGHT, borderRadius: "0.875rem", padding: "1rem 1.25rem", display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink:0, marginTop:"0.1rem" }}><circle cx="8" cy="8" r="6.5" stroke={SAGE_DARK} strokeWidth="1.3"/><path d="M8 7v4" stroke={SAGE_DARK} strokeWidth="1.4" strokeLinecap="round"/><circle cx="8" cy="5.5" r="0.7" fill={SAGE_DARK}/></svg>
+                  <Icon name="info" size={16} color={SAGE_DARK} style={{ flexShrink:0, marginTop:"0.1rem" }} />
                   <p style={{ fontSize: "0.8rem", color: SAGE_DARK, margin: 0, lineHeight: 1.6 }}>
                     <strong>Your cycle data is included in AI pattern analysis.</strong> When you run AI Insights, Care Compass will cross-reference your period dates with your symptom entries to identify cycle-related symptom patterns — like flares around your period or ovulation.
                   </p>
@@ -1935,7 +1942,7 @@ export default function CareCompassTracker() {
   const isFirstEntryToday = !entries.some(e => new Date(e.timestamp).toDateString() === new Date().toDateString());
 
   const openNew  = () => { setEditingEntry(null); setForm({ ...blankForm, sleep: isFirstEntryToday ? 7 : null }); setShowForm(true); };
-  const openEdit = (entry) => { setEditingEntry(entry); setForm({ ...entry, photos: entry.photos || [] }); setShowForm(true); };
+  const openEdit = (entry) => { setEditingEntry(entry); setForm({ ...entry, photos: entry.photos || [], selectedMedIds: entry.selectedMedIds || [] }); setShowForm(true); };
 
   const handlePhotoUpload = (e) => {
     const files = Array.from(e.target.files);
@@ -2525,7 +2532,7 @@ End with a one-line footer: "This document was prepared by the patient using Car
               </div>
             </div>
             <div style={s.onboardingPrivacy}>
-              <span style={{ color:"#7a9e87" }}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><rect x="3" y="7" width="10" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M5 7V5a3 3 0 016 0v2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="8" cy="10.5" r="1" fill="currentColor"/></svg></span>
+              <span style={{ color:"#7a9e87" }}><Icon name="lock" size={16} /></span>
               <p style={s.onboardingPrivacyText}>
                 Your data is stored privately on this device only. It is never uploaded, sold, or shared.
               </p>
@@ -2628,13 +2635,13 @@ End with a one-line footer: "This document was prepared by the patient using Car
 
           {view === "log" && (
             <div style={s.tabContent}>
-              {saved && <div style={s.savedBanner}><span style={{ color:"#7a9e87", marginRight:"0.4rem" }}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M3 13c1-4 2-8 9-10-3 5-4 8-9 10z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><path d="M3 13c2-3 4-5 6-7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg></span>{editingEntry ? "Entry updated!" : "Entry saved!"}</div>}
+              {saved && <div style={s.savedBanner}><span style={{ color:"#7a9e87", marginRight:"0.4rem" }}><Icon name="leaf" size={16} /></span>{editingEntry ? "Entry updated!" : "Entry saved!"}</div>}
               {checkinSaved && <div style={{ ...s.savedBanner, background: TEAL_LIGHT, color: TEAL }}>{checkinSaved}</div>}
 
               {/* ── Logging philosophy tip — shown until dismissed ── */}
               {!localStorage.getItem("cc-log-tip-dismissed") && (
                 <div style={{ background: "#fff", border: "1px solid rgba(0,0,0,0.07)", borderRadius: "0.875rem", padding: "0.875rem 1rem 0.875rem 1.25rem", marginBottom: "0.75rem", display: "flex", alignItems: "flex-start", gap: "0.75rem" }}>
-                  <span style={{ color:"#7a9e87", display:"flex", alignItems:"center" }}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M8 2a4 4 0 00-1.5 7.7V11h3V9.7A4 4 0 008 2z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><path d="M6.5 11v1.5a1.5 1.5 0 003 0V11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg></span>
+                  <span style={{ color:"#7a9e87", display:"flex", alignItems:"center" }}><Icon name="tip" size={16} /></span>
                   <div style={{ flex: 1 }}>
                     <p style={{ fontSize: "0.82rem", fontWeight: 600, color: INK, margin: "0 0 0.2rem" }}>Two ways to track — both work</p>
                     <p style={{ fontSize: "0.78rem", color: WARM_GRAY, margin: 0, lineHeight: 1.6 }}>
@@ -2652,15 +2659,7 @@ End with a one-line footer: "This document was prepared by the patient using Car
               {shouldShowMorning && !showMorningCheckin && (
                 <div style={{ background: `linear-gradient(135deg, #fff8e8, #fff3d4)`, borderRadius: "1rem", border: "1px solid #f0d58a", padding: "1rem 1.25rem", marginBottom: "1rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
                   <div>
-                    <p style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#9a7a00", margin: "0 0 0.2rem" }}><span style={{ display:"flex", alignItems:"center", gap: "0.3rem" }}><svg width="18" height="18" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display:"inline-block", verticalAlign:"middle", marginRight:"0.4rem" }}>
-  <line x1="5" y1="26" x2="31" y2="26" stroke="#7a9e87" strokeWidth="2.2" strokeLinecap="round"/>
-  <path d="M 9 26 A 9 9 0 0 1 27 26" fill="#7a9e87"/>
-  <line x1="18" y1="4" x2="18" y2="11" stroke="#7a9e87" strokeWidth="2" strokeLinecap="round"/>
-  <line x1="28" y1="9" x2="24" y2="13" stroke="#7a9e87" strokeWidth="2" strokeLinecap="round"/>
-  <line x1="8" y1="9" x2="12" y2="13" stroke="#7a9e87" strokeWidth="2" strokeLinecap="round"/>
-  <line x1="32" y1="20" x2="27" y2="21" stroke="#7a9e87" strokeWidth="2" strokeLinecap="round"/>
-  <line x1="4" y1="20" x2="9" y2="21" stroke="#7a9e87" strokeWidth="2" strokeLinecap="round"/>
-</svg><span>Morning check-in</span></span></p>
+                    <p style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#9a7a00", margin: "0 0 0.2rem" }}><span style={{ display:"flex", alignItems:"center", gap: "0.3rem" }}><MorningSunIcon size={18} /><span>Morning check-in</span></span></p>
                     <p style={{ fontSize: "0.88rem", fontWeight: 600, color: INK, margin: "0 0 0.15rem" }}>Good morning! How did you sleep?</p>
                     <p style={{ fontSize: "0.78rem", color: WARM_GRAY, margin: 0 }}>A quick check-in takes under a minute.</p>
                   </div>
@@ -2675,14 +2674,7 @@ End with a one-line footer: "This document was prepared by the patient using Car
               {shouldShowEvening && !showEveningCheckin && (
                 <div style={{ background: `linear-gradient(135deg, #f0ebff, #e8e0ff)`, borderRadius: "1rem", border: "1px solid #c4aff5", padding: "1rem 1.25rem", marginBottom: "1rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
                   <div>
-                    <p style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#5c3d9e", margin: "0 0 0.2rem" }}><span style={{ display:"flex", alignItems:"center", gap: "0.3rem" }}><svg width="18" height="18" viewBox="0 0 80 90" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display:"inline-block", verticalAlign:"middle", marginRight:"0.4rem" }}>
-  <line x1="0" y1="78" x2="80" y2="78" stroke="#4a7058" strokeWidth="3" strokeLinecap="round"/>
-  <path d="M 58.5 21 A 28 28 0 1 0 58.5 63 A 22 22 0 1 1 58.5 21 Z" fill="#4a7058"/>
-  <circle cx="68" cy="6"  r="3"   fill="#4a7058"/>
-  <circle cx="8"  cy="18" r="2.2" fill="#4a7058"/>
-  <circle cx="52" cy="2"  r="1.8" fill="#4a7058"/>
-  <circle cx="22" cy="8"  r="1.8" fill="#4a7058"/>
-</svg><span>Evening check-in</span></span></p>
+                    <p style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#5c3d9e", margin: "0 0 0.2rem" }}><span style={{ display:"flex", alignItems:"center", gap: "0.3rem" }}><EveningMoonIcon size={18} /><span>Evening check-in</span></span></p>
                     <p style={{ fontSize: "0.88rem", fontWeight: 600, color: INK, margin: "0 0 0.15rem" }}>How was your day?</p>
                     <p style={{ fontSize: "0.78rem", color: WARM_GRAY, margin: 0 }}>Reflect on today or summarise your symptoms.</p>
                   </div>
@@ -3028,7 +3020,7 @@ End with a one-line footer: "This document was prepared by the patient using Car
                     })()}
                   </div>
                   <div style={s.insightsFooter} className="no-print">
-                    <p style={{...s.insightsFooterNote, display:"flex", alignItems:"center", gap:"0.4rem"}}><span style={{ color:"#7a9e87" }}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M3 13c1-4 2-8 9-10-3 5-4 8-9 10z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><path d="M3 13c2-3 4-5 6-7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg></span> Bring this report to your next appointment and ask your provider to help you explore these patterns.</p>
+                    <p style={{...s.insightsFooterNote, display:"flex", alignItems:"center", gap:"0.4rem"}}><span style={{ color:"#7a9e87" }}><Icon name="leaf" size={16} /></span> Bring this report to your next appointment and ask your provider to help you explore these patterns.</p>
                     <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center", flexWrap: "wrap" }}>
                       <button onClick={() => {
                         const style = document.createElement("style");
@@ -3116,7 +3108,7 @@ End with a one-line footer: "This document was prepared by the patient using Car
                     </div>
                   </div>
                   <div style={{ background: SAGE_LIGHT, borderRadius: "0.875rem", padding: "0.875rem 1.1rem", display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink:0, marginTop:"0.1rem" }}><circle cx="8" cy="8" r="6.5" stroke={SAGE_DARK} strokeWidth="1.3"/><path d="M8 7v4" stroke={SAGE_DARK} strokeWidth="1.4" strokeLinecap="round"/><circle cx="8" cy="5.5" r="0.7" fill={SAGE_DARK}/></svg>
+                    <Icon name="info" size={16} color={SAGE_DARK} style={{ flexShrink:0, marginTop:"0.1rem" }} />
                     <p style={{ fontSize: "0.8rem", color: SAGE_DARK, margin: 0, lineHeight: 1.6 }}>Your report will include <strong>metrics and charts</strong>, <strong>highlighted entries</strong> relevant to your visit, and <strong>tailored questions</strong> — based on {entries.length} entries across {new Set(entries.map(e => new Date(e.timestamp).toDateString())).size} days.</p>
                   </div>
                   <button onClick={handleGenerateReport} disabled={!reportPrompt.focus.trim() && !reportPrompt.specialty}
@@ -3338,7 +3330,7 @@ End with a one-line footer: "This document was prepared by the patient using Car
 
                   {/* What will be included */}
                   <div style={{ background: SAGE_LIGHT, borderRadius: "0.875rem", padding: "0.875rem 1.1rem", display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink:0, marginTop:"0.1rem" }}><circle cx="8" cy="8" r="6.5" stroke={SAGE_DARK} strokeWidth="1.3"/><path d="M8 7v4" stroke={SAGE_DARK} strokeWidth="1.4" strokeLinecap="round"/><circle cx="8" cy="5.5" r="0.7" fill={SAGE_DARK}/></svg>
+                    <Icon name="info" size={16} color={SAGE_DARK} style={{ flexShrink:0, marginTop:"0.1rem" }} />
                     <p style={{ fontSize: "0.8rem", color: SAGE_DARK, margin: 0, lineHeight: 1.6 }}>
                       Your report will automatically include your <strong>confirmed diagnoses</strong>, <strong>current medications</strong>, <strong>care team</strong>, <strong>family history</strong>, and <strong>recent symptom data</strong> from the last 14 days — giving ER staff a complete picture of who you are.
                     </p>
@@ -3488,7 +3480,7 @@ End with a one-line footer: "This document was prepared by the patient using Car
                 <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
                   {bpReadings.length === 0 ? (
                     <div style={s.emptyState}>
-                      <div style={{ color:"#7a9e87", display:"flex", justifyContent:"center", marginBottom:"0.5rem" }}><svg width="32" height="32" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M1 8h3l2-5 2 10 2-6 1 3h4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg></div>
+                      <div style={{ color:"#7a9e87", display:"flex", justifyContent:"center", marginBottom:"0.5rem" }}><Icon name="pulse" size={32} /></div>
                       <h2 style={s.emptyTitle}>Start your BP log</h2>
                       <p style={s.emptyDesc}>Log your first reading. Your cardiologist wants a record — this will build it automatically.</p>
                       <button onClick={() => setShowBpForm(true)} style={s.addBtn}>+ Log First Reading</button>
@@ -3575,7 +3567,7 @@ End with a one-line footer: "This document was prepared by the patient using Car
                             {editingReminderId !== r.id && (
                               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.75rem 1rem" }}>
                                 <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                                  <span style={{ color:"#7a9e87", display:"flex", alignItems:"center" }}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><circle cx="8" cy="9" r="5.5" stroke="currentColor" strokeWidth="1.4"/><path d="M8 6.5V9l2 1.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/><path d="M3 3.5L1.5 2M13 3.5L14.5 2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg></span>
+                                  <span style={{ color:"#7a9e87", display:"flex", alignItems:"center" }}><Icon name="alarm" size={16} /></span>
                                   <div>
                                     <p style={{ fontSize: "0.9rem", fontWeight: 600, color: INK, margin: 0 }}>
                                       {(() => {
@@ -3593,7 +3585,7 @@ End with a one-line footer: "This document was prepared by the patient using Car
                                   <button onClick={() => toggleReminder(r.id)} style={{ background: r.enabled ? SAGE_DARK : "#ccc", color: "#fff", border: "none", borderRadius: "100px", padding: "0.25rem 0.75rem", fontSize: "0.75rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
                                     {r.enabled ? "On" : "Off"}
                                   </button>
-                                  <button onClick={() => deleteReminder(r.id)} style={{ background: "none", border: "none", color: "#ccc", cursor: "pointer", fontSize: "1rem", lineHeight: 1 }}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg></button>
+                                  <button onClick={() => deleteReminder(r.id)} style={{ background: "none", border: "none", color: "#ccc", cursor: "pointer", fontSize: "1rem", lineHeight: 1 }}><Icon name="close" size={16} /></button>
                                 </div>
                               </div>
                             )}
@@ -3721,7 +3713,7 @@ End with a one-line footer: "This document was prepared by the patient using Car
                   <div style={s.modal} onClick={e => e.stopPropagation()}>
                     <div style={s.modalHeader}>
                       <h2 style={s.modalTitle}>Log Blood Pressure Reading</h2>
-                      <button onClick={() => setShowBpForm(false)} style={s.modalClose}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg></button>
+                      <button onClick={() => setShowBpForm(false)} style={s.modalClose}><Icon name="close" size={16} /></button>
                     </div>
                     <div style={s.modalBody}>
                       {/* Systolic / Diastolic */}
@@ -3821,7 +3813,7 @@ End with a one-line footer: "This document was prepared by the patient using Car
                   <div style={{ borderTop: "1px solid rgba(0,0,0,0.08)", paddingTop: "0.75rem" }}>
                     <p style={{ fontSize: "0.75rem", color: WARM_GRAY, margin: "0 0 0.4rem", fontWeight: 600 }}>Or upload a file</p>
                     <label style={{ cursor: "pointer", display: "inline-block" }}>
-                      <span style={{ ...s.uploadBtn, fontSize: "0.82rem" }}><span style={{ display:"inline-flex", alignItems:"center", gap:"0.35rem" }}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M13 7.5l-5.5 5.5a4 4 0 01-5.7-5.6L7 2.3a2.5 2.5 0 013.5 3.5L5.3 11a1 1 0 01-1.4-1.4l4.8-4.9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg> Upload .txt or .csv file</span></span>
+                      <span style={{ ...s.uploadBtn, fontSize: "0.82rem" }}><span style={{ display:"inline-flex", alignItems:"center", gap:"0.35rem" }}><Icon name="attachment" size={16} /> Upload .txt or .csv file</span></span>
                       <input type="file" accept=".txt,.csv" style={{ display: "none" }} onChange={e => {
                         const file = e.target.files[0];
                         if (!file) return;
@@ -3896,7 +3888,7 @@ End with a one-line footer: "This document was prepared by the patient using Car
               {/* Medication list */}
               {medications.length === 0 && !showMedForm && !showBulk ? (
                 <div style={s.emptyState}>
-                  <div style={{ color:"#7a9e87", display:"flex", justifyContent:"center", marginBottom:"0.5rem" }}><svg width="32" height="32" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><rect x="2" y="6" width="12" height="4" rx="2" stroke="currentColor" strokeWidth="1.4"/><line x1="8" y1="6" x2="8" y2="10" stroke="currentColor" strokeWidth="1.4"/></svg></div>
+                  <div style={{ color:"#7a9e87", display:"flex", justifyContent:"center", marginBottom:"0.5rem" }}><Icon name="pill" size={32} /></div>
                   <h2 style={s.emptyTitle}>No medications yet</h2>
                   <p style={s.emptyDesc}>Add your medications once — then select them with one tap when logging daily entries.</p>
                   <button onClick={() => setShowMedForm(true)} style={s.addBtn}>+ Add first medication</button>
@@ -3924,7 +3916,7 @@ End with a one-line footer: "This document was prepared by the patient using Car
                       </div>
                       <div style={{ display: "flex", gap: "0.4rem", flexShrink: 0 }}>
                         <button onClick={() => handleEditMed(med)} style={{ background: "none", border: "1px solid rgba(0,0,0,0.12)", borderRadius: "6px", padding: "0.25rem 0.65rem", fontSize: "0.72rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit" }}>Edit</button>
-                        <button onClick={() => handleDeleteMed(med.id)} style={{ background: "none", border: "none", color: "#ddd", cursor: "pointer", fontSize: "1rem" }}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg></button>
+                        <button onClick={() => handleDeleteMed(med.id)} style={{ background: "none", border: "none", color: "#ddd", cursor: "pointer", fontSize: "1rem" }}><Icon name="close" size={16} /></button>
                       </div>
                     </div>
                   ))}
@@ -3956,16 +3948,8 @@ End with a one-line footer: "This document was prepared by the patient using Car
         <div style={s.modalOverlay} onClick={() => setShowMorningCheckin(false)}>
           <div style={s.modal} onClick={e => e.stopPropagation()}>
             <div style={s.modalHeader}>
-              <h2 style={{ ...s.modalTitle, display:"flex", alignItems:"center" }}><svg width="18" height="18" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display:"inline-block", verticalAlign:"middle", marginRight:"0.4rem" }}>
-  <line x1="5" y1="26" x2="31" y2="26" stroke="#7a9e87" strokeWidth="2.2" strokeLinecap="round"/>
-  <path d="M 9 26 A 9 9 0 0 1 27 26" fill="#7a9e87"/>
-  <line x1="18" y1="4" x2="18" y2="11" stroke="#7a9e87" strokeWidth="2" strokeLinecap="round"/>
-  <line x1="28" y1="9" x2="24" y2="13" stroke="#7a9e87" strokeWidth="2" strokeLinecap="round"/>
-  <line x1="8" y1="9" x2="12" y2="13" stroke="#7a9e87" strokeWidth="2" strokeLinecap="round"/>
-  <line x1="32" y1="20" x2="27" y2="21" stroke="#7a9e87" strokeWidth="2" strokeLinecap="round"/>
-  <line x1="4" y1="20" x2="9" y2="21" stroke="#7a9e87" strokeWidth="2" strokeLinecap="round"/>
-</svg>Morning check-in</h2>
-              <button onClick={() => setShowMorningCheckin(false)} style={s.modalClose}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg></button>
+              <h2 style={{ ...s.modalTitle, display:"flex", alignItems:"center" }}><MorningSunIcon size={18} />Morning check-in</h2>
+              <button onClick={() => setShowMorningCheckin(false)} style={s.modalClose}><Icon name="close" size={16} /></button>
             </div>
             <div style={s.modalBody}>
               {/* Sleep quality */}
@@ -4032,15 +4016,8 @@ End with a one-line footer: "This document was prepared by the patient using Car
           <div style={s.modalOverlay} onClick={() => setShowEveningCheckin(false)}>
             <div style={s.modal} onClick={e => e.stopPropagation()}>
               <div style={s.modalHeader}>
-                <h2 style={{ ...s.modalTitle, display:"flex", alignItems:"center" }}><svg width="18" height="18" viewBox="0 0 80 90" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display:"inline-block", verticalAlign:"middle", marginRight:"0.4rem" }}>
-  <line x1="0" y1="78" x2="80" y2="78" stroke="#4a7058" strokeWidth="3" strokeLinecap="round"/>
-  <path d="M 58.5 21 A 28 28 0 1 0 58.5 63 A 22 22 0 1 1 58.5 21 Z" fill="#4a7058"/>
-  <circle cx="68" cy="6"  r="3"   fill="#4a7058"/>
-  <circle cx="8"  cy="18" r="2.2" fill="#4a7058"/>
-  <circle cx="52" cy="2"  r="1.8" fill="#4a7058"/>
-  <circle cx="22" cy="8"  r="1.8" fill="#4a7058"/>
-</svg>Evening check-in</h2>
-                <button onClick={() => setShowEveningCheckin(false)} style={s.modalClose}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg></button>
+                <h2 style={{ ...s.modalTitle, display:"flex", alignItems:"center" }}><EveningMoonIcon size={18} />Evening check-in</h2>
+                <button onClick={() => setShowEveningCheckin(false)} style={s.modalClose}><Icon name="close" size={16} /></button>
               </div>
               <div style={s.modalBody}>
 
@@ -4165,7 +4142,7 @@ End with a one-line footer: "This document was prepared by the patient using Car
       {confirmDeleteId && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }} onClick={() => setConfirmDeleteId(null)}>
           <div style={{ background: "#fff", borderRadius: "1.25rem", padding: "2rem", maxWidth: 360, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }} onClick={e => e.stopPropagation()}>
-            <div style={{ display:"flex", justifyContent:"center", marginBottom:"0.75rem", color:"#c0392b" }}><svg width="32" height="32" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M2 4h12M5 4V2h6v2M3 4l1 10h8l1-10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><path d="M6 7v5M10 7v5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg></div>
+            <div style={{ display:"flex", justifyContent:"center", marginBottom:"0.75rem", color:"#c0392b" }}><Icon name="trash" size={32} /></div>
             <h3 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.15rem", fontWeight: 700, color: INK, margin: "0 0 0.5rem", textAlign: "center" }}>Delete this entry?</h3>
             <p style={{ fontSize: "0.85rem", color: WARM_GRAY, textAlign: "center", margin: "0 0 1.5rem", lineHeight: 1.6 }}>This entry will be permanently removed from your tracker. This cannot be undone.</p>
             <div style={{ display: "flex", gap: "0.75rem" }}>
@@ -4185,7 +4162,7 @@ End with a one-line footer: "This document was prepared by the patient using Car
       {showForm && (
         <div style={s.modalOverlay} onClick={() => { setShowForm(false); }}>
           <div style={s.modal} onClick={e => e.stopPropagation()}>
-            <div style={s.modalHeader}><h2 style={s.modalTitle}>{editingEntry ? "Edit entry" : "Log an entry"}</h2><button onClick={() => { setShowForm(false); }} style={s.modalClose}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg></button></div>
+            <div style={s.modalHeader}><h2 style={s.modalTitle}>{editingEntry ? "Edit entry" : "Log an entry"}</h2><button onClick={() => { setShowForm(false); }} style={s.modalClose}><Icon name="close" size={16} /></button></div>
             <div style={s.modalBody}>
               <div style={s.formGroup}>
                 <label style={s.label}>What symptoms are you experiencing?</label>
@@ -4253,7 +4230,7 @@ End with a one-line footer: "This document was prepared by the patient using Car
                 <label style={s.label}>Photos <span style={s.optional}>(optional — up to 3, max 2MB each)</span></label>
                 <label style={s.photoUploadArea}>
                   <input type="file" accept="image/*" multiple style={{ display: "none" }} onChange={handlePhotoUpload}/>
-                  <span style={{ ...s.photoUploadIcon, color:"#7a9e87", display:"flex", alignItems:"center" }}><svg width="20" height="20" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><rect x="1" y="4" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.4"/><circle cx="8" cy="9" r="2.5" stroke="currentColor" strokeWidth="1.4"/><path d="M5 4l1-2h4l1 2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg></span>
+                  <span style={{ ...s.photoUploadIcon, color:"#7a9e87", display:"flex", alignItems:"center" }}><Icon name="camera" size={20} /></span>
                   <span style={s.photoUploadText}>Tap to add photos</span>
                   <span style={s.photoUploadSub}>Rashes, swelling, bruising — anything worth documenting</span>
                 </label>
@@ -4262,7 +4239,7 @@ End with a one-line footer: "This document was prepared by the patient using Car
                     {(form.photos || []).map((photo, idx) => (
                       <div key={idx} style={s.photoPreviewWrap}>
                         <img src={photo.data} alt={photo.name} style={s.photoPreview}/>
-                        <button onClick={() => removePhoto(idx)} style={s.photoRemoveBtn}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg></button>
+                        <button onClick={() => removePhoto(idx)} style={s.photoRemoveBtn}><Icon name="close" size={16} /></button>
                       </div>
                     ))}
                   </div>
