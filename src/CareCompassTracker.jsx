@@ -16,6 +16,10 @@ const INSIGHTS_LOADING_STYLES = `
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
 }
+@keyframes voicePulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(192,57,43,0.35); }
+  50%       { box-shadow: 0 0 0 7px rgba(192,57,43,0); }
+}
 `;
 
 // Inject progress keyframe globally so all loading bars (Doctor Report, ER Report) animate correctly
@@ -24,6 +28,90 @@ if (typeof document !== "undefined" && !document.getElementById("cc-progress-key
   _s.id = "cc-progress-keyframe";
   _s.innerHTML = INSIGHTS_LOADING_STYLES;
   document.head.appendChild(_s);
+}
+
+/* ─── Voice-to-text mic button ───────────────────────────────────────────── */
+function VoiceMicButton({ value, onChange, size = 34, style: extraStyle = {} }) {
+  const [listening, setListening] = React.useState(false);
+  const [supported, setSupported] = React.useState(true);
+  const recognitionRef = React.useRef(null);
+  const committedRef   = React.useRef(value ?? "");
+
+  React.useEffect(() => { committedRef.current = value ?? ""; }, [value]);
+
+  React.useEffect(() => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) setSupported(false);
+  }, []);
+
+  const startListening = () => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return;
+    const recognition = new SR();
+    recognition.continuous     = true;
+    recognition.interimResults = true;
+    recognition.lang           = "en-US";
+    recognitionRef.current     = recognition;
+
+    recognition.onstart = () => setListening(true);
+
+    recognition.onresult = (e) => {
+      let interim = "";
+      let finalChunk = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const t = e.results[i][0].transcript;
+        if (e.results[i].isFinal) finalChunk += t;
+        else interim += t;
+      }
+      if (finalChunk) {
+        const base   = committedRef.current;
+        const joined = base ? base.trimEnd() + " " + finalChunk.trim() : finalChunk.trim();
+        committedRef.current = joined;
+        onChange(joined + (interim ? " " + interim : ""));
+      } else {
+        onChange(committedRef.current + (interim ? (committedRef.current ? " " : "") + interim : ""));
+      }
+    };
+
+    recognition.onerror = (e) => { if (e.error !== "aborted") console.warn("Speech error:", e.error); setListening(false); };
+    recognition.onend   = () => setListening(false);
+    recognition.start();
+  };
+
+  const stopListening = () => { recognitionRef.current?.stop(); setListening(false); };
+
+  const toggle = (e) => { e.preventDefault(); e.stopPropagation(); listening ? stopListening() : startListening(); };
+
+  if (!supported) return null;
+
+  return (
+    <button type="button" onClick={toggle}
+      title={listening ? "Stop recording" : "Speak to fill in this field"}
+      aria-label={listening ? "Stop voice input" : "Start voice input"}
+      style={{
+        width: size, height: size, borderRadius: "50%", flexShrink: 0,
+        border: listening ? "2px solid #c0392b" : "1.5px solid rgba(0,0,0,0.12)",
+        background: listening ? "#fdeaea" : "#fff",
+        color: listening ? "#c0392b" : "#7a9e87",
+        cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+        animation: listening ? "voicePulse 1.2s ease-in-out infinite" : "none",
+        transition: "background 0.15s, border-color 0.15s, color 0.15s",
+        padding: 0, ...extraStyle,
+      }}>
+      {listening ? (
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+          <rect x="3" y="3" width="10" height="10" rx="2" fill="currentColor"/>
+        </svg>
+      ) : (
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+          <rect x="5" y="1" width="6" height="8" rx="3" stroke="currentColor" strokeWidth="1.4" fill="none"/>
+          <path d="M3 8a5 5 0 0010 0"/>
+          <line x1="8" y1="13" x2="8" y2="15"/>
+          <line x1="5" y1="15" x2="11" y2="15"/>
+        </svg>
+      )}
+    </button>
+  );
 }
 
 const SAGE       = "#7a9e87";
@@ -318,127 +406,67 @@ function BPReadingCard({ reading, onDelete }) {
 
 
 /* ─── Med picker in log modal ───────────────────────────────────────────── */
-function MedPicker({ medications, selectedIds, onToggle, onAddAll, manualText, onManualChange, onSaveUnlisted, onScanAdd }) {
-  const [showList, setShowList]       = React.useState(false);
-  const [scanning, setScanning]       = React.useState(false);
-  const [scanError, setScanError]     = React.useState("");
-  const [scanPreview, setScanPreview] = React.useState(null);
-  const [scannedMed, setScannedMed]   = React.useState(null); // {name, dose, frequency, notes}
-  const scanInputRef = React.useRef(null);
-
+function MedPicker({ medications, selectedIds, onToggle, onAddAll, manualText, onManualChange, onSaveUnlisted }) {
+  const [showList, setShowList] = React.useState(false);
   const selectedMeds = medications.filter(m => selectedIds.includes(m.id));
-  const hasSelected  = selectedMeds.length > 0;
-
-  const handleScan = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    e.target.value = "";
-    setScanError(""); setScannedMed(null);
-
-    // Show preview while scanning
-    const reader = new FileReader();
-    reader.onload = evt => setScanPreview(evt.target.result);
-    reader.readAsDataURL(file);
-    setScanning(true);
-
-    try {
-      const base64 = await new Promise((resolve, reject) => {
-        const r = new FileReader();
-        r.onload  = () => resolve(r.result.split(",")[1]);
-        r.onerror = reject;
-        r.readAsDataURL(file);
-      });
-
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY,
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true",
-        },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-6",
-          max_tokens: 500,
-          messages: [{
-            role: "user",
-            content: [
-              { type: "image", source: { type: "base64", media_type: file.type || "image/jpeg", data: base64 } },
-              { type: "text", text: `This is a photo of a prescription or supplement bottle label. Extract the medication info and respond ONLY with a JSON object (no markdown, no explanation):
-{"name":"medication name only","dose":"strength and unit e.g. 25mg","frequency":"simplified e.g. Once daily, Twice daily, As needed","notes":"important instructions or empty string"}
-If you cannot read the label clearly, return: {"name":"","dose":"","frequency":"","notes":""}` },
-            ],
-          }],
-        }),
-      });
-
-      const data  = await response.json();
-      const text  = data.content?.[0]?.text || "";
-      const clean = text.replace(/```json|```/g, "").trim();
-      const parsed = JSON.parse(clean);
-
-      if (parsed.name) {
-        setScannedMed(parsed);
-        setScanPreview(null);
-      } else {
-        setScanError("Couldn't read the label clearly. Try a clearer photo or type it in below.");
-        setScanPreview(null);
-      }
-    } catch (err) {
-      console.error("Scan error:", err);
-      setScanError("Something went wrong scanning. Please try again or type it in.");
-      setScanPreview(null);
-    }
-    setScanning(false);
-  };
-
-  const confirmScanned = (saveToList) => {
-    if (!scannedMed) return;
-    if (onScanAdd) onScanAdd(scannedMed, saveToList);
-    setScannedMed(null);
-  };
+  const hasSelected = selectedMeds.length > 0;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
 
-      {/* ── Selected med pill tags ── */}
+      {/* ── Pill tag row for selected meds ── */}
       {hasSelected && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
           {selectedMeds.map(med => (
-            <span key={med.id} style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem", background: SAGE_LIGHT, color: SAGE_DARK, borderRadius: "100px", padding: "0.25rem 0.75rem", fontSize: "0.78rem", fontWeight: 600 }}>
+            <span
+              key={med.id}
+              style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem", background: SAGE_LIGHT, color: SAGE_DARK, borderRadius: "100px", padding: "0.25rem 0.75rem", fontSize: "0.78rem", fontWeight: 600 }}
+            >
               {med.name}{med.dose ? ` ${med.dose}` : ""}
-              <button onClick={() => onToggle(med.id)} style={{ background: "none", border: "none", cursor: "pointer", color: SAGE_DARK, fontSize: "0.85rem", padding: 0, lineHeight: 1, display: "flex", alignItems: "center" }}>×</button>
+              <button
+                onClick={() => onToggle(med.id)}
+                style={{ background: "none", border: "none", cursor: "pointer", color: SAGE_DARK, fontSize: "0.85rem", padding: 0, lineHeight: 1, display: "flex", alignItems: "center" }}
+              >×</button>
             </span>
           ))}
         </div>
       )}
 
-      {/* ── Expandable list from saved medications ── */}
+      {/* ── Expandable medication list ── */}
       {medications.length > 0 && (
         <div style={{ border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: "0.75rem", overflow: "hidden" }}>
-          <button onClick={() => setShowList(s => !s)}
-            style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.6rem 0.9rem", background: showList ? SAGE_LIGHT : "#fafaf8", border: "none", cursor: "pointer", fontFamily: "inherit" }}>
+          {/* Header / toggle */}
+          <button
+            onClick={() => setShowList(s => !s)}
+            style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.6rem 0.9rem", background: showList ? SAGE_LIGHT : "#fafaf8", border: "none", cursor: "pointer", fontFamily: "inherit" }}
+          >
             <span style={{ fontSize: "0.82rem", fontWeight: 600, color: SAGE_DARK }}>
               {hasSelected ? `${selectedMeds.length} selected` : "Select from your medications"}
             </span>
             <span style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              {!hasSelected && (
-                <span onClick={e => { e.stopPropagation(); onAddAll(); }}
-                  style={{ fontSize: "0.72rem", fontWeight: 600, color: SAGE_DARK, background: "rgba(74,112,88,0.1)", borderRadius: "100px", padding: "0.15rem 0.6rem", cursor: "pointer" }}>
-                  Add all
-                </span>
+              {!hasSelected && medications.length > 0 && (
+                <span
+                  onClick={e => { e.stopPropagation(); onAddAll(); }}
+                  style={{ fontSize: "0.72rem", fontWeight: 600, color: SAGE_DARK, background: "rgba(74,112,88,0.1)", borderRadius: "100px", padding: "0.15rem 0.6rem", cursor: "pointer" }}
+                >Add all</span>
               )}
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ transform: showList ? "rotate(180deg)" : "none", transition: "transform 0.2s", color: SAGE_DARK }}>
                 <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </span>
           </button>
+
+          {/* Checkbox list */}
           {showList && (
             <div style={{ borderTop: "1px solid rgba(0,0,0,0.07)", padding: "0.5rem 0.75rem", display: "flex", flexDirection: "column", gap: "0.1rem", maxHeight: "200px", overflowY: "auto" }}>
               {medications.map(med => (
                 <label key={med.id} style={{ display: "flex", alignItems: "center", gap: "0.65rem", cursor: "pointer", padding: "0.4rem 0.25rem", borderRadius: "0.4rem" }}>
-                  <input type="checkbox" checked={selectedIds.includes(med.id)} onChange={() => onToggle(med.id)}
-                    style={{ accentColor: SAGE_DARK, width: 15, height: 15, flexShrink: 0 }}/>
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.includes(med.id)}
+                    onChange={() => onToggle(med.id)}
+                    style={{ accentColor: SAGE_DARK, width: 15, height: 15, flexShrink: 0 }}
+                  />
                   <span style={{ fontSize: "0.875rem", color: INK, flex: 1 }}>
                     {med.name}
                     {med.dose && <span style={{ color: WARM_GRAY, marginLeft: "0.35rem", fontSize: "0.82rem" }}>{med.dose}</span>}
@@ -451,74 +479,7 @@ If you cannot read the label clearly, return: {"name":"","dose":"","frequency":"
         </div>
       )}
 
-      {/* ── Scan bottle button ── */}
-      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-        <label style={{ cursor: scanning ? "default" : "pointer", flex: 1 }}>
-          <input ref={scanInputRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={handleScan} disabled={scanning}/>
-          <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem", padding: "0.55rem 0.9rem", borderRadius: "0.65rem", border: `1.5px dashed ${scanning ? "#ccc" : SAGE}`, background: scanning ? "#fafaf8" : SAGE_LIGHT, color: scanning ? WARM_GRAY : SAGE_DARK, fontSize: "0.82rem", fontWeight: 600, cursor: scanning ? "default" : "pointer", opacity: scanning ? 0.7 : 1, transition: "all 0.15s" }}>
-            {scanning ? (
-              <>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ animation: "spin 1s linear infinite" }}><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
-                Scanning label...
-              </>
-            ) : (
-              <>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                Scan bottle label
-              </>
-            )}
-          </span>
-        </label>
-      </div>
-
-      {/* ── Scanning preview ── */}
-      {scanPreview && scanning && (
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", background: SAGE_LIGHT, borderRadius: "0.65rem", padding: "0.75rem 1rem" }}>
-          <img src={scanPreview} alt="Scanning" style={{ width: 52, height: 52, objectFit: "cover", borderRadius: "0.4rem", border: `1px solid rgba(0,0,0,0.1)`, flexShrink: 0 }}/>
-          <div>
-            <p style={{ fontSize: "0.82rem", fontWeight: 600, color: SAGE_DARK, margin: "0 0 0.15rem" }}>Reading label...</p>
-            <p style={{ fontSize: "0.75rem", color: WARM_GRAY, margin: 0 }}>Claude is extracting medication info from your photo</p>
-          </div>
-        </div>
-      )}
-
-      {/* ── Scan error ── */}
-      {scanError && (
-        <div style={{ background: "#fdecea", borderRadius: "0.65rem", padding: "0.6rem 0.9rem", fontSize: "0.8rem", color: "#c0392b", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.5rem" }}>
-          <span>{scanError}</span>
-          <button onClick={() => setScanError("")} style={{ background: "none", border: "none", cursor: "pointer", color: "#c0392b", flexShrink: 0, padding: 0, display: "flex" }}>
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-          </button>
-        </div>
-      )}
-
-      {/* ── Scanned result confirmation card ── */}
-      {scannedMed && (
-        <div style={{ background: SAGE_LIGHT, borderRadius: "0.75rem", border: `1.5px solid ${SAGE}`, padding: "0.875rem 1rem", display: "flex", flexDirection: "column", gap: "0.6rem" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.5rem" }}>
-            <div>
-              <p style={{ fontSize: "0.72rem", fontWeight: 700, color: SAGE_DARK, textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 0.2rem" }}>Label scanned ✓</p>
-              <p style={{ fontSize: "0.95rem", fontWeight: 700, color: INK, margin: "0 0 0.1rem" }}>{scannedMed.name}{scannedMed.dose ? ` · ${scannedMed.dose}` : ""}</p>
-              {scannedMed.frequency && <p style={{ fontSize: "0.78rem", color: WARM_GRAY, margin: 0 }}>{scannedMed.frequency}{scannedMed.notes ? ` · ${scannedMed.notes}` : ""}</p>}
-            </div>
-            <button onClick={() => setScannedMed(null)} style={{ background: "none", border: "none", cursor: "pointer", color: WARM_GRAY, padding: 0, flexShrink: 0, display: "flex" }}>
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-            </button>
-          </div>
-          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-            <button onClick={() => confirmScanned(false)}
-              style={{ flex: 1, background: SAGE_DARK, color: "#fff", border: "none", borderRadius: "100px", padding: "0.5rem 1rem", fontSize: "0.8rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
-              Add to this log
-            </button>
-            <button onClick={() => confirmScanned(true)}
-              style={{ flex: 1, background: "#fff", color: SAGE_DARK, border: `1.5px solid ${SAGE}`, borderRadius: "100px", padding: "0.5rem 1rem", fontSize: "0.8rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
-              Add + save to my list
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ── Free-type / unlisted ── */}
+      {/* ── Other / unlisted ── */}
       <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
         <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "#4a4540" }}>
           {medications.length > 0 ? "Other / unlisted medications" : "Medications taken"}
@@ -530,9 +491,15 @@ If you cannot read the label clearly, return: {"name":"","dose":"","frequency":"
           rows={2}
           style={{ padding: "0.65rem 0.9rem", borderRadius: "0.65rem", border: "1.5px solid rgba(0,0,0,0.12)", fontSize: "0.875rem", color: INK, background: "#fafaf8", outline: "none", fontFamily: "inherit", resize: "vertical", lineHeight: 1.6, boxSizing: "border-box", width: "100%" }}
         />
+        {/* Save unlisted to list option */}
         {manualText.trim() && (
           <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", fontSize: "0.75rem", color: SAGE_DARK }}>
-            <input type="checkbox" checked={onSaveUnlisted?.enabled || false} onChange={() => onSaveUnlisted?.toggle()} style={{ accentColor: SAGE_DARK, width: 13, height: 13 }}/>
+            <input
+              type="checkbox"
+              checked={onSaveUnlisted?.enabled || false}
+              onChange={() => onSaveUnlisted?.toggle()}
+              style={{ accentColor: SAGE_DARK, width: 13, height: 13 }}
+            />
             Save to my medication list in Account Settings
           </label>
         )}
@@ -4102,18 +4069,24 @@ End with a one-line footer: "This document was prepared by the patient using Car
               {/* Symptoms on waking */}
               <div style={s.formGroup}>
                 <label style={s.label}>Any symptoms on waking? <span style={s.optional}>(optional)</span></label>
-                <textarea value={morningForm.symptoms}
-                  onChange={e => setMorningForm(f => ({ ...f, symptoms: e.target.value }))}
-                  placeholder="e.g. stiff joints on waking (hands and knees), throbbing headache behind right eye — louder with movement, heart racing when I stood up from bed..."
-                  style={s.textarea} rows={2}/>
+                <div style={{ position: "relative" }}>
+                  <textarea value={morningForm.symptoms}
+                    onChange={e => setMorningForm(f => ({ ...f, symptoms: e.target.value }))}
+                    placeholder="e.g. stiff joints on waking (hands and knees), throbbing headache behind right eye — louder with movement, heart racing when I stood up from bed..."
+                    style={{ ...s.textarea, paddingRight: "2.75rem", width: "100%", boxSizing: "border-box" }} rows={2}/>
+                  <VoiceMicButton value={morningForm.symptoms} onChange={v => setMorningForm(f => ({ ...f, symptoms: v }))} size={30} style={{ position: "absolute", bottom: "0.5rem", right: "0.5rem" }}/>
+                </div>
               </div>
               {/* Notes */}
               <div style={s.formGroup}>
                 <label style={s.label}>Anything else to note? <span style={s.optional}>(optional)</span></label>
-                <textarea value={morningForm.notes}
-                  onChange={e => setMorningForm(f => ({ ...f, notes: e.target.value }))}
-                  placeholder="e.g. slept 6 hours, woke at 3am, vivid dreams..."
-                  style={s.textarea} rows={2}/>
+                <div style={{ position: "relative" }}>
+                  <textarea value={morningForm.notes}
+                    onChange={e => setMorningForm(f => ({ ...f, notes: e.target.value }))}
+                    placeholder="e.g. slept 6 hours, woke at 3am, vivid dreams..."
+                    style={{ ...s.textarea, paddingRight: "2.75rem", width: "100%", boxSizing: "border-box" }} rows={2}/>
+                  <VoiceMicButton value={morningForm.notes} onChange={v => setMorningForm(f => ({ ...f, notes: v }))} size={30} style={{ position: "absolute", bottom: "0.5rem", right: "0.5rem" }}/>
+                </div>
               </div>
             </div>
             <div style={s.modalFooter}>
@@ -4184,19 +4157,25 @@ End with a one-line footer: "This document was prepared by the patient using Car
                       Already noted: {todaySymptoms.length > 120 ? todaySymptoms.slice(0, 120) + "..." : todaySymptoms}
                     </div>
                   )}
-                  <textarea value={eveningForm.symptoms}
-                    onChange={e => setEveningForm(f => ({ ...f, symptoms: e.target.value }))}
-                    placeholder={hasLoggedToday ? "Anything that changed as the day went on, or symptoms you didn't capture earlier?" : "Describe each symptom with as much detail as you can — where in your body, what it felt like (throbbing, stabbing, dull), what triggered or worsened it, what helped..."}
-                    style={s.textarea} rows={hasLoggedToday ? 2 : 3}/>
+                  <div style={{ position: "relative" }}>
+                    <textarea value={eveningForm.symptoms}
+                      onChange={e => setEveningForm(f => ({ ...f, symptoms: e.target.value }))}
+                      placeholder={hasLoggedToday ? "Anything that changed as the day went on, or symptoms you didn't capture earlier?" : "Describe each symptom with as much detail as you can — where in your body, what it felt like (throbbing, stabbing, dull), what triggered or worsened it, what helped..."}
+                      style={{ ...s.textarea, paddingRight: "2.75rem", width: "100%", boxSizing: "border-box" }} rows={hasLoggedToday ? 2 : 3}/>
+                    <VoiceMicButton value={eveningForm.symptoms} onChange={v => setEveningForm(f => ({ ...f, symptoms: v }))} size={30} style={{ position: "absolute", bottom: "0.5rem", right: "0.5rem" }}/>
+                  </div>
                 </div>
 
                 {/* Functional impact — always shown, key for doctor reports */}
                 <div style={s.formGroup}>
                   <label style={s.label}>What did your symptoms stop or limit you from doing? <span style={s.optional}>(optional)</span></label>
-                  <textarea value={eveningForm.activity}
-                    onChange={e => setEveningForm(f => ({ ...f, activity: e.target.value }))}
-                    placeholder="e.g. couldn't drive due to dizziness, had to sit while cooking, skipped the gym, needed help getting dressed, light sensitivity made screen use painful..."
-                    style={s.textarea} rows={2}/>
+                  <div style={{ position: "relative" }}>
+                    <textarea value={eveningForm.activity}
+                      onChange={e => setEveningForm(f => ({ ...f, activity: e.target.value }))}
+                      placeholder="e.g. couldn't drive due to dizziness, had to sit while cooking, skipped the gym, needed help getting dressed, light sensitivity made screen use painful..."
+                      style={{ ...s.textarea, paddingRight: "2.75rem", width: "100%", boxSizing: "border-box" }} rows={2}/>
+                    <VoiceMicButton value={eveningForm.activity} onChange={v => setEveningForm(f => ({ ...f, activity: v }))} size={30} style={{ position: "absolute", bottom: "0.5rem", right: "0.5rem" }}/>
+                  </div>
                   {hasLoggedToday && todayActivity && (
                     <p style={{ fontSize: "0.72rem", color: "#aaa", margin: "0.3rem 0 0", fontStyle: "italic" }}>Already noted: {todayActivity.length > 80 ? todayActivity.slice(0,80)+"..." : todayActivity}</p>
                   )}
@@ -4214,29 +4193,17 @@ End with a one-line footer: "This document was prepared by the patient using Car
                         onAddAll={() => setEveningForm(f => ({ ...f, selectedMedIds: medications.map(m => m.id) }))}
                         manualText={eveningForm.medications}
                         onManualChange={val => setEveningForm(f => ({ ...f, medications: val }))}
-                        onScanAdd={(scanned, saveToList) => {
-                          const medStr = scanned.name + (scanned.dose ? ` ${scanned.dose}` : "");
-                          setEveningForm(f => ({ ...f, medications: f.medications ? `${f.medications}, ${medStr}` : medStr }));
-                          if (saveToList) {
-                            try {
-                              const existing = JSON.parse(localStorage.getItem(MED_STORAGE_KEY) || "[]");
-                              const alreadyExists = existing.some(m => m.name.toLowerCase() === scanned.name.toLowerCase());
-                              if (!alreadyExists) {
-                                existing.push({ id: Date.now() + Math.random(), name: scanned.name, dose: scanned.dose || "", frequency: scanned.frequency || "", notes: scanned.notes || "", reminder: false, reminderTime: "08:00" });
-                                localStorage.setItem(MED_STORAGE_KEY, JSON.stringify(existing));
-                                setMedications(existing);
-                              }
-                            } catch {}
-                          }
-                        }}
                       />
                     </div>
                     <div style={s.formGroup}>
                       <label style={s.label}>Food & drink today <span style={s.optional}>(optional)</span></label>
-                      <textarea value={eveningForm.food}
-                        onChange={e => setEveningForm(f => ({ ...f, food: e.target.value }))}
-                        placeholder="Anything notable about what you ate or drank today?"
-                        style={s.textarea} rows={2}/>
+                      <div style={{ position: "relative" }}>
+                        <textarea value={eveningForm.food}
+                          onChange={e => setEveningForm(f => ({ ...f, food: e.target.value }))}
+                          placeholder="Anything notable about what you ate or drank today?"
+                          style={{ ...s.textarea, paddingRight: "2.75rem", width: "100%", boxSizing: "border-box" }} rows={2}/>
+                        <VoiceMicButton value={eveningForm.food} onChange={v => setEveningForm(f => ({ ...f, food: v }))} size={30} style={{ position: "absolute", bottom: "0.5rem", right: "0.5rem" }}/>
+                      </div>
                     </div>
                   </>
                 )}
@@ -4256,10 +4223,13 @@ End with a one-line footer: "This document was prepared by the patient using Car
                     {hasLoggedToday ? "Anything else to reflect on?" : "Reflections"}
                     <span style={s.optional}> (optional)</span>
                   </label>
-                  <textarea value={eveningForm.notes}
-                    onChange={e => setEveningForm(f => ({ ...f, notes: e.target.value }))}
-                    placeholder={hasLoggedToday ? "Overall thoughts on today — any patterns you noticed, how the day compared to others, anything worth remembering..." : "Anything you want to remember or reflect on from today..."}
-                    style={s.textarea} rows={2}/>
+                  <div style={{ position: "relative" }}>
+                    <textarea value={eveningForm.notes}
+                      onChange={e => setEveningForm(f => ({ ...f, notes: e.target.value }))}
+                      placeholder={hasLoggedToday ? "Overall thoughts on today — any patterns you noticed, how the day compared to others, anything worth remembering..." : "Anything you want to remember or reflect on from today..."}
+                      style={{ ...s.textarea, paddingRight: "2.75rem", width: "100%", boxSizing: "border-box" }} rows={2}/>
+                    <VoiceMicButton value={eveningForm.notes} onChange={v => setEveningForm(f => ({ ...f, notes: v }))} size={30} style={{ position: "absolute", bottom: "0.5rem", right: "0.5rem" }}/>
+                  </div>
                 </div>
               </div>
               <div style={s.modalFooter}>
@@ -4307,19 +4277,29 @@ End with a one-line footer: "This document was prepared by the patient using Car
             <div style={s.modalBody}>
               <div style={s.formGroup}>
                 <label style={s.label}>What symptoms are you experiencing?</label>
-                <textarea
-                  value={form.symptoms}
-                  onChange={e => setForm(f => ({ ...f, symptoms: e.target.value }))}
-                  placeholder="The more detail the better — where exactly (e.g. behind right eye, left hip), what it feels like (throbbing, stabbing, dull ache), what triggered or worsened it. e.g. throbbing headache behind right eye, worse with light, started after standing for 20 min"
-                  style={s.textarea}
-                  rows={4}
-                />
+                <div style={{ position: "relative" }}>
+                  <textarea
+                    value={form.symptoms}
+                    onChange={e => setForm(f => ({ ...f, symptoms: e.target.value }))}
+                    placeholder="The more detail the better — where exactly (e.g. behind right eye, left hip), what it feels like (throbbing, stabbing, dull ache), what triggered or worsened it. e.g. throbbing headache behind right eye, worse with light, started after standing for 20 min"
+                    style={{ ...s.textarea, paddingRight: "2.75rem", width: "100%", boxSizing: "border-box" }}
+                    rows={4}
+                  />
+                  <VoiceMicButton value={form.symptoms} onChange={v => setForm(f => ({ ...f, symptoms: v }))} size={30}
+                    style={{ position: "absolute", bottom: "0.5rem", right: "0.5rem" }}/>
+                </div>
                 <p style={{ fontSize: "0.72rem", color: "#aaa", margin: "0.3rem 0 0", fontStyle: "italic" }}>
-                  Tip: specific details help the AI find patterns and help your doctor understand severity
+                  Tip: tap the mic to speak your symptoms — great if typing is difficult
                 </p>
               </div>
               <div style={s.formGroup}><label style={s.label}>Symptom severity right now</label><SeveritySlider value={form.severity} onChange={v => setForm(f => ({ ...f, severity: v }))}/></div>
-              <div style={s.formGroup}><label style={s.label}>Food & Drink</label><textarea value={form.food} onChange={e => setForm(f => ({ ...f, food: e.target.value }))} placeholder="Have you eaten or had anything to drink?" style={s.textarea} rows={2}/></div>
+              <div style={s.formGroup}>
+                <label style={s.label}>Food & Drink</label>
+                <div style={{ position: "relative" }}>
+                  <textarea value={form.food} onChange={e => setForm(f => ({ ...f, food: e.target.value }))} placeholder="Have you eaten or had anything to drink?" style={{ ...s.textarea, paddingRight: "2.75rem", width: "100%", boxSizing: "border-box" }} rows={2}/>
+                  <VoiceMicButton value={form.food} onChange={v => setForm(f => ({ ...f, food: v }))} size={30} style={{ position: "absolute", bottom: "0.5rem", right: "0.5rem" }}/>
+                </div>
+              </div>
 
               <div style={s.formGroup}>
                 <label style={s.label}>Medications taken</label>
@@ -4339,34 +4319,20 @@ End with a one-line footer: "This document was prepared by the patient using Car
                     enabled: form.saveUnlistedMed,
                     toggle: () => setForm(f => ({ ...f, saveUnlistedMed: !f.saveUnlistedMed }))
                   }}
-                  onScanAdd={(scanned, saveToList) => {
-                    // Append scanned med name+dose to the manual text field
-                    const medStr = scanned.name + (scanned.dose ? ` ${scanned.dose}` : "");
-                    setForm(f => ({ ...f, medications: f.medications ? `${f.medications}, ${medStr}` : medStr }));
-                    // Optionally save to the global medications list
-                    if (saveToList) {
-                      try {
-                        const existing = JSON.parse(localStorage.getItem(MED_STORAGE_KEY) || "[]");
-                        const alreadyExists = existing.some(m => m.name.toLowerCase() === scanned.name.toLowerCase());
-                        if (!alreadyExists) {
-                          existing.push({ id: Date.now() + Math.random(), name: scanned.name, dose: scanned.dose || "", frequency: scanned.frequency || "", notes: scanned.notes || "", reminder: false, reminderTime: "08:00" });
-                          localStorage.setItem(MED_STORAGE_KEY, JSON.stringify(existing));
-                          setMedications(existing);
-                        }
-                      } catch {}
-                    }
-                  }}
                 />
               </div>
               <div style={s.formRow}>
                 <div style={s.formGroup}>
                   <label style={s.label}>Activity & what symptoms limited</label>
-                  <input
-                    value={form.activity}
-                    onChange={e => setForm(f => ({ ...f, activity: e.target.value }))}
-                    placeholder="e.g. couldn't drive due to dizziness, sat while cooking, short walk then rested…"
-                    style={s.input}
-                  />
+                  <div style={{ position: "relative" }}>
+                    <input
+                      value={form.activity}
+                      onChange={e => setForm(f => ({ ...f, activity: e.target.value }))}
+                      placeholder="e.g. couldn't drive due to dizziness, sat while cooking, short walk then rested…"
+                      style={{ ...s.input, paddingRight: "2.75rem", width: "100%", boxSizing: "border-box" }}
+                    />
+                    <VoiceMicButton value={form.activity} onChange={v => setForm(f => ({ ...f, activity: v }))} size={26} style={{ position: "absolute", top: "50%", transform: "translateY(-50%)", right: "0.5rem" }}/>
+                  </div>
                 </div>
                 <div style={s.formGroup}><label style={s.label}>Weather / environment</label><input value={form.weather} onChange={e => setForm(f => ({ ...f, weather: e.target.value }))} placeholder="e.g. hot, humid, cold, indoors…" style={s.input}/></div>
               </div>
@@ -4382,7 +4348,13 @@ End with a one-line footer: "This document was prepared by the patient using Car
                   <div style={s.sevLabels}><span style={s.sevLabel}>Poor</span><span style={s.sevLabel}>Excellent</span></div>
                 </div>
               )}
-              <div style={s.formGroup}><label style={s.label}>Additional notes <span style={s.optional}>(optional)</span></label><textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Anything else worth noting…" style={s.textarea} rows={2}/></div>
+              <div style={s.formGroup}>
+                <label style={s.label}>Additional notes <span style={s.optional}>(optional)</span></label>
+                <div style={{ position: "relative" }}>
+                  <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Anything else worth noting…" style={{ ...s.textarea, paddingRight: "2.75rem", width: "100%", boxSizing: "border-box" }} rows={2}/>
+                  <VoiceMicButton value={form.notes} onChange={v => setForm(f => ({ ...f, notes: v }))} size={30} style={{ position: "absolute", bottom: "0.5rem", right: "0.5rem" }}/>
+                </div>
+              </div>
 
               <div style={s.formGroup}>
                 <label style={s.label}>Photos <span style={s.optional}>(optional — up to 3, max 2MB each)</span></label>
@@ -4589,6 +4561,8 @@ function SageChatbot() {
           <div style={ss.inputRow}>
             <input style={ss.chatInput} value={input} onChange={e => setInput(e.target.value)}
               onKeyDown={handleKey} placeholder="Ask Sage a question…" disabled={loading}/>
+            <VoiceMicButton value={input} onChange={setInput} size={40}
+              style={{ borderRadius: "0.75rem", flexShrink: 0 }}/>
             <button style={ss.sendBtn} onClick={sendMessage} disabled={loading || !input.trim()} aria-label="Send">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
