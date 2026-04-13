@@ -519,6 +519,297 @@ function SparkLine({ data, color = SAGE }) {
   );
 }
 
+/* ─── Goals — shared constants & storage key ────────────────────────────── */
+const GOALS_KEY = "cc-goals";
+
+const GOAL_TYPES = [
+  { id: "pain",      label: "Reduced pain",          icon: "🌿", metric: "severity", direction: "lower", desc: "Average severity score" },
+  { id: "mobility",  label: "More mobility",          icon: "🚶", metric: "activity",  direction: "more",  desc: "Days with activity logged" },
+  { id: "energy",    label: "More energy / less fatigue", icon: "⚡", metric: "energy",   direction: "higher", desc: "Energy-related entries" },
+  { id: "sleep",     label: "Better sleep",           icon: "🌙", metric: "sleep",    direction: "higher", desc: "Average sleep quality" },
+  { id: "stress",    label: "Lower stress",           icon: "🧘", metric: "stress",   direction: "lower",  desc: "Average stress score" },
+  { id: "limits",    label: "Fewer daily limitations", icon: "🔓", metric: "activity", direction: "less_limits", desc: "Entries mentioning limitations" },
+  { id: "custom",    label: "Custom goal",            icon: "✨", metric: null,       direction: null,     desc: "Your own definition of progress" },
+];
+
+const loadGoals = () => {
+  try { const s = localStorage.getItem(GOALS_KEY); return s ? JSON.parse(s) : []; } catch { return []; }
+};
+
+const saveGoals = (goals) => {
+  try { localStorage.setItem(GOALS_KEY, JSON.stringify(goals)); } catch {}
+};
+
+/**
+ * Compute progress for a goal against real tracker entries.
+ * Returns { baseline, recent, percentChange, trend, label, canCompute }
+ */
+const computeGoalProgress = (goal, entries) => {
+  if (!entries || entries.length < 5) return { canCompute: false };
+  const sorted = [...entries].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+  const mid = Math.floor(sorted.length / 2);
+  const baselineEntries = sorted.slice(0, mid);
+  const recentEntries   = sorted.slice(-Math.min(30, Math.ceil(sorted.length / 2)));
+
+  const avg = (arr, field) => {
+    const vals = arr.map(e => e[field]).filter(v => v != null && !isNaN(v));
+    return vals.length ? vals.reduce((s, v) => s + Number(v), 0) / vals.length : null;
+  };
+
+  const countActivity = (arr) =>
+    arr.filter(e => e.activity && e.activity.trim().length > 0).length / Math.max(arr.length, 1);
+
+  const countLimits = (arr) => {
+    const limitWords = ["couldn't", "can't", "unable", "limited", "couldn't", "stopped", "missed", "sat", "rested", "pain", "skipped"];
+    return arr.filter(e => {
+      const text = ((e.activity || "") + " " + (e.symptoms || "")).toLowerCase();
+      return limitWords.some(w => text.includes(w));
+    }).length / Math.max(arr.length, 1);
+  };
+
+  let baseline, recent, label;
+
+  switch (goal.type) {
+    case "pain":
+      baseline = avg(baselineEntries, "severity");
+      recent   = avg(recentEntries, "severity");
+      label    = "avg severity";
+      break;
+    case "sleep":
+      baseline = avg(baselineEntries, "sleep");
+      recent   = avg(recentEntries, "sleep");
+      label    = "avg sleep quality";
+      break;
+    case "stress":
+      baseline = avg(baselineEntries, "stress");
+      recent   = avg(recentEntries, "stress");
+      label    = "avg stress";
+      break;
+    case "mobility":
+      baseline = countActivity(baselineEntries) * 10;
+      recent   = countActivity(recentEntries) * 10;
+      label    = "activity rate";
+      break;
+    case "limits":
+      baseline = countLimits(baselineEntries) * 10;
+      recent   = countLimits(recentEntries) * 10;
+      label    = "limitation rate";
+      break;
+    default:
+      return { canCompute: false };
+  }
+
+  if (baseline == null || recent == null) return { canCompute: false };
+
+  const direction   = GOAL_TYPES.find(t => t.id === goal.type)?.direction;
+  const isImproving = direction === "lower" || direction === "less_limits"
+    ? recent < baseline
+    : recent > baseline;
+
+  const rawChange   = baseline !== 0 ? ((recent - baseline) / baseline) * 100 : 0;
+  const absChange   = Math.abs(rawChange);
+  const percentChange = Math.round(absChange);
+  const trend       = isImproving ? "improving" : rawChange === 0 ? "stable" : "worsening";
+
+  return { canCompute: true, baseline: +baseline.toFixed(1), recent: +recent.toFixed(1), percentChange, trend, label, isImproving };
+};
+
+/* ─── GoalsSection — dashboard card with add/manage goals ─────────────────── */
+function GoalsSection({ entries }) {
+  const [goals, setGoals]       = useState(() => loadGoals());
+  const [showForm, setShowForm] = useState(false);
+  const [editId, setEditId]     = useState(null);
+  const [form, setForm]         = useState({ type: "", title: "", notes: "" });
+  const [confirmDelete, setConfirmDelete] = useState(null);
+
+  const persist = (updated) => { setGoals(updated); saveGoals(updated); };
+
+  const openAdd = () => {
+    setEditId(null);
+    setForm({ type: "", title: "", notes: "" });
+    setShowForm(true);
+  };
+
+  const openEdit = (goal) => {
+    setEditId(goal.id);
+    setForm({ type: goal.type, title: goal.title, notes: goal.notes || "" });
+    setShowForm(true);
+  };
+
+  const handleSave = () => {
+    if (!form.type) return;
+    const typeObj = GOAL_TYPES.find(t => t.id === form.type);
+    const title   = form.title.trim() || typeObj?.label || "Goal";
+    if (editId) {
+      persist(goals.map(g => g.id === editId ? { ...g, type: form.type, title, notes: form.notes } : g));
+    } else {
+      persist([...goals, { id: Date.now(), type: form.type, title, notes: form.notes, createdAt: new Date().toISOString() }]);
+    }
+    setShowForm(false); setEditId(null);
+  };
+
+  const handleDelete = (id) => {
+    persist(goals.filter(g => g.id !== id));
+    setConfirmDelete(null);
+  };
+
+  const hasEntries = entries && entries.length >= 5;
+
+  return (
+    <div style={{ background: "#fff", borderRadius: "1.25rem", border: "1px solid rgba(0,0,0,0.07)", padding: "1.75rem", display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div>
+          <p style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#4a9fa5", margin: "0 0 0.3rem" }}>Health Goals</p>
+          <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.1rem", fontWeight: 700, color: "#2d2926", margin: 0 }}>Your journey goals</h2>
+        </div>
+        <button onClick={openAdd} style={{ background: "#4a7058", color: "#fff", border: "none", borderRadius: "100px", padding: "0.45rem 1rem", fontSize: "0.8rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+          + Add goal
+        </button>
+      </div>
+
+      {/* Goals list or empty state */}
+      {goals.length === 0 ? (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem", padding: "1.5rem 1rem", textAlign: "center" }}>
+          <span style={{ fontSize: "2rem" }}>🌿</span>
+          <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1rem", fontWeight: 700, color: "#2d2926", margin: 0 }}>What are you working towards?</p>
+          <p style={{ fontSize: "0.875rem", color: "#6b6560", lineHeight: 1.7, margin: 0, maxWidth: 300 }}>Add goals like reduced pain, better sleep, or more mobility — your tracker data will show your progress over time.</p>
+          <button onClick={openAdd} style={{ background: "#4a7058", color: "#fff", border: "none", borderRadius: "100px", padding: "0.65rem 1.5rem", fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", marginTop: "0.25rem" }}>
+            Add your first goal →
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+          {goals.map(goal => {
+            const typeObj  = GOAL_TYPES.find(t => t.id === goal.type);
+            const progress = computeGoalProgress(goal, entries);
+            const trendColor = !progress.canCompute ? "#aaa"
+              : progress.trend === "improving" ? "#4a7058"
+              : progress.trend === "stable"    ? "#8a5a00"
+              : "#c0392b";
+            const trendLabel = !progress.canCompute
+              ? (hasEntries ? "Calculating…" : "Log 5+ entries to see progress")
+              : progress.trend === "improving" ? `↑ ${progress.percentChange}% improvement`
+              : progress.trend === "stable"    ? "→ Holding steady"
+              : `↓ ${progress.percentChange}% decline`;
+            const progressPct = !progress.canCompute ? null
+              : progress.trend === "improving" ? Math.min(progress.percentChange, 100)
+              : 0;
+
+            return (
+              <div key={goal.id} style={{ background: "#fafaf8", borderRadius: "0.875rem", border: "1px solid rgba(0,0,0,0.07)", padding: "1rem 1.25rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.75rem", marginBottom: progress.canCompute ? "0.75rem" : "0.25rem" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.65rem", flex: 1, minWidth: 0 }}>
+                    <span style={{ fontSize: "1.25rem", flexShrink: 0 }}>{typeObj?.icon || "✨"}</span>
+                    <div style={{ minWidth: 0 }}>
+                      <p style={{ fontSize: "0.9rem", fontWeight: 700, color: "#2d2926", margin: "0 0 0.1rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{goal.title}</p>
+                      {goal.notes && <p style={{ fontSize: "0.75rem", color: "#6b6560", margin: 0, lineHeight: 1.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{goal.notes}</p>}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: "0.35rem", flexShrink: 0 }}>
+                    <button onClick={() => openEdit(goal)} style={{ background: "none", border: "1px solid rgba(0,0,0,0.1)", borderRadius: "0.4rem", padding: "0.2rem 0.55rem", fontSize: "0.72rem", color: "#6b6560", cursor: "pointer", fontFamily: "inherit" }}>Edit</button>
+                    <button onClick={() => setConfirmDelete(goal.id)} style={{ background: "none", border: "none", color: "#ccc", cursor: "pointer", padding: "0.2rem", display: "flex", alignItems: "center" }}>
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Progress bar + label */}
+                {progress.canCompute && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+                    <div style={{ height: 6, background: "#e8e4e0", borderRadius: 100, overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: `${progressPct}%`, background: trendColor, borderRadius: 100, transition: "width 0.6s ease" }}/>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: "0.72rem", fontWeight: 700, color: trendColor }}>{trendLabel}</span>
+                      <span style={{ fontSize: "0.7rem", color: "#aaa" }}>baseline {progress.baseline} → now {progress.recent} ({progress.label})</span>
+                    </div>
+                  </div>
+                )}
+                {!progress.canCompute && (
+                  <p style={{ fontSize: "0.72rem", color: "#aaa", margin: "0.25rem 0 0", fontStyle: "italic" }}>{trendLabel}</p>
+                )}
+
+                {/* Delete confirm */}
+                {confirmDelete === goal.id && (
+                  <div style={{ marginTop: "0.75rem", background: "#fdeaea", borderRadius: "0.6rem", padding: "0.6rem 0.875rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.75rem" }}>
+                    <span style={{ fontSize: "0.78rem", color: "#c0392b" }}>Remove this goal?</span>
+                    <div style={{ display: "flex", gap: "0.5rem" }}>
+                      <button onClick={() => handleDelete(goal.id)} style={{ background: "#c0392b", color: "#fff", border: "none", borderRadius: "100px", padding: "0.3rem 0.75rem", fontSize: "0.75rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Remove</button>
+                      <button onClick={() => setConfirmDelete(null)} style={{ background: "none", border: "1px solid rgba(0,0,0,0.12)", borderRadius: "100px", padding: "0.3rem 0.75rem", fontSize: "0.75rem", color: "#6b6560", cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Add/edit form modal */}
+      {showForm && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 300, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={() => setShowForm(false)}>
+          <div style={{ background: "#fff", borderRadius: "1.25rem 1.25rem 0 0", width: "100%", maxWidth: 560, padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1.25rem", maxHeight: "85vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h3 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.15rem", fontWeight: 700, color: "#2d2926", margin: 0 }}>{editId ? "Edit goal" : "Add a health goal"}</h3>
+              <button onClick={() => setShowForm(false)} style={{ background: "none", border: "none", color: "#aaa", cursor: "pointer", fontSize: "1rem", padding: "0.25rem" }}>✕</button>
+            </div>
+
+            {/* Goal type picker */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+              <label style={{ fontSize: "0.82rem", fontWeight: 600, color: "#4a4540" }}>Goal type</label>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "0.5rem" }}>
+                {GOAL_TYPES.map(t => (
+                  <button key={t.id} onClick={() => setForm(f => ({ ...f, type: t.id, title: f.title || t.label }))}
+                    style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.6rem 0.875rem", borderRadius: "0.75rem", border: `1.5px solid ${form.type === t.id ? "#4a7058" : "rgba(0,0,0,0.1)"}`, background: form.type === t.id ? "#e8f0eb" : "#fafaf8", color: form.type === t.id ? "#4a7058" : "#4a4540", fontSize: "0.82rem", fontWeight: form.type === t.id ? 700 : 400, cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}>
+                    <span>{t.icon}</span><span>{t.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Custom title */}
+            {form.type && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                <label style={{ fontSize: "0.82rem", fontWeight: 600, color: "#4a4540" }}>Goal name <span style={{ fontWeight: 400, color: "#aaa", fontSize: "0.78rem" }}>(optional — customize it)</span></label>
+                <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+                  placeholder={GOAL_TYPES.find(t => t.id === form.type)?.label || "Name your goal"}
+                  style={{ padding: "0.7rem 1rem", borderRadius: "0.65rem", border: "1.5px solid rgba(0,0,0,0.12)", fontSize: "0.9rem", color: "#2d2926", background: "#fafaf8", outline: "none", fontFamily: "inherit" }}/>
+              </div>
+            )}
+
+            {/* Notes */}
+            {form.type && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                <label style={{ fontSize: "0.82rem", fontWeight: 600, color: "#4a4540" }}>Notes <span style={{ fontWeight: 400, color: "#aaa", fontSize: "0.78rem" }}>(optional)</span></label>
+                <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+                  placeholder="e.g. My pain is worst in the morning. I want to be able to drive again without flaring."
+                  rows={3} style={{ padding: "0.7rem 1rem", borderRadius: "0.65rem", border: "1.5px solid rgba(0,0,0,0.12)", fontSize: "0.875rem", color: "#2d2926", background: "#fafaf8", outline: "none", fontFamily: "inherit", resize: "vertical", lineHeight: 1.6 }}/>
+              </div>
+            )}
+
+            {form.type && (
+              <div style={{ background: "#e8f0eb", borderRadius: "0.75rem", padding: "0.75rem 1rem", fontSize: "0.78rem", color: "#4a7058", lineHeight: 1.6 }}>
+                📊 <strong>How progress is measured:</strong> {GOAL_TYPES.find(t => t.id === form.type)?.desc || "Tracked against your logged entries over time."}
+                {form.type !== "custom" && " Care Compass compares your recent entries to your baseline to show whether you're trending in the right direction."}
+              </div>
+            )}
+
+            <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end", paddingTop: "0.25rem" }}>
+              <button onClick={() => setShowForm(false)} style={{ background: "none", border: "1.5px solid rgba(0,0,0,0.12)", borderRadius: "100px", padding: "0.65rem 1.25rem", fontSize: "0.875rem", color: "#6b6560", cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+              <button onClick={handleSave} disabled={!form.type}
+                style={{ background: form.type ? "#4a7058" : "#ccc", color: "#fff", border: "none", borderRadius: "100px", padding: "0.65rem 1.5rem", fontSize: "0.875rem", fontWeight: 600, cursor: form.type ? "pointer" : "default", fontFamily: "inherit" }}>
+                {editId ? "Save changes →" : "Add goal →"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── New user welcome screen (full-page, matches tracker onboarding style) ─ */
 function NewUserWelcome({ userName, onComplete }) {
   // Build assessment URL pre-filled with account settings data
@@ -1044,15 +1335,31 @@ export default function CareCompassDashboard() {
     insightCount: 5,
   };
 
-  // Mock tracker data — replace with Supabase query
-  const tracker = demoState === "new" ? null : demoState === "empty" ? { entries: 0, streak: 0, avgSeverityWeek: null, sparkData: [], lastEntry: null } : {
-    entries: 47,
-    streak: 12,
-    avgSeverityWeek: 5.2,
-    sparkData: [6, 5, 7, 4, 5, 6, 5],
-    lastEntry: "Today, 2:14 PM",
-    recentSymptoms: "Right shoulder pain, fatigue",
-  };
+  // Read real tracker entries from localStorage
+  const [trackerEntries, setTrackerEntries] = useState(() => {
+    try { const s = localStorage.getItem(STORAGE_KEY); return s ? JSON.parse(s) : []; } catch { return []; }
+  });
+
+  // Mock tracker data — replace with Supabase query; real entries used for goals
+  const tracker = demoState === "new" ? null : demoState === "empty" ? { entries: 0, streak: 0, avgSeverityWeek: null, sparkData: [], lastEntry: null } : (() => {
+    if (trackerEntries.length === 0) return { entries: 0, streak: 0, avgSeverityWeek: null, sparkData: [], lastEntry: null };
+    const now = new Date();
+    const weekEntries = trackerEntries.filter(e => new Date(e.timestamp) >= new Date(now - 7 * 86400000));
+    const avgSev = weekEntries.length ? +(weekEntries.reduce((s, e) => s + e.severity, 0) / weekEntries.length).toFixed(1) : null;
+    const sparkData = weekEntries.slice(-7).map(e => e.severity);
+    const days = [...new Set(trackerEntries.map(e => new Date(e.timestamp).toDateString()))];
+    const sorted = days.sort((a, b) => new Date(b) - new Date(a));
+    let streak = 0;
+    for (let i = 0; i < sorted.length; i++) {
+      const expected = new Date(now - i * 86400000).toDateString();
+      if (sorted[i] === expected) streak++;
+      else break;
+    }
+    const last = trackerEntries[0];
+    const lastDate = last ? new Date(last.timestamp) : null;
+    const lastEntry = lastDate ? (lastDate.toDateString() === now.toDateString() ? "Today, " + lastDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : lastDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })) : null;
+    return { entries: trackerEntries.length, streak, avgSeverityWeek: avgSev, sparkData, lastEntry, recentSymptoms: last?.symptoms?.slice(0, 60) || null };
+  })();
 
   const hasAssessment = !!assessment;
   const hasTrackerData = tracker && tracker.entries > 0;
@@ -1524,6 +1831,11 @@ export default function CareCompassDashboard() {
                 </div>
               )}
             </div>
+          )}
+
+          {/* ── Goals ── */}
+          {!isNew && (
+            <GoalsSection entries={trackerEntries} />
           )}
 
           {/* ── Quick actions ── */}

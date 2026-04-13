@@ -173,6 +173,160 @@ function VoiceMicButton({ value, onChange, size = 34, style: extraStyle = {} }) 
   );
 }
 
+/* ─── Goals — shared constants & storage key ────────────────────────────── */
+const GOALS_KEY = "cc-goals";
+
+const GOAL_TYPES = [
+  { id: "pain",      label: "Reduced pain",          icon: "🌿", metric: "severity", direction: "lower", desc: "Average severity score" },
+  { id: "mobility",  label: "More mobility",          icon: "🚶", metric: "activity",  direction: "more",  desc: "Days with activity logged" },
+  { id: "energy",    label: "More energy / less fatigue", icon: "⚡", metric: "energy",   direction: "higher", desc: "Energy-related entries" },
+  { id: "sleep",     label: "Better sleep",           icon: "🌙", metric: "sleep",    direction: "higher", desc: "Average sleep quality" },
+  { id: "stress",    label: "Lower stress",           icon: "🧘", metric: "stress",   direction: "lower",  desc: "Average stress score" },
+  { id: "limits",    label: "Fewer daily limitations", icon: "🔓", metric: "activity", direction: "less_limits", desc: "Entries mentioning limitations" },
+  { id: "custom",    label: "Custom goal",            icon: "✨", metric: null,       direction: null,     desc: "Your own definition of progress" },
+];
+
+const loadGoals = () => {
+  try { const s = localStorage.getItem(GOALS_KEY); return s ? JSON.parse(s) : []; } catch { return []; }
+};
+
+const saveGoals = (goals) => {
+  try { localStorage.setItem(GOALS_KEY, JSON.stringify(goals)); } catch {}
+};
+
+/**
+ * Compute progress for a goal against real tracker entries.
+ * Returns { baseline, recent, percentChange, trend, label, canCompute }
+ */
+const computeGoalProgress = (goal, entries) => {
+  if (!entries || entries.length < 5) return { canCompute: false };
+  const sorted = [...entries].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+  const mid = Math.floor(sorted.length / 2);
+  const baselineEntries = sorted.slice(0, mid);
+  const recentEntries   = sorted.slice(-Math.min(30, Math.ceil(sorted.length / 2)));
+
+  const avg = (arr, field) => {
+    const vals = arr.map(e => e[field]).filter(v => v != null && !isNaN(v));
+    return vals.length ? vals.reduce((s, v) => s + Number(v), 0) / vals.length : null;
+  };
+
+  const countActivity = (arr) =>
+    arr.filter(e => e.activity && e.activity.trim().length > 0).length / Math.max(arr.length, 1);
+
+  const countLimits = (arr) => {
+    const limitWords = ["couldn't", "can't", "unable", "limited", "couldn't", "stopped", "missed", "sat", "rested", "pain", "skipped"];
+    return arr.filter(e => {
+      const text = ((e.activity || "") + " " + (e.symptoms || "")).toLowerCase();
+      return limitWords.some(w => text.includes(w));
+    }).length / Math.max(arr.length, 1);
+  };
+
+  let baseline, recent, label;
+
+  switch (goal.type) {
+    case "pain":
+      baseline = avg(baselineEntries, "severity");
+      recent   = avg(recentEntries, "severity");
+      label    = "avg severity";
+      break;
+    case "sleep":
+      baseline = avg(baselineEntries, "sleep");
+      recent   = avg(recentEntries, "sleep");
+      label    = "avg sleep quality";
+      break;
+    case "stress":
+      baseline = avg(baselineEntries, "stress");
+      recent   = avg(recentEntries, "stress");
+      label    = "avg stress";
+      break;
+    case "mobility":
+      baseline = countActivity(baselineEntries) * 10;
+      recent   = countActivity(recentEntries) * 10;
+      label    = "activity rate";
+      break;
+    case "limits":
+      baseline = countLimits(baselineEntries) * 10;
+      recent   = countLimits(recentEntries) * 10;
+      label    = "limitation rate";
+      break;
+    default:
+      return { canCompute: false };
+  }
+
+  if (baseline == null || recent == null) return { canCompute: false };
+
+  const direction   = GOAL_TYPES.find(t => t.id === goal.type)?.direction;
+  const isImproving = direction === "lower" || direction === "less_limits"
+    ? recent < baseline
+    : recent > baseline;
+
+  const rawChange   = baseline !== 0 ? ((recent - baseline) / baseline) * 100 : 0;
+  const absChange   = Math.abs(rawChange);
+  const percentChange = Math.round(absChange);
+  const trend       = isImproving ? "improving" : rawChange === 0 ? "stable" : "worsening";
+
+  return { canCompute: true, baseline: +baseline.toFixed(1), recent: +recent.toFixed(1), percentChange, trend, label, isImproving };
+};
+
+/* ─── GoalsWidget — compact tracker view with sparklines ──────────────────── */
+function GoalsWidget({ entries }) {
+  const [goals, setGoals] = useState(() => loadGoals());
+  // Refresh goals when entries change
+  React.useEffect(() => { setGoals(loadGoals()); }, [entries.length]);
+
+  if (goals.length === 0) return (
+    <div style={{ background: "#fff", borderRadius: "1rem", border: "1px solid rgba(0,0,0,0.07)", padding: "1.25rem 1.5rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
+      <div>
+        <p style={{ fontSize: "0.75rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "#4a9fa5", margin: "0 0 0.2rem" }}>Health Goals</p>
+        <p style={{ fontSize: "0.875rem", color: "#6b6560", margin: 0 }}>Track what matters most to you — set goals on your dashboard to see progress here.</p>
+      </div>
+      <a href="/dashboard" style={{ background: "#4a7058", color: "#fff", borderRadius: "100px", padding: "0.55rem 1.1rem", fontSize: "0.82rem", fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" }}>Set goals →</a>
+    </div>
+  );
+
+  return (
+    <div style={{ background: "#fff", borderRadius: "1rem", border: "1px solid rgba(0,0,0,0.07)", padding: "1.25rem 1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <p style={{ fontSize: "0.75rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "#4a9fa5", margin: 0 }}>Goal Progress</p>
+        <a href="/dashboard" style={{ fontSize: "0.78rem", color: "#4a7058", fontWeight: 600, textDecoration: "none" }}>Manage →</a>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+        {goals.map(goal => {
+          const typeObj  = GOAL_TYPES.find(t => t.id === goal.type);
+          const progress = computeGoalProgress(goal, entries);
+          const trendColor = !progress.canCompute ? "#aaa"
+            : progress.trend === "improving" ? "#4a7058"
+            : progress.trend === "stable"    ? "#8a5a00"
+            : "#c0392b";
+          const pct = !progress.canCompute ? 0 : Math.min(progress.percentChange, 100);
+
+          return (
+            <div key={goal.id} style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#2d2926", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                  <span style={{ fontSize: "1rem" }}>{typeObj?.icon || "✨"}</span>{goal.title}
+                </span>
+                <span style={{ fontSize: "0.72rem", fontWeight: 700, color: trendColor }}>
+                  {!progress.canCompute
+                    ? (entries.length < 5 ? "needs data" : "…")
+                    : progress.trend === "improving" ? `↑ ${progress.percentChange}%`
+                    : progress.trend === "stable"    ? "→ stable"
+                    : `↓ ${progress.percentChange}%`}
+                </span>
+              </div>
+              <div style={{ height: 5, background: "#e8e4e0", borderRadius: 100, overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${pct}%`, background: trendColor, borderRadius: 100, transition: "width 0.6s ease" }}/>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {entries.length < 5 && (
+        <p style={{ fontSize: "0.72rem", color: "#aaa", margin: 0, fontStyle: "italic" }}>Log at least 5 entries to start seeing progress toward your goals.</p>
+      )}
+    </div>
+  );
+}
 const SAGE       = "#7a9e87";
 const SAGE_LIGHT = "#e8f0eb";
 const SAGE_DARK  = "#4a7058";
@@ -2285,7 +2439,12 @@ WEIGHTING HIERARCHY:
 4. LOWER — Existing diagnoses (treat as one possible explanation; flag if symptoms suggest something additional or misaligned)
 5. LOWEST — Long-standing medications (unlikely to cause new symptoms unless recently changed)
 
-${careTeamStr ? `CARE TEAM: ${careTeamStr}\n\n` : ""}${familyHistoryStr ? `FAMILY HISTORY (use this to add genetic/hereditary context to pattern analysis — flag if logged symptoms may have familial patterns):\n${familyHistoryStr}\n\n` : ""}${(() => {
+${careTeamStr ? `CARE TEAM: ${careTeamStr}\n\n` : ""}${(() => {
+        const goals = loadGoals();
+        if (!goals.length) return "";
+        const goalLines = goals.map(g => `- ${g.title}${g.notes ? " (" + g.notes + ")" : ""}`).join("\n");
+        return `USER HEALTH GOALS (these are what the user is actively working towards — reference them when relevant. Flag if tracker data shows progress or regression towards any goal):\n${goalLines}\n\n`;
+      })()}${familyHistoryStr ? `FAMILY HISTORY (use this to add genetic/hereditary context to pattern analysis — flag if logged symptoms may have familial patterns):\n${familyHistoryStr}\n\n` : ""}${(() => {
         const medsWithDuration = medications.filter(m => m.name && m.duration);
         if (!medsWithDuration.length) return "";
         const DURATION_LABELS = {
@@ -2899,6 +3058,9 @@ ${extraContext}` : ""}`;
                   >×</button>
                 </div>
               )}
+
+              {/* ── Goals widget ── */}
+              {view === "log" && <GoalsWidget entries={entries} />}
 
               {/* ── Morning check-in banner ── */}
               {shouldShowMorning && !showMorningCheckin && (
