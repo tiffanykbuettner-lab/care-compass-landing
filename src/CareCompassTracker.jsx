@@ -176,14 +176,30 @@ function VoiceMicButton({ value, onChange, size = 34, style: extraStyle = {} }) 
 /* ─── Goals — shared constants & storage key ────────────────────────────── */
 const GOALS_KEY = "cc-goals";
 
+/* ─── GoalIcon — maps goal type to a SageIcons icon ─────────────────────── */
+const GOAL_ICON_MAP = {
+  pain:     { name: "heart",     color: "#c0392b" },
+  mobility: { name: "forward",   color: "#4a9fa5" },
+  energy:   { name: "pulse",     color: "#e8a838" },
+  sleep:    { name: "alarm",     color: "#7c5cbf" },
+  stress:   { name: "leaf",      color: "#4a7058" },
+  limits:   { name: "check",     color: "#4a7058" },
+  custom:   { name: "compass",   color: "#4a9fa5" },
+};
+
+function GoalIcon({ type, size = 16 }) {
+  const map = GOAL_ICON_MAP[type] || GOAL_ICON_MAP.custom;
+  return <Icon name={map.name} size={size} color={map.color} />;
+}
+
 const GOAL_TYPES = [
-  { id: "pain",      label: "Reduced pain",          icon: "🌿", metric: "severity", direction: "lower", desc: "Average severity score" },
-  { id: "mobility",  label: "More mobility",          icon: "🚶", metric: "activity",  direction: "more",  desc: "Days with activity logged" },
-  { id: "energy",    label: "More energy / less fatigue", icon: "⚡", metric: "energy",   direction: "higher", desc: "Energy-related entries" },
-  { id: "sleep",     label: "Better sleep",           icon: "🌙", metric: "sleep",    direction: "higher", desc: "Average sleep quality" },
-  { id: "stress",    label: "Lower stress",           icon: "🧘", metric: "stress",   direction: "lower",  desc: "Average stress score" },
-  { id: "limits",    label: "Fewer daily limitations", icon: "🔓", metric: "activity", direction: "less_limits", desc: "Entries mentioning limitations" },
-  { id: "custom",    label: "Custom goal",            icon: "✨", metric: null,       direction: null,     desc: "Your own definition of progress" },
+  { id: "pain",      label: "Reduced pain", metric: "severity", direction: "lower", desc: "Average severity score" },
+  { id: "mobility",  label: "More mobility", metric: "activity",  direction: "more",  desc: "Days with activity logged" },
+  { id: "energy",    label: "More energy / less fatigue", metric: "energy",   direction: "higher", desc: "Energy-related entries" },
+  { id: "sleep",     label: "Better sleep", metric: "sleep",    direction: "higher", desc: "Average sleep quality" },
+  { id: "stress",    label: "Lower stress", metric: "stress",   direction: "lower",  desc: "Average stress score" },
+  { id: "limits",    label: "Fewer daily limitations", metric: "activity", direction: "less_limits", desc: "Entries mentioning limitations" },
+  { id: "custom",    label: "Custom goal", metric: null,       direction: null,     desc: "Your own definition of progress" },
 ];
 
 const loadGoals = () => {
@@ -304,7 +320,7 @@ function GoalsWidget({ entries }) {
             <div key={goal.id} style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#2d2926", display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                  <span style={{ fontSize: "1rem" }}>{typeObj?.icon || "✨"}</span>{goal.title}
+                  <GoalIcon type={goal.type} size={16} />{goal.title}
                 </span>
                 <span style={{ fontSize: "0.72rem", fontWeight: 700, color: trendColor }}>
                   {!progress.canCompute

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "./AuthContext";
+import { Icon } from "./SageIcons";
 
 const SAGE       = "#7a9e87";
 const SAGE_LIGHT = "#e8f0eb";
@@ -522,14 +523,30 @@ function SparkLine({ data, color = SAGE }) {
 /* ─── Goals — shared constants & storage key ────────────────────────────── */
 const GOALS_KEY = "cc-goals";
 
+/* ─── GoalIcon — maps goal type to a SageIcons icon ─────────────────────── */
+const GOAL_ICON_MAP = {
+  pain:     { name: "heart",     color: "#c0392b" },
+  mobility: { name: "forward",   color: "#4a9fa5" },
+  energy:   { name: "pulse",     color: "#e8a838" },
+  sleep:    { name: "alarm",     color: "#7c5cbf" },
+  stress:   { name: "leaf",      color: "#4a7058" },
+  limits:   { name: "check",     color: "#4a7058" },
+  custom:   { name: "compass",   color: "#4a9fa5" },
+};
+
+function GoalIcon({ type, size = 16 }) {
+  const map = GOAL_ICON_MAP[type] || GOAL_ICON_MAP.custom;
+  return <Icon name={map.name} size={size} color={map.color} />;
+}
+
 const GOAL_TYPES = [
-  { id: "pain",      label: "Reduced pain",          icon: "🌿", metric: "severity", direction: "lower", desc: "Average severity score" },
-  { id: "mobility",  label: "More mobility",          icon: "🚶", metric: "activity",  direction: "more",  desc: "Days with activity logged" },
-  { id: "energy",    label: "More energy / less fatigue", icon: "⚡", metric: "energy",   direction: "higher", desc: "Energy-related entries" },
-  { id: "sleep",     label: "Better sleep",           icon: "🌙", metric: "sleep",    direction: "higher", desc: "Average sleep quality" },
-  { id: "stress",    label: "Lower stress",           icon: "🧘", metric: "stress",   direction: "lower",  desc: "Average stress score" },
-  { id: "limits",    label: "Fewer daily limitations", icon: "🔓", metric: "activity", direction: "less_limits", desc: "Entries mentioning limitations" },
-  { id: "custom",    label: "Custom goal",            icon: "✨", metric: null,       direction: null,     desc: "Your own definition of progress" },
+  { id: "pain",      label: "Reduced pain", metric: "severity", direction: "lower", desc: "Average severity score" },
+  { id: "mobility",  label: "More mobility", metric: "activity",  direction: "more",  desc: "Days with activity logged" },
+  { id: "energy",    label: "More energy / less fatigue", metric: "energy",   direction: "higher", desc: "Energy-related entries" },
+  { id: "sleep",     label: "Better sleep", metric: "sleep",    direction: "higher", desc: "Average sleep quality" },
+  { id: "stress",    label: "Lower stress", metric: "stress",   direction: "lower",  desc: "Average stress score" },
+  { id: "limits",    label: "Fewer daily limitations", metric: "activity", direction: "less_limits", desc: "Entries mentioning limitations" },
+  { id: "custom",    label: "Custom goal", metric: null,       direction: null,     desc: "Your own definition of progress" },
 ];
 
 const loadGoals = () => {
@@ -672,7 +689,7 @@ function GoalsSection({ entries }) {
       {/* Goals list or empty state */}
       {goals.length === 0 ? (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem", padding: "1.5rem 1rem", textAlign: "center" }}>
-          <span style={{ fontSize: "2rem" }}>🌿</span>
+          <Icon name="leaf" size={32} color="#7a9e87" />
           <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1rem", fontWeight: 700, color: "#2d2926", margin: 0 }}>What are you working towards?</p>
           <p style={{ fontSize: "0.875rem", color: "#6b6560", lineHeight: 1.7, margin: 0, maxWidth: 300 }}>Add goals like reduced pain, better sleep, or more mobility — your tracker data will show your progress over time.</p>
           <button onClick={openAdd} style={{ background: "#4a7058", color: "#fff", border: "none", borderRadius: "100px", padding: "0.65rem 1.5rem", fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", marginTop: "0.25rem" }}>
@@ -701,7 +718,7 @@ function GoalsSection({ entries }) {
               <div key={goal.id} style={{ background: "#fafaf8", borderRadius: "0.875rem", border: "1px solid rgba(0,0,0,0.07)", padding: "1rem 1.25rem" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.75rem", marginBottom: progress.canCompute ? "0.75rem" : "0.25rem" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "0.65rem", flex: 1, minWidth: 0 }}>
-                    <span style={{ fontSize: "1.25rem", flexShrink: 0 }}>{typeObj?.icon || "✨"}</span>
+                    <GoalIcon type={goal.type} size={20} />
                     <div style={{ minWidth: 0 }}>
                       <p style={{ fontSize: "0.9rem", fontWeight: 700, color: "#2d2926", margin: "0 0 0.1rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{goal.title}</p>
                       {goal.notes && <p style={{ fontSize: "0.75rem", color: "#6b6560", margin: 0, lineHeight: 1.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{goal.notes}</p>}
@@ -763,7 +780,7 @@ function GoalsSection({ entries }) {
                 {GOAL_TYPES.map(t => (
                   <button key={t.id} onClick={() => setForm(f => ({ ...f, type: t.id, title: f.title || t.label }))}
                     style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.6rem 0.875rem", borderRadius: "0.75rem", border: `1.5px solid ${form.type === t.id ? "#4a7058" : "rgba(0,0,0,0.1)"}`, background: form.type === t.id ? "#e8f0eb" : "#fafaf8", color: form.type === t.id ? "#4a7058" : "#4a4540", fontSize: "0.82rem", fontWeight: form.type === t.id ? 700 : 400, cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}>
-                    <span>{t.icon}</span><span>{t.label}</span>
+                    <GoalIcon type={t.id} size={15} /><span>{t.label}</span>
                   </button>
                 ))}
               </div>
@@ -791,7 +808,7 @@ function GoalsSection({ entries }) {
 
             {form.type && (
               <div style={{ background: "#e8f0eb", borderRadius: "0.75rem", padding: "0.75rem 1rem", fontSize: "0.78rem", color: "#4a7058", lineHeight: 1.6 }}>
-                📊 <strong>How progress is measured:</strong> {GOAL_TYPES.find(t => t.id === form.type)?.desc || "Tracked against your logged entries over time."}
+                <Icon name="pulse" size={14} color="#4a7058" style={{ marginRight: "0.35rem", verticalAlign: "middle" }} /><strong>How progress is measured:</strong> {GOAL_TYPES.find(t => t.id === form.type)?.desc || "Tracked against your logged entries over time."}
                 {form.type !== "custom" && " Care Compass compares your recent entries to your baseline to show whether you're trending in the right direction."}
               </div>
             )}
