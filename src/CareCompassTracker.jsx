@@ -173,6 +173,128 @@ function VoiceMicButton({ value, onChange, size = 34, style: extraStyle = {} }) 
   );
 }
 
+/* ─── Safety Alert — emergency threshold detection ──────────────────────── */
+
+const EMERGENCY_SYMPTOMS = [
+  // Cardiac
+  { pattern: /chest\s*(pain|tight|pressure|discomfort|heaviness)/i,  label: "chest pain or pressure" },
+  { pattern: /left\s*arm\s*(pain|numb|tingle|weak)/i,                label: "left arm pain or numbness" },
+  { pattern: /heart\s*(racing|pounding|stopped|attack)/i,            label: "heart pounding or racing severely" },
+  // Respiratory
+  { pattern: /can't\s*breathe|cannot\s*breathe|can't\s*catch\s*(my\s*)?breath|difficulty\s*breath|shortness\s*of\s*breath|unable\s*to\s*breathe/i, label: "difficulty breathing" },
+  // Stroke (FAST)
+  { pattern: /face\s*(droop|numb|drooping|dropping)/i,               label: "face drooping" },
+  { pattern: /sudden\s*(severe\s*)?headache|worst\s*(headache|head\s*pain)/i, label: "sudden severe headache" },
+  { pattern: /slurred?\s*speech|can't\s*speak|unable\s*to\s*speak/i, label: "slurred speech" },
+  { pattern: /arm\s*(weak|numb|drooping|won't\s*move)/i,             label: "sudden arm weakness" },
+  // Loss of consciousness
+  { pattern: /pass(ed|ing)\s*out|lost\s*conscious|faint(ed|ing)\s*(and|,|\.|$)/i, label: "loss of consciousness" },
+  // Self-harm
+  { pattern: /suicid|self[- ]harm|want\s*to\s*die|kill\s*myself/i,  label: "thoughts of self-harm" },
+];
+
+function checkEmergencySymptoms(text) {
+  if (!text) return [];
+  return EMERGENCY_SYMPTOMS.filter(s => s.pattern.test(text)).map(s => s.label);
+}
+
+function checkEmergencyBP(systolic, diastolic) {
+  const s = Number(systolic);
+  const d = Number(diastolic);
+  if (!isNaN(s) && !isNaN(d) && (s >= 180 || d >= 120)) return true;
+  return false;
+}
+
+function logSafetyAlertShown(context) {
+  try {
+    const log = JSON.parse(localStorage.getItem("cc-safety-alerts") || "[]");
+    log.unshift({ timestamp: new Date().toISOString(), context });
+    localStorage.setItem("cc-safety-alerts", JSON.stringify(log.slice(0, 50)));
+  } catch {}
+}
+
+function SafetyAlertModal({ triggers, bpCrisis, onDismiss }) {
+  if (!triggers?.length && !bpCrisis) return null;
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 9999,
+      background: "rgba(0,0,0,0.55)", display: "flex",
+      alignItems: "center", justifyContent: "center", padding: "1.25rem",
+    }}>
+      <div style={{
+        background: "#fff", borderRadius: "1.25rem", maxWidth: 440, width: "100%",
+        boxShadow: "0 20px 60px rgba(0,0,0,0.25)", overflow: "hidden",
+      }}>
+        {/* Red header bar */}
+        <div style={{ background: "#c0392b", padding: "1.25rem 1.5rem", display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+            <circle cx="12" cy="12" r="11" fill="rgba(255,255,255,0.2)" stroke="#fff" strokeWidth="1.5"/>
+            <path d="M12 7v5" stroke="#fff" strokeWidth="2" strokeLinecap="round"/>
+            <circle cx="12" cy="16.5" r="1.2" fill="#fff"/>
+          </svg>
+          <div>
+            <div style={{ color: "#fff", fontWeight: 700, fontSize: "1rem", lineHeight: 1.2 }}>
+              {bpCrisis ? "Blood Pressure Alert" : "Please Read Before Continuing"}
+            </div>
+            <div style={{ color: "rgba(255,255,255,0.8)", fontSize: "0.78rem", marginTop: "0.15rem" }}>
+              CareCompass noticed something in what you logged
+            </div>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: "1.5rem" }}>
+          {bpCrisis && (
+            <p style={{ fontSize: "0.95rem", color: "#2d2926", lineHeight: 1.7, margin: "0 0 1rem" }}>
+              The blood pressure reading you logged — <strong>systolic ≥ 180 or diastolic ≥ 120</strong> — is in the range considered a hypertensive crisis.
+            </p>
+          )}
+          {triggers?.length > 0 && (
+            <>
+              <p style={{ fontSize: "0.9rem", color: "#2d2926", lineHeight: 1.7, margin: "0 0 0.75rem" }}>
+                Some of what you logged may be signs of a medical emergency:
+              </p>
+              <ul style={{ margin: "0 0 1rem", paddingLeft: "1.25rem" }}>
+                {triggers.map((t, i) => (
+                  <li key={i} style={{ fontSize: "0.9rem", color: "#c0392b", fontWeight: 600, lineHeight: 1.8 }}>{t}</li>
+                ))}
+              </ul>
+            </>
+          )}
+          <div style={{ background: "#fdeaea", borderRadius: "0.75rem", padding: "0.875rem 1rem", marginBottom: "1.25rem" }}>
+            <p style={{ fontSize: "0.875rem", color: "#8b0000", fontWeight: 600, margin: "0 0 0.25rem" }}>
+              If you are experiencing these symptoms right now:
+            </p>
+            <p style={{ fontSize: "0.875rem", color: "#8b0000", margin: 0, lineHeight: 1.6 }}>
+              Call <strong>911</strong> or go to your nearest emergency room immediately. Do not wait.
+            </p>
+          </div>
+          <p style={{ fontSize: "0.78rem", color: "#6b6560", lineHeight: 1.6, margin: "0 0 1.25rem" }}>
+            CareCompass is not a medical service and cannot evaluate urgency. This alert is shown automatically whenever certain keywords or values are detected — it is not a diagnosis.
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
+            <a href="tel:911" style={{
+              display: "block", textAlign: "center", background: "#c0392b", color: "#fff",
+              borderRadius: "100px", padding: "0.875rem", fontWeight: 700, fontSize: "1rem",
+              textDecoration: "none", letterSpacing: "0.01em",
+            }}>
+              Call 911
+            </a>
+            <button onClick={onDismiss} style={{
+              background: "transparent", border: "1.5px solid rgba(0,0,0,0.15)", borderRadius: "100px",
+              padding: "0.75rem", fontSize: "0.875rem", color: "#6b6560", cursor: "pointer",
+              fontFamily: "inherit", fontWeight: 500,
+            }}>
+              I'm okay — this is historical data
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Goals — shared constants & storage key ────────────────────────────── */
 const GOALS_KEY = "cc-goals";
 
@@ -2214,6 +2336,7 @@ export default function CareCompassTracker() {
   const [eveningForm, setEveningForm] = useState({ severity: 5, symptoms: "", food: "", medications: "", selectedMedIds: [], activity: "", stress: 5, notes: "" });
   const [checkinSaved, setCheckinSaved] = useState(""); // id of entry pending delete confirmation
   const [saveError, setSaveError]         = useState("");
+  const [safetyAlert, setSafetyAlert]     = useState(null); // null | { triggers, bpCrisis }
   const [chartField, setChartField]     = useState("severity");
   const [dateFilter, setDateFilter]     = useState("all");
   const [showAdvFilter, setShowAdvFilter] = useState(false);
@@ -2299,6 +2422,12 @@ export default function CareCompassTracker() {
     saveBpReadings([reading, ...bpReadings]);
     setBpForm(blankBpForm); setShowBpForm(false);
     setBpSaved(true); setTimeout(() => setBpSaved(false), 3000);
+
+    // Safety alert check
+    if (checkEmergencyBP(bpForm.systolic, bpForm.diastolic)) {
+      logSafetyAlertShown({ source: "bp", systolic: bpForm.systolic, diastolic: bpForm.diastolic });
+      setSafetyAlert({ triggers: [], bpCrisis: true });
+    }
   };
 
   const handleBpDelete = (id) => saveBpReadings(bpReadings.filter(r => r.id !== id));
@@ -2346,22 +2475,7 @@ export default function CareCompassTracker() {
   const isFirstEntryToday = !entries.some(e => new Date(e.timestamp).toDateString() === new Date().toDateString());
 
   const openNew  = () => { setEditingEntry(null); setForm({ ...blankForm, sleep: isFirstEntryToday ? 7 : null }); setShowForm(true); };
-  const openEdit = (entry) => {
-    setEditingEntry(entry);
-    setForm({
-      ...blankForm,
-      ...entry,
-      symptoms:       entry.symptoms       ?? "",
-      food:           entry.food           ?? "",
-      medications:    entry.medications    ?? "",
-      activity:       entry.activity       ?? "",
-      notes:          entry.notes          ?? "",
-      weather:        entry.weather        ?? "",
-      photos:         entry.photos         || [],
-      selectedMedIds: entry.selectedMedIds || [],
-    });
-    setShowForm(true);
-  };
+  const openEdit = (entry) => { setEditingEntry(entry); setForm({ ...entry, photos: entry.photos || [], selectedMedIds: entry.selectedMedIds || [] }); setShowForm(true); };
 
   const handlePhotoUpload = (e) => {
     const files = Array.from(e.target.files);
@@ -2411,6 +2525,14 @@ export default function CareCompassTracker() {
     }
     setShowForm(false); setEditingEntry(null); setForm(blankForm);
     setSaved(true); setTimeout(() => setSaved(false), 3000);
+
+    // Safety alert check
+    const combinedText = [finalForm.symptoms, finalForm.notes, finalForm.activity].filter(Boolean).join(" ");
+    const triggers = checkEmergencySymptoms(combinedText);
+    if (triggers.length) {
+      logSafetyAlertShown({ source: "entry", triggers });
+      setSafetyAlert({ triggers, bpCrisis: false });
+    }
   };
 
   const handleDelete = (id) => setConfirmDeleteId(id);
@@ -4602,6 +4724,12 @@ ${extraContext}` : ""}`;
       })()}
 
       {/* ── Delete confirmation ── */}
+      <SafetyAlertModal
+        triggers={safetyAlert?.triggers}
+        bpCrisis={safetyAlert?.bpCrisis}
+        onDismiss={() => setSafetyAlert(null)}
+      />
+
       {confirmDeleteId && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }} onClick={() => setConfirmDeleteId(null)}>
           <div style={{ background: "#fff", borderRadius: "1.25rem", padding: "2rem", maxWidth: 360, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }} onClick={e => e.stopPropagation()}>
