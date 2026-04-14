@@ -2346,7 +2346,22 @@ export default function CareCompassTracker() {
   const isFirstEntryToday = !entries.some(e => new Date(e.timestamp).toDateString() === new Date().toDateString());
 
   const openNew  = () => { setEditingEntry(null); setForm({ ...blankForm, sleep: isFirstEntryToday ? 7 : null }); setShowForm(true); };
-  const openEdit = (entry) => { setEditingEntry(entry); setForm({ ...entry, photos: entry.photos || [], selectedMedIds: entry.selectedMedIds || [] }); setShowForm(true); };
+  const openEdit = (entry) => {
+    setEditingEntry(entry);
+    setForm({
+      ...blankForm,
+      ...entry,
+      symptoms:       entry.symptoms       ?? "",
+      food:           entry.food           ?? "",
+      medications:    entry.medications    ?? "",
+      activity:       entry.activity       ?? "",
+      notes:          entry.notes          ?? "",
+      weather:        entry.weather        ?? "",
+      photos:         entry.photos         || [],
+      selectedMedIds: entry.selectedMedIds || [],
+    });
+    setShowForm(true);
+  };
 
   const handlePhotoUpload = (e) => {
     const files = Array.from(e.target.files);
