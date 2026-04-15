@@ -2475,7 +2475,26 @@ export default function CareCompassTracker() {
   const isFirstEntryToday = !entries.some(e => new Date(e.timestamp).toDateString() === new Date().toDateString());
 
   const openNew  = () => { setEditingEntry(null); setForm({ ...blankForm, sleep: isFirstEntryToday ? 7 : null }); setShowForm(true); };
-  const openEdit = (entry) => { setEditingEntry(entry); setForm({ ...entry, photos: entry.photos || [], selectedMedIds: entry.selectedMedIds || [] }); setShowForm(true); };
+  const openEdit = (entry) => {
+    setEditingEntry(entry);
+    setForm({
+      ...blankForm,
+      ...entry,
+      symptoms:       entry.symptoms       ?? "",
+      food:           entry.food           ?? "",
+      medications:    entry.medications    ?? "",
+      activity:       entry.activity       ?? "",
+      notes:          entry.notes          ?? "",
+      weather:        entry.weather        ?? "",
+      severity:       entry.severity       ?? 5,
+      stress:         entry.stress         ?? 5,
+      sleep:          entry.sleep          ?? null,
+      photos:         entry.photos         || [],
+      selectedMedIds: entry.selectedMedIds || [],
+      saveUnlistedMed: false,
+    });
+    setShowForm(true);
+  };
 
   const handlePhotoUpload = (e) => {
     const files = Array.from(e.target.files);
@@ -2502,7 +2521,7 @@ export default function CareCompassTracker() {
     const finalForm = { ...form, medications: finalMeds };
 
     // Save unlisted med to settings list if opted in
-    if (form.saveUnlistedMed && form.medications.trim()) {
+    if (form.saveUnlistedMed && (form.medications || "").trim()) {
       try {
         const existing = JSON.parse(localStorage.getItem(MED_STORAGE_KEY) || "[]");
         // Split on comma in case multiple unlisted were entered
@@ -2927,7 +2946,22 @@ ${extraContext}` : ""}`;
     try {
       const s = localStorage.getItem(CHECKIN_KEY);
       const existing = s ? JSON.parse(s) : [];
-      const entry = { ...data, type, id: Date.now(), timestamp: new Date().toISOString(), tag: type === "morning" ? "Morning check-in" : "Evening check-in" };
+      // Ensure every field blankForm expects is present so openEdit never hits undefined
+      const safeData = {
+        symptoms: "", food: "", medications: "", activity: "",
+        notes: "", weather: "", severity: 5, stress: 5, sleep: null,
+        photos: [], selectedMedIds: [], saveUnlistedMed: false,
+        ...data,
+        symptoms:       data.symptoms       ?? "",
+        food:           data.food           ?? "",
+        medications:    data.medications    ?? "",
+        activity:       data.activity       ?? "",
+        notes:          data.notes          ?? "",
+        weather:        data.weather        ?? "",
+        photos:         data.photos         || [],
+        selectedMedIds: data.selectedMedIds || [],
+      };
+      const entry = { ...safeData, type, id: Date.now(), timestamp: new Date().toISOString(), tag: type === "morning" ? "Morning check-in" : "Evening check-in" };
       // Also save as a regular tracker entry
       saveEntries([entry, ...entries]);
       // Record checkin done
