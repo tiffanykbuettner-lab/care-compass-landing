@@ -614,6 +614,162 @@ const sageStyles = {
 };
 
 /* ─── Main Landing Page ───────────────────────────────────────────────────── */
+/* ─── Example Insight Carousel ───────────────────────────────────────────── */
+const INSIGHT_EXAMPLES = [
+  {
+    condition: "Fibromyalgia",
+    symptoms: ["Widespread muscle pain","Extreme fatigue","Sleep disturbances","Brain fog","Sensitivity to touch","Headaches","Morning stiffness","Anxiety"],
+    insight: "\"The pattern of widespread pain that shifts locations, combined with non-restorative sleep, cognitive difficulties, and sensory sensitivities, is consistent with central sensitization — a hallmark of Fibromyalgia. Tracking flare timing alongside sleep quality and activity levels may help identify your personal triggers and make conversations with a rheumatologist or pain specialist more productive.\"",
+  },
+  {
+    condition: "Lupus & Autoimmune",
+    symptoms: ["Butterfly rash","Joint pain","Fatigue","Sun sensitivity","Hair loss","Mouth sores","Low-grade fever","Chest pain"],
+    insight: "\"The combination of a facial rash pattern, joint pain that moves between joints, sun sensitivity, and recurring low-grade fevers suggests an autoimmune process worth investigating. These symptoms — especially when they come and go — are characteristic of conditions like Systemic Lupus Erythematosus (SLE). A rheumatologist can order specific antibody panels to help clarify the picture.\"",
+  },
+  {
+    condition: "Endometriosis",
+    symptoms: ["Severe pelvic pain","Painful periods","Pain with intercourse","Bloating","Fatigue","GI symptoms","Heavy bleeding","Pain when urinating"],
+    insight: "\"Cyclical pelvic pain that worsens before and during menstruation, alongside GI symptoms and fatigue that track with your cycle, is a pattern strongly associated with endometriosis — a condition that takes an average of 7–10 years to diagnose. Bringing a detailed symptom timeline to a gynecologist who specializes in endometriosis or minimally invasive surgery can significantly shorten that journey.\"",
+  },
+  {
+    condition: "ME/CFS",
+    symptoms: ["Post-exertional malaise","Unrefreshing sleep","Cognitive impairment","Orthostatic intolerance","Muscle weakness","Sensory overload","Sore throat","Temperature dysregulation"],
+    insight: "\"The hallmark pattern here — especially worsening of all symptoms after minimal physical or cognitive effort, combined with unrefreshing sleep and orthostatic intolerance — closely matches the diagnostic criteria for Myalgic Encephalomyelitis / Chronic Fatigue Syndrome (ME/CFS). Tracking your energy envelope and post-exertional crashes can be invaluable data for a specialist in complex chronic conditions.\"",
+  },
+  {
+    condition: "Hashimoto's & Thyroid",
+    symptoms: ["Persistent fatigue","Weight changes","Brain fog","Cold intolerance","Hair thinning","Depression","Dry skin","Heart palpitations"],
+    insight: "\"Fatigue that doesn't improve with rest, cold sensitivity, hair thinning, and mood changes occurring together are a classic cluster for thyroid dysfunction — including Hashimoto's thyroiditis, an autoimmune condition that is the leading cause of hypothyroidism. TSH alone often misses the full picture; asking your doctor to also test Free T3, Free T4, and thyroid antibodies (TPO and TgAb) can provide a much clearer view.\"",
+  },
+];
+
+function ExampleInsightCarousel({ styles }) {
+  const [active, setActive] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const [animating, setAnimating] = useState(false);
+  const [visible, setVisible] = useState(true);
+
+  const goTo = (idx) => {
+    if (idx === active || animating) return;
+    setAnimating(true);
+    setVisible(false);
+    setTimeout(() => {
+      setActive(idx);
+      setVisible(true);
+      setAnimating(false);
+    }, 280);
+  };
+
+  useEffect(() => {
+    if (paused) return;
+    const timer = setInterval(() => {
+      setAnimating(true);
+      setVisible(false);
+      setTimeout(() => {
+        setActive(prev => (prev + 1) % INSIGHT_EXAMPLES.length);
+        setVisible(true);
+        setAnimating(false);
+      }, 280);
+    }, 6000);
+    return () => clearInterval(timer);
+  }, [paused, active]);
+
+  const ex = INSIGHT_EXAMPLES[active];
+
+  return (
+    <section style={styles.exampleSection}>
+      <div style={styles.container}>
+        <FadeIn>
+          <p style={styles.sectionEyebrow}>See it in action</p>
+          <h2 style={styles.sectionTitle}>What a Care Compass insight looks like</h2>
+          <p style={styles.exampleIntro}>Here are examples of the kinds of patterns Care Compass might surface — based on real symptom clusters seen across chronic illness communities.</p>
+        </FadeIn>
+
+        {/* Dot navigation */}
+        <div style={{ display: "flex", justifyContent: "center", gap: "0.5rem", marginBottom: "1.5rem" }}>
+          {INSIGHT_EXAMPLES.map((ex, i) => (
+            <button
+              key={i}
+              onClick={() => { setPaused(true); goTo(i); }}
+              title={ex.condition}
+              style={{
+                width: i === active ? 28 : 8, height: 8,
+                borderRadius: 100, border: "none", cursor: "pointer", padding: 0,
+                background: i === active ? "#4a9fa5" : "rgba(74,159,165,0.25)",
+                transition: "all 0.3s ease",
+              }}
+            />
+          ))}
+        </div>
+
+        <FadeIn delay={0.1}>
+          <div
+            onMouseEnter={() => setPaused(true)}
+            onMouseLeave={() => setPaused(false)}
+            style={{
+              ...styles.exampleCard,
+              opacity: visible ? 1 : 0,
+              transform: visible ? "translateY(0)" : "translateY(8px)",
+              transition: "opacity 0.28s ease, transform 0.28s ease",
+            }}
+          >
+            {/* Condition label */}
+            <div style={{ padding: "1rem 2rem 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{
+                fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.08em",
+                textTransform: "uppercase", color: "white",
+                background: "#4a9fa5", borderRadius: 100,
+                padding: "0.25rem 0.85rem", fontFamily: "sans-serif",
+              }}>{ex.condition}</span>
+              <span style={{ fontSize: "0.72rem", color: "#bbb", fontFamily: "sans-serif" }}>
+                {active + 1} / {INSIGHT_EXAMPLES.length}
+              </span>
+            </div>
+
+            <div style={styles.exampleInput}>
+              <p style={styles.exampleInputLabel}>Symptoms shared</p>
+              <div style={styles.exampleTags}>
+                {ex.symptoms.map(tag => (
+                  <span key={tag} style={styles.exampleTag}>{tag}</span>
+                ))}
+              </div>
+            </div>
+            <div style={styles.exampleDivider}/>
+            <div style={styles.exampleOutput}>
+              <p style={styles.exampleOutputLabel}>Care Compass noticed</p>
+              <p style={styles.exampleOutputText}>{ex.insight}</p>
+              <p style={styles.exampleDisclaimer}>This is an illustrative example. Care Compass provides patterns to discuss with your doctor — not a diagnosis.</p>
+            </div>
+          </div>
+        </FadeIn>
+
+        {/* Prev / Next controls */}
+        <div style={{ display: "flex", justifyContent: "center", gap: "1rem", marginTop: "1.25rem" }}>
+          {[
+            { label: "← Previous", dir: -1 },
+            { label: "Next →",     dir:  1 },
+          ].map(({ label, dir }) => (
+            <button
+              key={label}
+              onClick={() => { setPaused(true); goTo((active + dir + INSIGHT_EXAMPLES.length) % INSIGHT_EXAMPLES.length); }}
+              style={{
+                fontSize: "0.82rem", fontWeight: 500, color: "#4a9fa5",
+                background: "transparent", border: "1px solid rgba(74,159,165,0.35)",
+                borderRadius: 100, padding: "0.4rem 1.1rem", cursor: "pointer",
+                fontFamily: "sans-serif", transition: "background 0.15s",
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = "rgba(74,159,165,0.08)"}
+              onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function CareCompassLanding() {
   const [scrolled, setScrolled] = useState(false);
 
@@ -740,35 +896,7 @@ export default function CareCompassLanding() {
       </section>
 
       {/* ── Example insight ── */}
-      <section style={styles.exampleSection}>
-        <div style={styles.container}>
-          <FadeIn>
-            <p style={styles.sectionEyebrow}>See it in action</p>
-            <h2 style={styles.sectionTitle}>What a Care Compass insight looks like</h2>
-            <p style={styles.exampleIntro}>Here's an example of the kind of pattern Care Compass might surface — based on real symptom clusters seen in chronic illness communities.</p>
-          </FadeIn>
-          <FadeIn delay={0.15}>
-            <div style={styles.exampleCard}>
-              <div style={styles.exampleInput}>
-                <p style={styles.exampleInputLabel}>Symptoms shared</p>
-                <div style={styles.exampleTags}>
-                  {["Joint instability","Dizziness on standing","Heart palpitations","Extreme fatigue","Food sensitivities","Brain fog","Chronic nausea","Heat intolerance"].map(tag => (
-                    <span key={tag} style={styles.exampleTag}>{tag}</span>
-                  ))}
-                </div>
-              </div>
-              <div style={styles.exampleDivider}/>
-              <div style={styles.exampleOutput}>
-                <p style={styles.exampleOutputLabel}>Care Compass noticed</p>
-                <p style={styles.exampleOutputText}>
-                  "The combination of joint instability, dizziness on standing, heart palpitations, food sensitivities, and heat intolerance is a pattern worth exploring. These symptoms together may point to conditions like hypermobile Ehlers-Danlos Syndrome (hEDS), Postural Orthostatic Tachycardia Syndrome (POTS), or Mast Cell Activation Syndrome (MCAS) — which frequently occur together and are often missed when treated in isolation."
-                </p>
-                <p style={styles.exampleDisclaimer}>This is an illustrative example. Care Compass provides patterns to discuss with your doctor — not a diagnosis.</p>
-              </div>
-            </div>
-          </FadeIn>
-        </div>
-      </section>
+      <ExampleInsightCarousel styles={styles} />
 
       {/* ── Conditions ── */}
       <section style={styles.conditionsSection}>
