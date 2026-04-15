@@ -1477,7 +1477,7 @@ function NotificationsPanel({ prefs, setPrefs, markDirty }) {
     {
       key: "weeklyDigest",
       label: "Weekly insights digest",
-      sub: "A summary of patterns from your past 7 days, sent every week",
+      sub: "A weekly in-app summary of patterns, trends, and highlights from your past 7 days — delivered every week so you can review your progress at a glance",
       showTime: true,
       showDay: true,
       cadenceLabel: "Every",
@@ -1485,7 +1485,7 @@ function NotificationsPanel({ prefs, setPrefs, markDirty }) {
     {
       key: "morningCheckin",
       label: "Morning check-in",
-      sub: "Prompt to log your sleep quality and how you feel on waking",
+      sub: "A prompt to log your sleep quality and how you feel on waking",
       showTime: true,
       cadenceLabel: "Show after",
       timeHint: "Shows on tracker after this time each morning",
@@ -1493,7 +1493,7 @@ function NotificationsPanel({ prefs, setPrefs, markDirty }) {
     {
       key: "eveningCheckin",
       label: "Evening check-in",
-      sub: "Prompt to reflect on your day and log any remaining symptoms",
+      sub: "A prompt to reflect on your day and log any remaining symptoms",
       showTime: true,
       cadenceLabel: "Show after",
       timeHint: "Shows on tracker after this time each evening",
@@ -1501,7 +1501,7 @@ function NotificationsPanel({ prefs, setPrefs, markDirty }) {
     {
       key: "productUpdates",
       label: "Product updates & tips",
-      sub: "Occasional emails from the Care Compass team about new features and tips — sent when we have something worth sharing",
+      sub: "Occasional emails from the Care Compass team about new features and tips",
       showTime: false,
       cadenceLabel: null,
     },
