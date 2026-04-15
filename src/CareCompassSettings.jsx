@@ -1581,7 +1581,7 @@ function SecurityPanel() {
     { label: "Password",                   sub: "Last changed 3 months ago",                 status: null,  action: "Change password" },
     { label: "Two-factor authentication",  sub: "Authenticator app (TOTP) enabled",          status: true,  action: "Manage" },
     { label: "Passkey",                    sub: "Sign in with Face ID or fingerprint",        status: false, action: "Add passkey" },
-    { label: "Active sessions",            sub: "2 devices currently signed in",             status: null,  action: "View sessions" },
+    { label: "Signed-in devices",            sub: "The browsers and devices where you're currently logged in — review and remove any you don't recognize",             status: null,  action: "View devices" },
     { label: "Recovery codes",             sub: "Backup codes for account recovery",         status: null,  action: "View codes" },
   ];
 
