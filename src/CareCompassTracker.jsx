@@ -1845,7 +1845,7 @@ function CycleTab({ globalEntries }) {
         <div>
           <p style={{ fontSize: "0.75rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: ROSE, margin: "0 0 0.35rem" }}>Cycle Tracker</p>
           <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.4rem", fontWeight: 700, color: INK, margin: "0 0 0.25rem" }}>Menstrual Health</h2>
-          <p style={{ fontSize: "0.85rem", color: WARM_GRAY, margin: 0 }}>Track your cycle alongside your symptoms. Pattern data feeds into your AI insights and doctor reports.</p>
+          <p style={{ fontSize: "0.85rem", color: WARM_GRAY, margin: 0 }}>Track your cycle alongside your symptoms. Pattern data feeds into your AI insights and care team reports.</p>
         </div>
         <button onClick={() => { setForm(blankForm); setEditingId(null); setShowForm(true); }}
           style={{ background: ROSE, color: "#fff", border: "none", padding: "0.75rem 1.25rem", borderRadius: "100px", fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
@@ -2914,7 +2914,7 @@ ${extraContext}` : ""}`;
     { id: "bp", label: "Blood Pressure" },
     { id: "trends", label: "Trends" },
     { id: "insights", label: "AI Insights" },
-    { id: "report", label: "Doctor Report" },
+    { id: "report", label: "Care Team Report" },
     { id: "labs", label: "Lab Results" },
     { id: "er", label: "ER Report" },
     { id: "cycle", label: "Cycle Tracker" },
@@ -3013,8 +3013,8 @@ ${extraContext}` : ""}`;
               <div style={s.onboardingStep}>
                 <span style={s.onboardingStepNum}>4</span>
                 <div>
-                  <p style={s.onboardingStepTitle}>Bring reports to your doctor</p>
-                  <p style={s.onboardingStepDesc}>Generate a formatted Doctor Report to share hard data at your next appointment.</p>
+                  <p style={s.onboardingStepTitle}>Share reports with your care team</p>
+                  <p style={s.onboardingStepDesc}>Generate a formatted Care Team Report to share hard data at your next appointment — tailored for doctors, specialists, and caregivers.</p>
                 </div>
               </div>
             </div>
@@ -3529,91 +3529,168 @@ ${extraContext}` : ""}`;
           {view === "report" && (
             <div style={s.tabContent}>
               {entries.length === 0 ? (
-                <div style={s.emptyState}><p style={s.emptyDesc}>No entries yet. Start logging to generate a doctor report.</p></div>
-              ) : reportView === "prompt" ? (
+                <div style={s.emptyState}><p style={s.emptyDesc}>No entries yet. Start logging to generate a care team report.</p></div>
+              ) : reportView === "prompt" ? (() => {
+                // Detect if selected recipient is a caregiver
+                const selectedMember = careTeam.find(p => p.name === reportPrompt.providerName);
+                const recipientIsCaregiver = selectedMember?.type === "caregiver";
+                const canGenerate = recipientIsCaregiver
+                  ? reportPrompt.providerName.trim()
+                  : (reportPrompt.focus.trim() || reportPrompt.specialty);
+                return (
                 <div style={{ maxWidth: 640, margin: "0 auto", display: "flex", flexDirection: "column", gap: "1.75rem" }}>
                   <div>
-                    <p style={s.eyebrow}>Doctor Report</p>
-                    <h2 style={{ ...s.title, fontSize: "1.5rem", marginBottom: "0.4rem" }}>Prepare your visit report</h2>
-                    <p style={{ fontSize: "0.92rem", color: WARM_GRAY, margin: 0, lineHeight: 1.65 }}>Tell us about your upcoming appointment and Care Compass will generate a focused, AI-powered report with your metrics, relevant entries, and questions tailored to your visit.</p>
+                    <p style={s.eyebrow}>Care Team Report</p>
+                    <h2 style={{ ...s.title, fontSize: "1.5rem", marginBottom: "0.4rem" }}>
+                      {recipientIsCaregiver ? "Prepare a health update" : "Prepare your visit report"}
+                    </h2>
+                    <p style={{ fontSize: "0.92rem", color: WARM_GRAY, margin: 0, lineHeight: 1.65 }}>
+                      {recipientIsCaregiver
+                        ? "Care Compass will generate a plain-language health update for your caregiver or support person — no medical jargon, just a clear picture of how you've been doing."
+                        : "Tell us about your upcoming appointment and Care Compass will generate a focused, AI-powered report with your metrics, relevant entries, and questions tailored to your visit."}
+                    </p>
                   </div>
+
                   <div style={{ background: "#fff", borderRadius: "1.25rem", border: "1px solid rgba(0,0,0,0.07)", padding: "1.75rem", display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-                    {/* Provider name — care team pills or freetext */}
+
+                    {/* ── Who is this report for? ── */}
                     <div style={s.formGroup}>
-                      <label style={s.label}>Provider name</label>
+                      <label style={s.label}>Who is this report for?</label>
                       {careTeam.filter(p => p.name).length > 0 ? (
                         <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
-                            {careTeam.filter(p => p.name).map((p, i) => (
-                              <button key={i}
-                                onClick={() => setReportPrompt(prev => ({ ...prev, providerName: p.name, specialty: p.type === "caregiver" ? (p.careRole || "Caregiver") : (p.specialty || prev.specialty), saveToTeam: false }))}
-                                style={{ padding: "0.4rem 0.875rem", borderRadius: "100px", border: "1.5px solid", borderColor: reportPrompt.providerName === p.name ? SAGE_DARK : "rgba(0,0,0,0.12)", background: reportPrompt.providerName === p.name ? SAGE_DARK : "#fff", color: reportPrompt.providerName === p.name ? "#fff" : INK, fontSize: "0.85rem", fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}>
-                                {p.name}{(p.type === "caregiver" ? (p.careRole || "Caregiver") : p.specialty) ? ` · ${p.type === "caregiver" ? (p.careRole || "Caregiver") : p.specialty}` : ""}
-                              </button>
-                            ))}
+                          {/* Providers group */}
+                          {careTeam.filter(p => p.type !== "caregiver" && p.name).length > 0 && (
+                            <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+                              <p style={{ fontSize: "0.7rem", fontWeight: 600, color: WARM_GRAY, textTransform: "uppercase", letterSpacing: "0.06em", margin: 0 }}>Medical Providers</p>
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+                                {careTeam.filter(p => p.type !== "caregiver" && p.name).map((p, i) => (
+                                  <button key={i}
+                                    onClick={() => setReportPrompt(prev => ({ ...prev, providerName: p.name, specialty: p.specialty || prev.specialty, saveToTeam: false }))}
+                                    style={{ padding: "0.4rem 0.875rem", borderRadius: "100px", border: "1.5px solid", borderColor: reportPrompt.providerName === p.name ? SAGE_DARK : "rgba(0,0,0,0.12)", background: reportPrompt.providerName === p.name ? SAGE_DARK : "#fff", color: reportPrompt.providerName === p.name ? "#fff" : INK, fontSize: "0.85rem", fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}>
+                                    {p.name}{p.specialty ? ` · ${p.specialty}` : ""}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {/* Caregivers group */}
+                          {careTeam.filter(p => p.type === "caregiver" && p.name).length > 0 && (
+                            <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+                              <p style={{ fontSize: "0.7rem", fontWeight: 600, color: WARM_GRAY, textTransform: "uppercase", letterSpacing: "0.06em", margin: 0 }}>Caregivers & Support People</p>
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+                                {careTeam.filter(p => p.type === "caregiver" && p.name).map((p, i) => (
+                                  <button key={i}
+                                    onClick={() => setReportPrompt(prev => ({ ...prev, providerName: p.name, specialty: p.careRole || "Caregiver", saveToTeam: false }))}
+                                    style={{ padding: "0.4rem 0.875rem", borderRadius: "100px", border: "1.5px solid", borderColor: reportPrompt.providerName === p.name ? TEAL : "rgba(0,0,0,0.12)", background: reportPrompt.providerName === p.name ? TEAL : "#fff", color: reportPrompt.providerName === p.name ? "#fff" : INK, fontSize: "0.85rem", fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}>
+                                    {p.name}{p.careRole ? ` · ${p.careRole}` : ""}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {/* Other / not in care team */}
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginTop: "0.15rem" }}>
                             <button
                               onClick={() => setReportPrompt(prev => ({ ...prev, providerName: !careTeam.find(p => p.name === prev.providerName) ? prev.providerName : "" }))}
                               style={{ padding: "0.4rem 0.875rem", borderRadius: "100px", border: "1.5px dashed rgba(0,0,0,0.15)", background: !careTeam.find(p => p.name === reportPrompt.providerName) && reportPrompt.providerName ? SAGE_LIGHT : "#fff", color: WARM_GRAY, fontSize: "0.85rem", cursor: "pointer", fontFamily: "inherit" }}>
-                              + Other provider
+                              + Someone else
                             </button>
                           </div>
                           {(!careTeam.find(p => p.name === reportPrompt.providerName) || reportPrompt.providerName === "") && (
                             <input style={s.input} value={reportPrompt.providerName}
                               onChange={e => setReportPrompt(p => ({ ...p, providerName: e.target.value, saveToTeam: false }))}
-                              placeholder="Enter provider name"/>
+                              placeholder="Enter name"/>
                           )}
                           {reportPrompt.providerName.trim() && !careTeam.find(p => p.name === reportPrompt.providerName) && (
                             <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", fontSize: "0.8rem", color: SAGE_DARK }}>
                               <input type="checkbox" checked={reportPrompt.saveToTeam || false} onChange={() => setReportPrompt(p => ({ ...p, saveToTeam: !p.saveToTeam }))} style={{ accentColor: SAGE_DARK, width: 14, height: 14 }}/>
-                              Save this provider to my care team in Account Settings
+                              Save to my care team in Account Settings
                             </label>
                           )}
                         </div>
                       ) : (
                         <input style={s.input} value={reportPrompt.providerName}
                           onChange={e => setReportPrompt(p => ({ ...p, providerName: e.target.value }))}
-                          placeholder="e.g. Dr. Smith"/>
+                          placeholder="e.g. Dr. Smith or Mom"/>
                       )}
                     </div>
-                    {/* Specialty dropdown */}
-                    <div style={s.formGroup}>
-                      <label style={s.label}>Specialty</label>
-                      <select style={s.input} value={reportPrompt.specialty} onChange={e => setReportPrompt(p => ({ ...p, specialty: e.target.value }))}>
-                        <option value="">Select a specialty…</option>
-                        {APPT_SPECIALTIES.map(sp => <option key={sp} value={sp}>{sp}</option>)}
-                      </select>
-                    </div>
-                    <div style={s.formGroup}>
-                      <label style={s.label}>What are you being seen for?</label>
-                      <input style={s.input} value={reportPrompt.focus} onChange={e => setReportPrompt(p => ({ ...p, focus: e.target.value }))} placeholder="e.g. Neck and knee pain, flare management, medication review"/>
-                    </div>
-                    <div style={s.formGroup}>
-                      <label style={s.label}>Symptoms to highlight <span style={s.optional}>(optional)</span></label>
-                      <textarea style={{ ...s.input, resize: "vertical" }} rows={2} value={reportPrompt.symptoms} onChange={e => setReportPrompt(p => ({ ...p, symptoms: e.target.value }))} placeholder="e.g. Neck stiffness after sitting, knee pain on stairs, morning joint pain lasting 2+ hours"/>
-                    </div>
-                    <div style={s.formGroup}>
-                      <label style={s.label}>Questions or concerns to raise <span style={s.optional}>(optional)</span></label>
-                      <textarea style={{ ...s.input, resize: "vertical" }} rows={2} value={reportPrompt.questions} onChange={e => setReportPrompt(p => ({ ...p, questions: e.target.value }))} placeholder="e.g. Is my pain pattern consistent with inflammation? Should we adjust my current treatment?"/>
-                    </div>
+
+                    {/* ── Doctor fields — only shown when recipient is a provider ── */}
+                    {!recipientIsCaregiver && (
+                      <>
+                        <div style={s.formGroup}>
+                          <label style={s.label}>Specialty</label>
+                          <select style={s.input} value={reportPrompt.specialty} onChange={e => setReportPrompt(p => ({ ...p, specialty: e.target.value }))}>
+                            <option value="">Select a specialty…</option>
+                            {APPT_SPECIALTIES.map(sp => <option key={sp} value={sp}>{sp}</option>)}
+                          </select>
+                        </div>
+                        <div style={s.formGroup}>
+                          <label style={s.label}>What are you being seen for?</label>
+                          <input style={s.input} value={reportPrompt.focus} onChange={e => setReportPrompt(p => ({ ...p, focus: e.target.value }))} placeholder="e.g. Neck and knee pain, flare management, medication review"/>
+                        </div>
+                        <div style={s.formGroup}>
+                          <label style={s.label}>Symptoms to highlight <span style={s.optional}>(optional)</span></label>
+                          <textarea style={{ ...s.input, resize: "vertical" }} rows={2} value={reportPrompt.symptoms} onChange={e => setReportPrompt(p => ({ ...p, symptoms: e.target.value }))} placeholder="e.g. Neck stiffness after sitting, knee pain on stairs, morning joint pain lasting 2+ hours"/>
+                        </div>
+                        <div style={s.formGroup}>
+                          <label style={s.label}>Questions or concerns to raise <span style={s.optional}>(optional)</span></label>
+                          <textarea style={{ ...s.input, resize: "vertical" }} rows={2} value={reportPrompt.questions} onChange={e => setReportPrompt(p => ({ ...p, questions: e.target.value }))} placeholder="e.g. Is my pain pattern consistent with inflammation? Should we adjust my current treatment?"/>
+                        </div>
+                      </>
+                    )}
+
+                    {/* ── Caregiver fields — only shown when recipient is a caregiver ── */}
+                    {recipientIsCaregiver && (
+                      <>
+                        <div style={s.formGroup}>
+                          <label style={s.label}>What do you want them to understand? <span style={s.optional}>(optional)</span></label>
+                          <input style={s.input} value={reportPrompt.focus} onChange={e => setReportPrompt(p => ({ ...p, focus: e.target.value }))} placeholder="e.g. How bad my fatigue has been, what I need help with"/>
+                        </div>
+                        <div style={s.formGroup}>
+                          <label style={s.label}>Symptoms to highlight <span style={s.optional}>(optional)</span></label>
+                          <textarea style={{ ...s.input, resize: "vertical" }} rows={2} value={reportPrompt.symptoms} onChange={e => setReportPrompt(p => ({ ...p, symptoms: e.target.value }))} placeholder="e.g. The exhaustion after small tasks, the unpredictability of flares"/>
+                        </div>
+                        <div style={s.formGroup}>
+                          <label style={s.label}>Anything specific to include? <span style={s.optional}>(optional)</span></label>
+                          <textarea style={{ ...s.input, resize: "vertical" }} rows={2} value={reportPrompt.questions} onChange={e => setReportPrompt(p => ({ ...p, questions: e.target.value }))} placeholder="e.g. I'd like them to understand why I had to cancel plans last week"/>
+                        </div>
+                      </>
+                    )}
                   </div>
-                  <div style={{ background: SAGE_LIGHT, borderRadius: "0.875rem", padding: "0.875rem 1.1rem", display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
-                    <Icon name="info" size={16} color={SAGE_DARK} style={{ flexShrink:0, marginTop:"0.1rem" }} />
-                    <p style={{ fontSize: "0.8rem", color: SAGE_DARK, margin: 0, lineHeight: 1.6 }}>Your report will include <strong>metrics and charts</strong>, <strong>highlighted entries</strong> relevant to your visit, and <strong>tailored questions</strong> — based on {entries.length} entries across {new Set(entries.map(e => new Date(e.timestamp).toDateString())).size} days.</p>
+
+                  <div style={{ background: recipientIsCaregiver ? TEAL_LIGHT : SAGE_LIGHT, borderRadius: "0.875rem", padding: "0.875rem 1.1rem", display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
+                    <Icon name="info" size={16} color={recipientIsCaregiver ? TEAL : SAGE_DARK} style={{ flexShrink:0, marginTop:"0.1rem" }} />
+                    <p style={{ fontSize: "0.8rem", color: recipientIsCaregiver ? TEAL : SAGE_DARK, margin: 0, lineHeight: 1.6 }}>
+                      {recipientIsCaregiver
+                        ? <>Your update will be written in <strong>plain language</strong> — warm, clear, and easy to understand. Based on {entries.length} entries across {new Set(entries.map(e => new Date(e.timestamp).toDateString())).size} days.</>
+                        : <>Your report will include <strong>metrics and charts</strong>, <strong>highlighted entries</strong> relevant to your visit, and <strong>tailored questions</strong> — based on {entries.length} entries across {new Set(entries.map(e => new Date(e.timestamp).toDateString())).size} days.</>
+                      }
+                    </p>
                   </div>
-                  <button onClick={handleGenerateReport} disabled={!reportPrompt.focus.trim() && !reportPrompt.specialty}
-                    style={{ ...s.addBtn, padding: "1rem 2rem", fontSize: "1rem", opacity: (!reportPrompt.focus.trim() && !reportPrompt.specialty) ? 0.5 : 1 }}>
-                    Generate My Report →
+
+                  <button onClick={handleGenerateReport} disabled={!canGenerate}
+                    style={{ ...s.addBtn, padding: "1rem 2rem", fontSize: "1rem", opacity: canGenerate ? 1 : 0.5, background: recipientIsCaregiver ? TEAL : SAGE_DARK }}>
+                    {recipientIsCaregiver ? "Generate Health Update →" : "Generate My Report →"}
                   </button>
-                  {!reportPrompt.focus.trim() && !reportPrompt.specialty && (
-                    <p style={{ fontSize: "0.8rem", color: "#aaa", margin: "-1rem 0 0", textAlign: "center", fontStyle: "italic" }}>Select a specialty or enter a visit focus to get started</p>
+                  {!canGenerate && (
+                    <p style={{ fontSize: "0.8rem", color: "#aaa", margin: "-1rem 0 0", textAlign: "center", fontStyle: "italic" }}>
+                      {recipientIsCaregiver ? "Select a caregiver to get started" : "Select a specialty or enter a visit focus to get started"}
+                    </p>
                   )}
                 </div>
+                );
+              })()
               ) : reportView === "generating" ? (
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 400, gap: "1.5rem", textAlign: "center" }}>
                   <BotanicalMark size={56}/>
                   <div>
                     <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.4rem", fontWeight: 700, color: INK, margin: "0 0 0.5rem" }}>Building your report…</h2>
-                    <p style={{ fontSize: "0.92rem", color: WARM_GRAY, margin: 0, lineHeight: 1.7, maxWidth: 360 }}>Care Compass is analyzing your entries and tailoring insights for your {reportPrompt.specialty || "appointment"}{reportPrompt.providerName ? ` with ${reportPrompt.providerName}` : ""}.</p>
+                    <p style={{ fontSize: "0.92rem", color: WARM_GRAY, margin: 0, lineHeight: 1.7, maxWidth: 360 }}>
+                      {careTeam.find(p => p.name === reportPrompt.providerName)?.type === "caregiver"
+                        ? `Care Compass is preparing a health update for ${reportPrompt.providerName}…`
+                        : `Care Compass is analyzing your entries and tailoring insights for your ${reportPrompt.specialty || "appointment"}${reportPrompt.providerName ? ` with ${reportPrompt.providerName}` : ""}.`}
+                    </p>
                   </div>
                   <div style={{ width: "100%", maxWidth: 320, height: 6, background: SAGE_LIGHT, borderRadius: 100, overflow: "hidden" }}>
                     <div style={{ height: "100%", borderRadius: 100, background: SAGE_DARK, animation: "insightProgress 18s ease-in-out forwards" }}/>
@@ -3630,12 +3707,18 @@ ${extraContext}` : ""}`;
                     <div style={s.reportHead}>
                       <BotanicalMark size={44}/>
                       <div style={{ flex: 1 }}>
-                        <p style={s.reportEyebrow}>Care Compass · Appointment Report</p>
-                        <h2 style={s.reportTitle}>{reportPrompt.specialty || "Doctor"} Visit{reportPrompt.providerName ? ` — ${reportPrompt.providerName}` : ""}</h2>
+                        <p style={s.reportEyebrow}>Care Compass · Care Team Report</p>
+                        <h2 style={s.reportTitle}>
+                          {careTeam.find(p => p.name === reportPrompt.providerName)?.type === "caregiver"
+                            ? `Health Update — ${reportPrompt.providerName}${(careTeam.find(p => p.name === reportPrompt.providerName)?.careRole) ? ` · ${careTeam.find(p => p.name === reportPrompt.providerName).careRole}` : ""}`
+                            : `${reportPrompt.specialty || "Doctor"} Visit${reportPrompt.providerName ? ` — ${reportPrompt.providerName}` : ""}`}
+                        </h2>
                         <p style={s.reportMeta}>Generated {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })} · {entries.length} entries over {new Set(entries.map(e => new Date(e.timestamp).toDateString())).size} days</p>
                         {reportPrompt.focus && (
                           <div style={{ marginTop: "0.875rem", background: `linear-gradient(135deg, ${SAGE_LIGHT}, ${TEAL_LIGHT})`, borderRadius: "0.75rem", padding: "0.75rem 1rem" }}>
-                            <p style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: SAGE_DARK, margin: "0 0 0.2rem" }}>Visit focus</p>
+                            <p style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: SAGE_DARK, margin: "0 0 0.2rem" }}>
+                              {careTeam.find(p => p.name === reportPrompt.providerName)?.type === "caregiver" ? "Update focus" : "Visit focus"}
+                            </p>
                             <p style={{ fontSize: "0.9rem", color: INK, margin: 0, lineHeight: 1.5 }}>{reportPrompt.focus}</p>
                           </div>
                         )}
@@ -3644,7 +3727,9 @@ ${extraContext}` : ""}`;
                             <p style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: "0 0 0.4rem" }}>Care team</p>
                             <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
                               {careTeam.filter(p => p.name).map((p, i) => (
-                                <span key={i} style={{ background: SAGE_LIGHT, color: SAGE_DARK, fontSize: "0.75rem", fontWeight: 600, padding: "0.2rem 0.7rem", borderRadius: "100px" }}>{p.name}{p.specialty ? ` · ${p.specialty}` : ""}</span>
+                                <span key={i} style={{ background: p.type === "caregiver" ? TEAL_LIGHT : SAGE_LIGHT, color: p.type === "caregiver" ? TEAL : SAGE_DARK, fontSize: "0.75rem", fontWeight: 600, padding: "0.2rem 0.7rem", borderRadius: "100px" }}>
+                                  {p.name}{(p.type === "caregiver" ? p.careRole : p.specialty) ? ` · ${p.type === "caregiver" ? p.careRole : p.specialty}` : ""}
+                                </span>
                               ))}
                             </div>
                           </div>
@@ -3960,7 +4045,7 @@ ${extraContext}` : ""}`;
 
               {/* Sub-tabs */}
               <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.5rem", borderBottom: "1px solid rgba(0,0,0,0.07)", paddingBottom: "0" }} className="no-print">
-                {[{ id: "log", label: "Overview" }, { id: "history", label: "History" }, { id: "report", label: "Doctor Report" }].map(t => (
+                {[{ id: "log", label: "Overview" }, { id: "history", label: "History" }, { id: "report", label: "Care Team Report" }].map(t => (
                   <button key={t.id} onClick={() => setBpView(t.id)} style={{ ...s.tab, borderBottom: bpView === t.id ? `2px solid #c0392b` : "2px solid transparent", color: bpView === t.id ? "#c0392b" : WARM_GRAY, fontWeight: bpView === t.id ? 600 : 400 }}>{t.label}</button>
                 ))}
               </div>
@@ -4118,7 +4203,7 @@ ${extraContext}` : ""}`;
                 </div>
               )}
 
-              {/* ── Doctor Report ── */}
+              {/* ── Care Team Report ── */}
               {bpView === "report" && (
                 <div style={s.reportWrap}>
                   <div style={s.reportTopBar} className="no-print">
@@ -5119,7 +5204,7 @@ Help users with questions about how to use the tracker effectively — what to l
 const TRACKER_SUGGESTIONS = [
   "How detailed should my entries be?",
   "What do the AI insights do?",
-  "How do I generate a doctor report?",
+  "How do I generate a care team report?",
   "How is my tracking data stored?",
   "What's the morning check-in for?",
   "How does the blood pressure log work?",
