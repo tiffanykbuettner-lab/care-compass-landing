@@ -926,7 +926,7 @@ function ProfilePanel({ form, setForm, markDirty }) {
             </Field>
             <Field label="Biological sex" optional hint="Affects some medical reference ranges">
               <StyledSelect value={form.sex} onChange={set("sex")}>
-                <option value="">— Leave blank —</option>
+                <option value="">Select an option…</option>
                 <option>Female</option>
                 <option>Male</option>
                 <option>Intersex</option>
@@ -938,7 +938,7 @@ function ProfilePanel({ form, setForm, markDirty }) {
           {/* Pronouns */}
           <Field label="Pronouns" optional>
             <StyledSelect value={form.pronouns} onChange={set("pronouns")}>
-              <option value="">— Leave blank —</option>
+              <option value="">Select an option…</option>
               <option>She / Her</option>
               <option>He / Him</option>
               <option>They / Them</option>
