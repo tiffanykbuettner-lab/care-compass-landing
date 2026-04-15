@@ -1660,6 +1660,35 @@ function InfoPopover({ children }) {
 }
 
 function PrivacyPanel({ prefs, setPrefs, markDirty }) {
+  function detectLocalData() {
+    const keys = [
+      "care-compass-medications-v1",
+      "cc-family-history",
+      "cc-care-team",
+      "cc-full-name",
+      "cc-display-name",
+      "cc-completed-panels",
+      "cc-assessment-done",
+      "cc-setup-complete",
+      "cc-tracker-entries",
+      "cc-appointments",
+      "cc-symptoms",
+      "cc-sleep",
+      "cc-stress",
+      "cc-cycle",
+    ];
+    return keys.some(k => {
+      try {
+        const val = localStorage.getItem(k);
+        if (!val) return false;
+        const parsed = JSON.parse(val);
+        if (Array.isArray(parsed)) return parsed.length > 0;
+        if (typeof parsed === "object" && parsed !== null) return Object.keys(parsed).length > 0;
+        return Boolean(parsed);
+      } catch { return Boolean(localStorage.getItem(k)); }
+    });
+  }
+  const [hasLocalData] = React.useState(() => detectLocalData());
   const toggle = (key) => { setPrefs(p => ({ ...p, [key]: !p[key] })); markDirty(); };
 
   return (
@@ -1725,20 +1754,40 @@ function PrivacyPanel({ prefs, setPrefs, markDirty }) {
           desc="Export, migrate, or delete your health records"
         />
         <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column" }}>
-          {[
-            { label: "Export all data",             sub: "Download a full copy of your tracker, assessments, and reports as JSON", action: "Export" },
-            { label: "Migrate from localStorage",   sub: "Move locally-stored data to your secure cloud account",                  action: "Migrate →", href: "/migrate" },
-          ].map(({ label, sub, action, href }, i, arr) => (
-            <div key={label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 0", borderBottom: i < arr.length - 1 ? `1px solid ${BORDER}` : "none" }}>
-              <div>
-                <div style={{ fontSize: 14, color: INK, fontFamily: "sans-serif" }}>{label}</div>
-                <div style={{ fontSize: 12, color: WARM_GRAY, marginTop: 2, fontFamily: "sans-serif" }}>{sub}</div>
+          {/* Export row — always visible */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 0", borderBottom: hasLocalData ? `1px solid ${BORDER}` : "none" }}>
+            <div>
+              <div style={{ fontSize: 14, color: INK, fontFamily: "sans-serif" }}>Export all data</div>
+              <div style={{ fontSize: 12, color: WARM_GRAY, marginTop: 2, fontFamily: "sans-serif" }}>Download a full copy of your tracker, assessments, and reports as JSON</div>
+            </div>
+            <OutlineBtn hoverColor={TEAL} hoverBorder={TEAL}>Export</OutlineBtn>
+          </div>
+
+          {/* Migrate row — only shown when browser data exists */}
+          {hasLocalData && (
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              padding: "14px 16px", marginTop: 8, borderRadius: 10,
+              background: TEAL_LIGHT, border: `1px solid rgba(74,159,165,0.25)`,
+            }}>
+              <div style={{ flex: 1, paddingRight: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 3 }}>
+                  <span style={{ fontSize: 14, color: INK, fontFamily: "sans-serif", fontWeight: 500 }}>Save your existing health data</span>
+                  <span style={{
+                    fontSize: 10, fontWeight: 700, letterSpacing: "0.04em",
+                    color: "white", background: TEAL, borderRadius: 4,
+                    padding: "2px 6px", textTransform: "uppercase", fontFamily: "sans-serif",
+                  }}>Action needed</span>
+                </div>
+                <div style={{ fontSize: 12, color: WARM_GRAY, fontFamily: "sans-serif", lineHeight: 1.5 }}>
+                  You have health data stored in this browser. Move it to your account so it's safe, synced, and never lost if you clear your browser.
+                </div>
               </div>
-              <OutlineBtn hoverColor={TEAL} hoverBorder={TEAL} onClick={href ? () => window.location.href = href : undefined}>
-                {action}
+              <OutlineBtn hoverColor={TEAL} hoverBorder={TEAL} onClick={() => window.location.href = "/migrate"}>
+                Move data →
               </OutlineBtn>
             </div>
-          ))}
+          )}
         </div>
       </SectionCard>
 
