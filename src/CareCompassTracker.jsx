@@ -2166,14 +2166,18 @@ function CycleTab({ globalEntries }) {
 /* ─── ReportPromptView — extracted to avoid IIFE-in-ternary JSX issues ─────── */
 function ReportPromptView({ careTeam, reportPrompt, setReportPrompt, entries, handleGenerateReport, s }) {
   const selectedMember    = careTeam.find(p => p.name === reportPrompt.providerName);
-  const recipientIsCaregiver = selectedMember?.type === "caregiver";
-  const canGenerate       = recipientIsCaregiver
+  const isOther           = !!reportPrompt.providerName && !selectedMember;
+  const recipientIsCaregiver = selectedMember
+    ? selectedMember.type === "caregiver"
+    : isOther ? reportPrompt.otherType === "caregiver" : false;
+  const canGenerate = recipientIsCaregiver
     ? !!reportPrompt.providerName.trim()
-    : !!(reportPrompt.focus.trim() || reportPrompt.specialty);
-  const providerMembers   = careTeam.filter(p => p.type !== "caregiver" && p.name);
-  const caregiverMembers  = careTeam.filter(p => p.type === "caregiver" && p.name);
-  const hasTeam           = careTeam.filter(p => p.name).length > 0;
-  const isOther           = !!reportPrompt.providerName && !careTeam.find(p => p.name === reportPrompt.providerName);
+    : isOther
+      ? !!(reportPrompt.otherType && (reportPrompt.focus.trim() || reportPrompt.specialty))
+      : !!(reportPrompt.focus.trim() || reportPrompt.specialty);
+  const providerMembers  = careTeam.filter(p => p.type !== "caregiver" && p.name);
+  const caregiverMembers = careTeam.filter(p => p.type === "caregiver" && p.name);
+  const hasTeam          = careTeam.filter(p => p.name).length > 0;
 
   return (
     <div style={{ maxWidth: 640, margin: "0 auto", display: "flex", flexDirection: "column", gap: "1.75rem" }}>
@@ -2202,7 +2206,7 @@ function ReportPromptView({ careTeam, reportPrompt, setReportPrompt, entries, ha
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
                     {providerMembers.map((p, i) => (
                       <button key={i}
-                        onClick={() => setReportPrompt(prev => ({ ...prev, providerName: p.name, specialty: p.specialty || prev.specialty, saveToTeam: false }))}
+                        onClick={() => setReportPrompt(prev => ({ ...prev, providerName: p.name, specialty: p.specialty || prev.specialty, saveToTeam: false, otherType: "" }))}
                         style={{ padding: "0.4rem 0.875rem", borderRadius: "100px", border: "1.5px solid", borderColor: reportPrompt.providerName === p.name ? SAGE_DARK : "rgba(0,0,0,0.12)", background: reportPrompt.providerName === p.name ? SAGE_DARK : "#fff", color: reportPrompt.providerName === p.name ? "#fff" : INK, fontSize: "0.85rem", fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}>
                         {p.name}{p.specialty ? ` · ${p.specialty}` : ""}
                       </button>
@@ -2216,7 +2220,7 @@ function ReportPromptView({ careTeam, reportPrompt, setReportPrompt, entries, ha
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
                     {caregiverMembers.map((p, i) => (
                       <button key={i}
-                        onClick={() => setReportPrompt(prev => ({ ...prev, providerName: p.name, specialty: p.careRole || "Caregiver", saveToTeam: false }))}
+                        onClick={() => setReportPrompt(prev => ({ ...prev, providerName: p.name, specialty: p.careRole || "Caregiver", saveToTeam: false, otherType: "" }))}
                         style={{ padding: "0.4rem 0.875rem", borderRadius: "100px", border: "1.5px solid", borderColor: reportPrompt.providerName === p.name ? TEAL : "rgba(0,0,0,0.12)", background: reportPrompt.providerName === p.name ? TEAL : "#fff", color: reportPrompt.providerName === p.name ? "#fff" : INK, fontSize: "0.85rem", fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}>
                         {p.name}{p.careRole ? ` · ${p.careRole}` : ""}
                       </button>
@@ -2233,8 +2237,25 @@ function ReportPromptView({ careTeam, reportPrompt, setReportPrompt, entries, ha
               </div>
               {(isOther || reportPrompt.providerName === "") && (
                 <input style={s.input} value={reportPrompt.providerName}
-                  onChange={e => setReportPrompt(p => ({ ...p, providerName: e.target.value, saveToTeam: false }))}
+                  onChange={e => setReportPrompt(p => ({ ...p, providerName: e.target.value, saveToTeam: false, otherType: "" }))}
                   placeholder="Enter name"/>
+              )}
+              {isOther && reportPrompt.providerName.trim() && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+                  <p style={{ fontSize: "0.7rem", fontWeight: 600, color: WARM_GRAY, textTransform: "uppercase", letterSpacing: "0.06em", margin: 0 }}>Who is this?</p>
+                  <div style={{ display: "flex", gap: "0.5rem" }}>
+                    <button
+                      onClick={() => setReportPrompt(p => ({ ...p, otherType: "provider" }))}
+                      style={{ padding: "0.4rem 0.875rem", borderRadius: "100px", border: "1.5px solid", borderColor: reportPrompt.otherType === "provider" ? SAGE_DARK : "rgba(0,0,0,0.12)", background: reportPrompt.otherType === "provider" ? SAGE_DARK : "#fff", color: reportPrompt.otherType === "provider" ? "#fff" : INK, fontSize: "0.85rem", fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}>
+                      Medical Provider
+                    </button>
+                    <button
+                      onClick={() => setReportPrompt(p => ({ ...p, otherType: "caregiver" }))}
+                      style={{ padding: "0.4rem 0.875rem", borderRadius: "100px", border: "1.5px solid", borderColor: reportPrompt.otherType === "caregiver" ? TEAL : "rgba(0,0,0,0.12)", background: reportPrompt.otherType === "caregiver" ? TEAL : "#fff", color: reportPrompt.otherType === "caregiver" ? "#fff" : INK, fontSize: "0.85rem", fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}>
+                      Caregiver / Support Person
+                    </button>
+                  </div>
+                </div>
               )}
               {reportPrompt.providerName.trim() && isOther && (
                 <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", fontSize: "0.8rem", color: SAGE_DARK }}>
@@ -2310,7 +2331,11 @@ function ReportPromptView({ careTeam, reportPrompt, setReportPrompt, entries, ha
       </button>
       {!canGenerate && (
         <p style={{ fontSize: "0.8rem", color: "#aaa", margin: "-1rem 0 0", textAlign: "center", fontStyle: "italic" }}>
-          {recipientIsCaregiver ? "Select a caregiver to get started" : "Select a specialty or enter a visit focus to get started"}
+          {recipientIsCaregiver
+            ? "Select a caregiver to get started"
+            : isOther && !reportPrompt.otherType
+              ? "Select whether this person is a provider or caregiver"
+              : "Select a specialty or enter a visit focus to get started"}
         </p>
       )}
     </div>
@@ -2329,7 +2354,7 @@ export default function CareCompassTracker() {
   const [loadingInsights, setLoadingInsights] = useState(false);
   // ── Doctor report state ───────────────────────────────────────────────────
   const [reportView, setReportView]     = useState("prompt"); // "prompt" | "generating" | "report"
-  const [reportPrompt, setReportPrompt] = useState({ providerName: "", specialty: "", focus: "", symptoms: "", questions: "", saveToTeam: false });
+  const [reportPrompt, setReportPrompt] = useState({ providerName: "", specialty: "", focus: "", symptoms: "", questions: "", saveToTeam: false, otherType: "" });
   const [reportAI, setReportAI]         = useState(null);
   // ── ER Report state ───────────────────────────────────────────────────────
   const [erView, setErView]             = useState("prompt"); // "prompt" | "generating" | "report"
@@ -2693,8 +2718,8 @@ IMPORTANT: Cross-reference cycle dates with symptom entries. Look for symptom fl
 
     // Detect if recipient is a caregiver (non-clinical)
     const recipientEntry = careTeam.find(p => p.name === providerName);
-    const isCaregiver = recipientEntry?.type === "caregiver";
-    const caregiverRole = recipientEntry?.careRole || "Caregiver";
+    const isCaregiver = recipientEntry ? recipientEntry.type === "caregiver" : reportPrompt.otherType === "caregiver";
+    const caregiverRole = recipientEntry?.careRole || (reportPrompt.otherType === "caregiver" ? "Caregiver" : "Caregiver");
 
     const since = Date.now() - 60 * 24 * 60 * 60 * 1000;
     const workingEntries = entries.filter(e => e.timestamp >= since).length >= 5
@@ -3698,7 +3723,7 @@ ${extraContext}` : ""}`;
                   <BotanicalMark size={56}/>
                   <div>
                     <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.4rem", fontWeight: 700, color: INK, margin: "0 0 0.5rem" }}>Building your report…</h2>
-                    <p style={{ fontSize: "0.92rem", color: WARM_GRAY, margin: 0, lineHeight: 1.7, maxWidth: 360 }}>{careTeam.find(p => p.name === reportPrompt.providerName)?.type === "caregiver" ? `Care Compass is preparing a health update for ${reportPrompt.providerName}…` : `Care Compass is analyzing your entries and tailoring insights for your ${reportPrompt.specialty || "appointment"}${reportPrompt.providerName ? " with " + reportPrompt.providerName : ""}.`}</p>
+                    <p style={{ fontSize: "0.92rem", color: WARM_GRAY, margin: 0, lineHeight: 1.7, maxWidth: 360 }}>{(careTeam.find(p => p.name === reportPrompt.providerName)?.type === "caregiver" || (!careTeam.find(p => p.name === reportPrompt.providerName) && reportPrompt.otherType === "caregiver")) ? `Care Compass is preparing a health update for ${reportPrompt.providerName}…` : `Care Compass is analyzing your entries and tailoring insights for your ${reportPrompt.specialty || "appointment"}${reportPrompt.providerName ? " with " + reportPrompt.providerName : ""}.`}</p>
                   </div>
                   <div style={{ width: "100%", maxWidth: 320, height: 6, background: SAGE_LIGHT, borderRadius: 100, overflow: "hidden" }}>
                     <div style={{ height: "100%", borderRadius: 100, background: SAGE_DARK, animation: "insightProgress 18s ease-in-out forwards" }}/>
@@ -3716,7 +3741,7 @@ ${extraContext}` : ""}`;
                       <BotanicalMark size={44}/>
                       <div style={{ flex: 1 }}>
                         <p style={s.reportEyebrow}>Care Compass · Care Team Report</p>
-                        <h2 style={s.reportTitle}>{careTeam.find(p => p.name === reportPrompt.providerName)?.type === "caregiver" ? `Health Update — ${reportPrompt.providerName}${careTeam.find(p => p.name === reportPrompt.providerName)?.careRole ? " · " + careTeam.find(p => p.name === reportPrompt.providerName).careRole : ""}` : `${reportPrompt.specialty || "Doctor"} Visit${reportPrompt.providerName ? " — " + reportPrompt.providerName : ""}`}</h2>
+                        <h2 style={s.reportTitle}>{(careTeam.find(p => p.name === reportPrompt.providerName)?.type === "caregiver" || (!careTeam.find(p => p.name === reportPrompt.providerName) && reportPrompt.otherType === "caregiver")) ? `Health Update — ${reportPrompt.providerName}${careTeam.find(p => p.name === reportPrompt.providerName)?.careRole ? " · " + careTeam.find(p => p.name === reportPrompt.providerName).careRole : ""}` : `${reportPrompt.specialty || "Doctor"} Visit${reportPrompt.providerName ? " — " + reportPrompt.providerName : ""}`}</h2>
                         <p style={s.reportMeta}>Generated {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })} · {entries.length} entries over {new Set(entries.map(e => new Date(e.timestamp).toDateString())).size} days</p>
                         {reportPrompt.focus && (
                           <div style={{ marginTop: "0.875rem", background: `linear-gradient(135deg, ${SAGE_LIGHT}, ${TEAL_LIGHT})`, borderRadius: "0.75rem", padding: "0.75rem 1rem" }}>
