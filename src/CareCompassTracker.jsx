@@ -2231,7 +2231,7 @@ function ReportPromptView({ careTeam, reportPrompt, setReportPrompt, entries, ha
               <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginTop: "0.15rem" }}>
                 <button
                   onClick={() => setReportPrompt(prev => ({ ...prev, providerName: isOther ? prev.providerName : "" }))}
-                  style={{ padding: "0.4rem 0.875rem", borderRadius: "100px", border: "1.5px dashed rgba(0,0,0,0.15)", background: isOther && reportPrompt.providerName ? SAGE_LIGHT : "#fff", color: WARM_GRAY, fontSize: "0.85rem", cursor: "pointer", fontFamily: "inherit" }}>
+                  style={{ padding: "0.4rem 0.875rem", borderRadius: "100px", border: `1.5px ${isOther ? "solid" : "dashed"}`, borderColor: isOther ? SAGE_DARK : "rgba(0,0,0,0.15)", background: isOther ? SAGE_DARK : "#fff", color: isOther ? "#fff" : WARM_GRAY, fontSize: "0.85rem", cursor: "pointer", fontFamily: "inherit", fontWeight: isOther ? 600 : 400 }}>
                   + Someone else
                 </button>
               </div>
@@ -3734,7 +3734,17 @@ ${extraContext}` : ""}`;
                   <BotanicalMark size={56}/>
                   <div>
                     <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.4rem", fontWeight: 700, color: INK, margin: "0 0 0.5rem" }}>Building your report…</h2>
-                    <p style={{ fontSize: "0.92rem", color: WARM_GRAY, margin: 0, lineHeight: 1.7, maxWidth: 360 }}>{(careTeam.find(p => p.name === reportPrompt.providerName) ? careTeam.find(p => p.name === reportPrompt.providerName).type === "caregiver" : reportPrompt.otherType === "caregiver") ? `Care Compass is preparing a health update for ${reportPrompt.providerName}…` : `Care Compass is analyzing your entries and tailoring insights for your ${reportPrompt.specialty || "appointment"}${reportPrompt.providerName ? " with " + reportPrompt.providerName : ""}.`}</p>
+                    {(() => {
+                      const loadMember = careTeam.find(p => p.name === reportPrompt.providerName);
+                      const loadIsCaregiver = loadMember ? loadMember.type === "caregiver" : reportPrompt.otherType === "caregiver";
+                      return (
+                        <p style={{ fontSize: "0.92rem", color: WARM_GRAY, margin: 0, lineHeight: 1.7, maxWidth: 360 }}>
+                          {loadIsCaregiver
+                            ? `Care Compass is preparing a plain-language health update for ${reportPrompt.providerName}…`
+                            : `Care Compass is analyzing your entries and tailoring insights for your ${reportPrompt.specialty || "appointment"}${reportPrompt.providerName ? " with " + reportPrompt.providerName : ""}.`}
+                        </p>
+                      );
+                    })()}
                   </div>
                   <div style={{ width: "100%", maxWidth: 320, height: 6, background: SAGE_LIGHT, borderRadius: 100, overflow: "hidden" }}>
                     <div style={{ height: "100%", borderRadius: 100, background: SAGE_DARK, animation: "insightProgress 18s ease-in-out forwards" }}/>
@@ -3776,16 +3786,33 @@ ${extraContext}` : ""}`;
                             </>
                           );
                         })()}
-                        {careTeam.filter(p => p.name).length > 0 && (
-                          <div style={{ marginTop: "0.75rem", paddingTop: "0.75rem", borderTop: "1px solid rgba(0,0,0,0.06)" }}>
-                            <p style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: "0 0 0.4rem" }}>Care team</p>
-                            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
-                              {careTeam.filter(p => p.name).map((p, i) => (
-                                <span key={i} style={{ background: p.type === "caregiver" ? TEAL_LIGHT : SAGE_LIGHT, color: p.type === "caregiver" ? TEAL : SAGE_DARK, fontSize: "0.75rem", fontWeight: 600, padding: "0.2rem 0.7rem", borderRadius: "100px" }}>{p.name}{(p.type === "caregiver" ? p.careRole : p.specialty) ? ` · ${p.type === "caregiver" ? p.careRole : p.specialty}` : ""}</span>
-                              ))}
+                        {careTeam.filter(p => p.name).length > 0 && (() => {
+                          const ctProviders  = careTeam.filter(p => p.name && p.type !== "caregiver");
+                          const ctCaregivers = careTeam.filter(p => p.name && p.type === "caregiver");
+                          return (
+                            <div style={{ marginTop: "0.75rem", paddingTop: "0.75rem", borderTop: "1px solid rgba(0,0,0,0.06)", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                              <p style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: 0 }}>Care team</p>
+                              {ctProviders.length > 0 && (
+                                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+                                  {ctProviders.map((p, i) => (
+                                    <span key={i} style={{ background: SAGE_LIGHT, color: SAGE_DARK, fontSize: "0.75rem", fontWeight: 600, padding: "0.2rem 0.7rem", borderRadius: "100px" }}>
+                                      {p.name}{p.specialty ? ` · ${p.specialty}` : ""}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                              {ctCaregivers.length > 0 && (
+                                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+                                  {ctCaregivers.map((p, i) => (
+                                    <span key={i} style={{ background: TEAL_LIGHT, color: TEAL, fontSize: "0.75rem", fontWeight: 600, padding: "0.2rem 0.7rem", borderRadius: "100px" }}>
+                                      {p.name}{p.careRole ? ` · ${p.careRole}` : ""}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
                             </div>
-                          </div>
-                        )}
+                          );
+                        })()}
                       </div>
                     </div>
                     <div style={s.reportSection}>
