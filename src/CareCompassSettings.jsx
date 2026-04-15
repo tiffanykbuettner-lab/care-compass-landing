@@ -1798,9 +1798,29 @@ function PrivacyPanel({ prefs, setPrefs, markDirty }) {
           title="Account actions"
           desc="Need to make changes to your data or account?"
         />
-        <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: 12 }}>
-          <p style={{ fontSize: 14, color: INK, fontFamily: "sans-serif", margin: 0, lineHeight: 1.6 }}>
-            To delete your tracking data or close your account, please reach out to us directly and we will take care of it promptly.
+        <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: 16 }}>
+          <p style={{ fontSize: 14, color: INK, fontFamily: "sans-serif", margin: 0, lineHeight: 1.7 }}>
+            If you'd like to permanently delete your personal symptom history, appointments, and health records — or close your Care Compass account entirely — just send us an email and we'll take care of it for you.
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {[
+              { label: "Delete my health records", sub: "Permanently removes your symptoms, appointments, and all tracked data. Your account remains open." },
+              { label: "Close my account", sub: "Removes your account and all associated data. This cannot be undone." },
+            ].map(({ label, sub }) => (
+              <div key={label} style={{ display: "flex", gap: 10, padding: "10px 14px", background: CREAM, borderRadius: 8, border: `1px solid ${BORDER}` }}>
+                <svg width="15" height="15" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, marginTop: 1 }}>
+                  <circle cx="8" cy="8" r="6.5" stroke={WARM_GRAY} strokeWidth="1.3"/>
+                  <path d="M8 5v4M8 10.5h.01" stroke={WARM_GRAY} strokeWidth="1.4" strokeLinecap="round"/>
+                </svg>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: INK, fontFamily: "sans-serif" }}>{label}</div>
+                  <div style={{ fontSize: 12, color: WARM_GRAY, fontFamily: "sans-serif", marginTop: 2, lineHeight: 1.5 }}>{sub}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <p style={{ fontSize: 13, color: WARM_GRAY, fontFamily: "sans-serif", margin: 0, lineHeight: 1.6, padding: "10px 14px", background: SAGE_LIGHT, borderRadius: 8, border: `1px solid rgba(74,112,88,0.15)` }}>
+            <strong style={{ color: SAGE_DARK, fontWeight: 600 }}>Note:</strong> These requests are separate from the "Improve Care Compass with my data" setting above. That toggle only affects whether anonymized patterns are shared — it does not store or delete your personal health records.
           </p>
           <a
             href="mailto:hello@joincarecompass.com?subject=Account request"
@@ -1820,7 +1840,7 @@ function PrivacyPanel({ prefs, setPrefs, markDirty }) {
             hello@joincarecompass.com
           </a>
           <p style={{ fontSize: 12, color: WARM_GRAY, fontFamily: "sans-serif", margin: 0, fontStyle: "italic" }}>
-            We typically respond within 1 business day.
+            Please allow 24–48 hours for a response.
           </p>
         </div>
       </SectionCard>
