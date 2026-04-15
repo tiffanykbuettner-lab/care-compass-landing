@@ -2220,7 +2220,7 @@ function ReportPromptView({ careTeam, reportPrompt, setReportPrompt, entries, ha
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
                     {caregiverMembers.map((p, i) => (
                       <button key={i}
-                        onClick={() => setReportPrompt(prev => ({ ...prev, providerName: p.name, specialty: p.careRole || "Caregiver", saveToTeam: false, otherType: "" }))}
+                        onClick={() => setReportPrompt(prev => ({ ...prev, providerName: p.name, specialty: "", saveToTeam: false, otherType: "" }))}
                         style={{ padding: "0.4rem 0.875rem", borderRadius: "100px", border: "1.5px solid", borderColor: reportPrompt.providerName === p.name ? TEAL : "rgba(0,0,0,0.12)", background: reportPrompt.providerName === p.name ? TEAL : "#fff", color: reportPrompt.providerName === p.name ? "#fff" : INK, fontSize: "0.85rem", fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}>
                         {p.name}{p.careRole ? ` · ${p.careRole}` : ""}
                       </button>
@@ -3741,14 +3741,28 @@ ${extraContext}` : ""}`;
                       <BotanicalMark size={44}/>
                       <div style={{ flex: 1 }}>
                         <p style={s.reportEyebrow}>Care Compass · Care Team Report</p>
-                        <h2 style={s.reportTitle}>{(careTeam.find(p => p.name === reportPrompt.providerName)?.type === "caregiver" || (!careTeam.find(p => p.name === reportPrompt.providerName) && reportPrompt.otherType === "caregiver")) ? `Health Update — ${reportPrompt.providerName}${careTeam.find(p => p.name === reportPrompt.providerName)?.careRole ? " · " + careTeam.find(p => p.name === reportPrompt.providerName).careRole : ""}` : `${reportPrompt.specialty || "Doctor"} Visit${reportPrompt.providerName ? " — " + reportPrompt.providerName : ""}`}</h2>
-                        <p style={s.reportMeta}>Generated {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })} · {entries.length} entries over {new Set(entries.map(e => new Date(e.timestamp).toDateString())).size} days</p>
-                        {reportPrompt.focus && (
-                          <div style={{ marginTop: "0.875rem", background: `linear-gradient(135deg, ${SAGE_LIGHT}, ${TEAL_LIGHT})`, borderRadius: "0.75rem", padding: "0.75rem 1rem" }}>
-                            <p style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: SAGE_DARK, margin: "0 0 0.2rem" }}>Visit focus</p>
-                            <p style={{ fontSize: "0.9rem", color: INK, margin: 0, lineHeight: 1.5 }}>{reportPrompt.focus}</p>
-                          </div>
-                        )}
+                        {(() => {
+                          const rMember = careTeam.find(p => p.name === reportPrompt.providerName);
+                          const rIsCaregiver = rMember ? rMember.type === "caregiver" : reportPrompt.otherType === "caregiver";
+                          const rRole = rMember?.careRole || "";
+                          const titleText = rIsCaregiver
+                            ? `Health Update — ${reportPrompt.providerName}${rRole ? " · " + rRole : ""}`
+                            : `${reportPrompt.specialty || "Visit"} — ${reportPrompt.providerName || "Doctor"}`;
+                          return (
+                            <>
+                              <h2 style={s.reportTitle}>{titleText}</h2>
+                              <p style={s.reportMeta}>Generated {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })} · {entries.length} entries over {new Set(entries.map(e => new Date(e.timestamp).toDateString())).size} days</p>
+                              {reportPrompt.focus && (
+                                <div style={{ marginTop: "0.875rem", background: rIsCaregiver ? `linear-gradient(135deg, ${TEAL_LIGHT}, #e8f8f9)` : `linear-gradient(135deg, ${SAGE_LIGHT}, ${TEAL_LIGHT})`, borderRadius: "0.75rem", padding: "0.75rem 1rem" }}>
+                                  <p style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: rIsCaregiver ? TEAL : SAGE_DARK, margin: "0 0 0.2rem" }}>
+                                    {rIsCaregiver ? "Update focus" : "Visit focus"}
+                                  </p>
+                                  <p style={{ fontSize: "0.9rem", color: INK, margin: 0, lineHeight: 1.5 }}>{reportPrompt.focus}</p>
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
                         {careTeam.filter(p => p.name).length > 0 && (
                           <div style={{ marginTop: "0.75rem", paddingTop: "0.75rem", borderTop: "1px solid rgba(0,0,0,0.06)" }}>
                             <p style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: "0 0 0.4rem" }}>Care team</p>
