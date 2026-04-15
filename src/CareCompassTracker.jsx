@@ -2166,7 +2166,7 @@ function CycleTab({ globalEntries }) {
 /* ─── ReportPromptView — extracted to avoid IIFE-in-ternary JSX issues ─────── */
 function ReportPromptView({ careTeam, reportPrompt, setReportPrompt, entries, handleGenerateReport, s }) {
   const selectedMember    = careTeam.find(p => p.name === reportPrompt.providerName);
-  const isOther           = !!reportPrompt.providerName && !selectedMember;
+  const isOther           = reportPrompt.showOther;
   const recipientIsCaregiver = selectedMember
     ? selectedMember.type === "caregiver"
     : isOther ? reportPrompt.otherType === "caregiver" : false;
@@ -2206,8 +2206,8 @@ function ReportPromptView({ careTeam, reportPrompt, setReportPrompt, entries, ha
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
                     {providerMembers.map((p, i) => (
                       <button key={i}
-                        onClick={() => setReportPrompt(prev => ({ ...prev, providerName: p.name, specialty: p.specialty || prev.specialty, saveToTeam: false, otherType: "" }))}
-                        style={{ padding: "0.4rem 0.875rem", borderRadius: "100px", border: "1.5px solid", borderColor: reportPrompt.providerName === p.name ? SAGE_DARK : "rgba(0,0,0,0.12)", background: reportPrompt.providerName === p.name ? SAGE_DARK : "#fff", color: reportPrompt.providerName === p.name ? "#fff" : INK, fontSize: "0.85rem", fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}>
+                        onClick={() => setReportPrompt(prev => ({ ...prev, providerName: p.name, specialty: p.specialty || prev.specialty, saveToTeam: false, otherType: "", showOther: false }))}
+                        style={{ padding: "0.4rem 0.875rem", borderRadius: "100px", border: "1.5px solid", borderColor: reportPrompt.providerName === p.name && !isOther ? SAGE_DARK : "rgba(0,0,0,0.12)", background: reportPrompt.providerName === p.name && !isOther ? SAGE_DARK : "#fff", color: reportPrompt.providerName === p.name && !isOther ? "#fff" : INK, fontSize: "0.85rem", fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}>
                         {p.name}{p.specialty ? ` · ${p.specialty}` : ""}
                       </button>
                     ))}
@@ -2220,8 +2220,8 @@ function ReportPromptView({ careTeam, reportPrompt, setReportPrompt, entries, ha
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
                     {caregiverMembers.map((p, i) => (
                       <button key={i}
-                        onClick={() => setReportPrompt(prev => ({ ...prev, providerName: p.name, specialty: "", saveToTeam: false, otherType: "" }))}
-                        style={{ padding: "0.4rem 0.875rem", borderRadius: "100px", border: "1.5px solid", borderColor: reportPrompt.providerName === p.name ? TEAL : "rgba(0,0,0,0.12)", background: reportPrompt.providerName === p.name ? TEAL : "#fff", color: reportPrompt.providerName === p.name ? "#fff" : INK, fontSize: "0.85rem", fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}>
+                        onClick={() => setReportPrompt(prev => ({ ...prev, providerName: p.name, specialty: "", saveToTeam: false, otherType: "", showOther: false }))}
+                        style={{ padding: "0.4rem 0.875rem", borderRadius: "100px", border: "1.5px solid", borderColor: reportPrompt.providerName === p.name && !isOther ? TEAL : "rgba(0,0,0,0.12)", background: reportPrompt.providerName === p.name && !isOther ? TEAL : "#fff", color: reportPrompt.providerName === p.name && !isOther ? "#fff" : INK, fontSize: "0.85rem", fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}>
                         {p.name}{p.careRole ? ` · ${p.careRole}` : ""}
                       </button>
                     ))}
@@ -2230,15 +2230,15 @@ function ReportPromptView({ careTeam, reportPrompt, setReportPrompt, entries, ha
               )}
               <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginTop: "0.15rem" }}>
                 <button
-                  onClick={() => setReportPrompt(prev => ({ ...prev, providerName: isOther ? prev.providerName : "" }))}
+                  onClick={() => setReportPrompt(prev => ({ ...prev, showOther: true, providerName: prev.showOther ? prev.providerName : "" }))}
                   style={{ padding: "0.4rem 0.875rem", borderRadius: "100px", border: `1.5px ${isOther ? "solid" : "dashed"}`, borderColor: isOther ? SAGE_DARK : "rgba(0,0,0,0.15)", background: isOther ? SAGE_DARK : "#fff", color: isOther ? "#fff" : WARM_GRAY, fontSize: "0.85rem", cursor: "pointer", fontFamily: "inherit", fontWeight: isOther ? 600 : 400 }}>
                   + Someone else
                 </button>
               </div>
-              {(isOther || reportPrompt.providerName === "") && (
+              {isOther && (
                 <input style={s.input} value={reportPrompt.providerName}
                   onChange={e => setReportPrompt(p => ({ ...p, providerName: e.target.value, saveToTeam: false, otherType: "", otherRole: "" }))}
-                  placeholder="Enter name"/>
+                  placeholder="Enter name" autoFocus/>
               )}
               {isOther && reportPrompt.providerName.trim() && (
                 <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
@@ -2365,7 +2365,7 @@ export default function CareCompassTracker() {
   const [loadingInsights, setLoadingInsights] = useState(false);
   // ── Doctor report state ───────────────────────────────────────────────────
   const [reportView, setReportView]     = useState("prompt"); // "prompt" | "generating" | "report"
-  const [reportPrompt, setReportPrompt] = useState({ providerName: "", specialty: "", focus: "", symptoms: "", questions: "", saveToTeam: false, otherType: "", otherRole: "" });
+  const [reportPrompt, setReportPrompt] = useState({ providerName: "", specialty: "", focus: "", symptoms: "", questions: "", saveToTeam: false, otherType: "", otherRole: "", showOther: false });
   const [reportAI, setReportAI]         = useState(null);
   // ── ER Report state ───────────────────────────────────────────────────────
   const [erView, setErView]             = useState("prompt"); // "prompt" | "generating" | "report"
