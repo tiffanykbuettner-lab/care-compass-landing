@@ -7,6 +7,7 @@ export default defineConfig({
     react(),
     sitemap({
       hostname: 'https://www.joincarecompass.com',
+      generateRobotsTxt: false,
       routes: [
         '/',
         '/compass',
