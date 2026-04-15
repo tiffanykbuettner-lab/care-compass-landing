@@ -887,10 +887,10 @@ function ProfilePanel({ form, setForm, markDirty }) {
           {/* Name row */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14, boxSizing: "border-box" }}>
             <Field label="First name">
-              <StyledInput type="text" value={form.firstName} onChange={set("firstName")} placeholder="e.g. Tiffany" />
+              <StyledInput type="text" value={form.firstName} onChange={set("firstName")} placeholder="e.g. Jamie" />
             </Field>
             <Field label="Last name">
-              <StyledInput type="text" value={form.lastName} onChange={set("lastName")} placeholder="e.g. Rodriguez" />
+              <StyledInput type="text" value={form.lastName} onChange={set("lastName")} placeholder="e.g. Smith" />
             </Field>
           </div>
 
@@ -898,14 +898,13 @@ function ProfilePanel({ form, setForm, markDirty }) {
           <Field
             label="Preferred name"
             optional
-            hint={'Used in greetings and notifications — e.g. "Tiff" instead of "Tiffany"'}
+            hint={'Used in greetings and notifications — e.g. "Jay" instead of "Jamie"'}
           >
             <StyledInput
               type="text"
               value={form.preferredName || ""}
               onChange={set("preferredName")}
-              placeholder="e.g. Tiff"
-              placeholder={form.firstName || "e.g. Tiff, Mia, Alex..."}
+              placeholder={form.firstName || "e.g. Jay, Alex..."}
             />
           </Field>
 
