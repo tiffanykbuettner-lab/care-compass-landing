@@ -2175,8 +2175,8 @@ function ReportPromptView({ careTeam, reportPrompt, setReportPrompt, entries, ha
     : isOther
       ? !!(reportPrompt.otherType && (reportPrompt.focus.trim() || reportPrompt.specialty))
       : !!(reportPrompt.focus.trim() || reportPrompt.specialty);
-  const providerMembers  = careTeam.filter(p => p.type !== "caregiver" && p.name);
-  const caregiverMembers = careTeam.filter(p => p.type === "caregiver" && p.name);
+  const providerMembers  = careTeam.filter(p => p.name && p.type !== "caregiver");
+  const caregiverMembers = careTeam.filter(p => p.name && p.type === "caregiver");
   const hasTeam          = careTeam.filter(p => p.name).length > 0;
 
   return (
@@ -2722,7 +2722,14 @@ IMPORTANT: Cross-reference cycle dates with symptom entries. Look for symptom fl
     if (saveToTeam && providerName.trim() && !careTeam.find(p => p.name.toLowerCase() === providerName.trim().toLowerCase())) {
       try {
         const existing = JSON.parse(localStorage.getItem("cc-care-team") || "[]");
-        existing.push({ id: Date.now(), name: providerName.trim(), specialty: specialty || "" });
+        const saveIsCaregiver = reportPrompt.otherType === "caregiver";
+        existing.push({
+          id: Date.now(),
+          name: providerName.trim(),
+          type: saveIsCaregiver ? "caregiver" : "provider",
+          specialty: saveIsCaregiver ? "" : (specialty || ""),
+          careRole: saveIsCaregiver ? (reportPrompt.otherRole || "") : "",
+        });
         localStorage.setItem("cc-care-team", JSON.stringify(existing));
       } catch {}
     }
@@ -2936,9 +2943,20 @@ ${extraContext}` : ""}`;
     try { const s = localStorage.getItem(MED_STORAGE_KEY); if (s) setMedications(JSON.parse(s)); } catch {}
   }, []);
 
-  // Read care team from settings
+  // Read care team from settings — migrate legacy entries that are missing a type field
   const careTeam = (() => {
-    try { const s = localStorage.getItem("cc-care-team"); return s ? JSON.parse(s) : []; } catch { return []; }
+    try {
+      const s = localStorage.getItem("cc-care-team");
+      if (!s) return [];
+      const members = JSON.parse(s);
+      // Back-fill any entries saved before type was tracked — default to "provider"
+      const migrated = members.map(p => p.type ? p : { ...p, type: "provider" });
+      // Persist the migration silently if anything changed
+      if (migrated.some((p, i) => p.type !== members[i]?.type)) {
+        localStorage.setItem("cc-care-team", JSON.stringify(migrated));
+      }
+      return migrated;
+    } catch { return []; }
   })();
   const careTeamStr = careTeam.filter(p => p.name).map(p => {
     const role = p.type === "caregiver" ? (p.careRole || "Caregiver") : (p.specialty || "");
