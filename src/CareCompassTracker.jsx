@@ -2536,6 +2536,12 @@ IMPORTANT: Cross-reference cycle dates with symptom entries. Look for symptom fl
         localStorage.setItem("cc-care-team", JSON.stringify(existing));
       } catch {}
     }
+
+    // Detect if recipient is a caregiver (non-clinical)
+    const recipientEntry = careTeam.find(p => p.name === providerName);
+    const isCaregiver = recipientEntry?.type === "caregiver";
+    const caregiverRole = recipientEntry?.careRole || "Caregiver";
+
     const since = Date.now() - 60 * 24 * 60 * 60 * 1000;
     const workingEntries = entries.filter(e => e.timestamp >= since).length >= 5
       ? entries.filter(e => e.timestamp >= since) : entries;
@@ -2551,7 +2557,40 @@ IMPORTANT: Cross-reference cycle dates with symptom entries. Look for symptom fl
       ).join("\n")}`
     ).join("\n\n");
     const { focus, symptoms: highlightSymptoms, questions } = reportPrompt;
-    const prompt = `You are Care Compass, a compassionate health navigation assistant helping a patient prepare for a medical appointment. Generate a focused, appointment-ready report.
+    const prompt = isCaregiver
+      ? `You are Care Compass, a compassionate health navigation assistant. Generate a clear health update report for a caregiver or support person — someone who helps care for the patient but is not a medical provider. Use plain, warm language — no clinical jargon. Focus on practical day-to-day picture.
+
+RECIPIENT: ${providerName} (${caregiverRole})
+UPDATE FOCUS: ${focus || "General health update"}
+${highlightSymptoms ? `- Symptoms to highlight: ${highlightSymptoms}` : ""}
+${questions ? `- Notes for recipient: ${questions}` : ""}
+${careTeamStr ? `\nCARE TEAM: ${careTeamStr}` : ""}${familyHistoryStr ? `\nFAMILY HISTORY: ${familyHistoryStr}` : ""}
+
+TRACKER DATA (last 60 days):
+${summary}
+
+Write a warm, clear update using exactly these section headers (##):
+
+## How I've Been Feeling
+2-3 sentences summarising the overall picture in plain language.
+
+## Day-to-Day Patterns
+What daily life has looked like — good days vs harder days, energy, sleep, symptoms that come and go.
+
+## What's Been Most Difficult
+The symptoms or limitations that have had the biggest impact. Be honest and specific.
+
+## What's Helping
+Any patterns around what makes things better — rest, medication timing, food, activity, etc.
+
+## How You Can Help
+2-4 specific, practical ways this person can support the patient based on the data.
+
+## What I'd Like You to Know
+A short personal note — things the patient wants their caregiver to understand about their experience.
+
+Never diagnose. Write as if the patient is speaking to someone who loves and supports them.${extraContext ? `\n\nADDITIONAL CONTEXT: ${extraContext}` : ""}`
+      : `You are Care Compass, a compassionate health navigation assistant helping a patient prepare for a medical appointment. Generate a focused, appointment-ready report.
 
 APPOINTMENT DETAILS:
 - Provider: ${providerName || "their doctor"}
@@ -2711,7 +2750,10 @@ ${extraContext}` : ""}`;
   const careTeam = (() => {
     try { const s = localStorage.getItem("cc-care-team"); return s ? JSON.parse(s) : []; } catch { return []; }
   })();
-  const careTeamStr = careTeam.filter(p => p.name).map(p => `${p.name}${p.specialty ? " (" + p.specialty + ")" : ""}`).join(", ");
+  const careTeamStr = careTeam.filter(p => p.name).map(p => {
+    const role = p.type === "caregiver" ? (p.careRole || "Caregiver") : (p.specialty || "");
+    return `${p.name}${role ? " (" + role + ")" : ""}`;
+  }).join(", ");
 
   // Read family history from settings
   const familyHistory = (() => {
@@ -3504,9 +3546,9 @@ ${extraContext}` : ""}`;
                           <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
                             {careTeam.filter(p => p.name).map((p, i) => (
                               <button key={i}
-                                onClick={() => setReportPrompt(prev => ({ ...prev, providerName: p.name, specialty: p.specialty || prev.specialty, saveToTeam: false }))}
+                                onClick={() => setReportPrompt(prev => ({ ...prev, providerName: p.name, specialty: p.type === "caregiver" ? (p.careRole || "Caregiver") : (p.specialty || prev.specialty), saveToTeam: false }))}
                                 style={{ padding: "0.4rem 0.875rem", borderRadius: "100px", border: "1.5px solid", borderColor: reportPrompt.providerName === p.name ? SAGE_DARK : "rgba(0,0,0,0.12)", background: reportPrompt.providerName === p.name ? SAGE_DARK : "#fff", color: reportPrompt.providerName === p.name ? "#fff" : INK, fontSize: "0.85rem", fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}>
-                                {p.name}{p.specialty ? ` · ${p.specialty}` : ""}
+                                {p.name}{(p.type === "caregiver" ? (p.careRole || "Caregiver") : p.specialty) ? ` · ${p.type === "caregiver" ? (p.careRole || "Caregiver") : p.specialty}` : ""}
                               </button>
                             ))}
                             <button

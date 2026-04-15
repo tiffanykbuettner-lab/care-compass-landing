@@ -464,61 +464,132 @@ const CARE_SPECIALTIES = [
   "Rheumatologist", "Urologist", "Other",
 ];
 
-const blankProvider = () => ({ id: Date.now() + Math.random(), name: "", specialty: "" });
+const CAREGIVER_ROLES = [
+  "Family Caregiver",
+  "Spouse / Partner",
+  "Parent",
+  "Sibling",
+  "Child / Adult Child",
+  "Home Health Aide",
+  "Personal Care Assistant",
+  "Case Manager",
+  "Social Worker",
+  "Patient Advocate",
+  "Hospice / Palliative Care Worker",
+  "Other",
+];
+
+const blankProvider  = () => ({ id: Date.now() + Math.random(), name: "", type: "provider", specialty: "", careRole: "" });
+const blankCaregiver = () => ({ id: Date.now() + Math.random(), name: "", type: "caregiver", specialty: "", careRole: "" });
 
 function CareTeamInput({ providers, onChange }) {
-  const addProvider = () => onChange([...providers, blankProvider()]);
-  const removeProvider = (id) => onChange(providers.filter(p => p.id !== id));
-  const updateProvider = (id, field, value) =>
-    onChange(providers.map(p => p.id === id ? { ...p, [field]: value } : p));
+  const addProvider  = () => onChange([...providers, blankProvider()]);
+  const addCaregiver = () => onChange([...providers, blankCaregiver()]);
+  const removeMember = (id) => onChange(providers.filter(p => p.id !== id));
+  const updateMember = (id, field, value) =>
+    onChange(providers.map(p => {
+      if (p.id !== id) return p;
+      const updated = { ...p, [field]: value };
+      // Keep specialty in sync with careRole so tracker's careTeamStr stays compatible
+      if (field === "careRole") updated.specialty = value;
+      if (field === "type") {
+        updated.specialty = "";
+        updated.careRole  = "";
+      }
+      return updated;
+    }));
+
+  const providerMembers  = providers.filter(p => p.type !== "caregiver");
+  const caregiverMembers = providers.filter(p => p.type === "caregiver");
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      {providers.map((provider, idx) => (
-        <div key={provider.id} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-          {/* Provider name */}
-          <div style={{ flex: 1.2 }}>
-            {idx === 0 && <label style={{ display: "block", fontSize: 11, fontWeight: 500, color: WARM_GRAY, marginBottom: 4, fontFamily: "sans-serif", textTransform: "uppercase", letterSpacing: "0.04em" }}>Provider name</label>}
-            <StyledInput
-              type="text"
-              value={provider.name}
-              onChange={e => updateProvider(provider.id, "name", e.target.value)}
-              placeholder="e.g. Dr. Patel"
-            />
-          </div>
-          {/* Specialty */}
-          <div style={{ flex: 1 }}>
-            {idx === 0 && <label style={{ display: "block", fontSize: 11, fontWeight: 500, color: WARM_GRAY, marginBottom: 4, fontFamily: "sans-serif", textTransform: "uppercase", letterSpacing: "0.04em" }}>Specialty</label>}
-            <SearchableSelect
-              value={provider.specialty}
-              onChange={val => updateProvider(provider.id, "specialty", val)}
-              options={["", ...CARE_SPECIALTIES].map(s => ({ value: s, label: s || "Select..." }))}
-              placeholder="Select specialty..."
-            />
-          </div>
-          {/* Remove button */}
-          <div style={{ paddingTop: idx === 0 ? 24 : 0, flexShrink: 0 }}>
-            <button
-              onClick={() => removeProvider(provider.id)}
-              style={{ background: "none", border: "none", color: "#ccc", cursor: "pointer", fontSize: 16, padding: "8px 4px", lineHeight: 1 }}
-              title="Remove"
-            ><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg></button>
-          </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+      {/* ── Providers ── */}
+      {providerMembers.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <p style={{ fontSize: 11, fontWeight: 600, color: WARM_GRAY, textTransform: "uppercase", letterSpacing: "0.05em", margin: 0, fontFamily: "sans-serif" }}>Medical Providers</p>
+          {providerMembers.map((provider, idx) => (
+            <div key={provider.id} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+              <div style={{ flex: 1.2 }}>
+                {idx === 0 && <label style={{ display: "block", fontSize: 11, fontWeight: 500, color: WARM_GRAY, marginBottom: 4, fontFamily: "sans-serif", textTransform: "uppercase", letterSpacing: "0.04em" }}>Name</label>}
+                <StyledInput
+                  type="text"
+                  value={provider.name}
+                  onChange={e => updateMember(provider.id, "name", e.target.value)}
+                  placeholder="e.g. Dr. Patel"
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                {idx === 0 && <label style={{ display: "block", fontSize: 11, fontWeight: 500, color: WARM_GRAY, marginBottom: 4, fontFamily: "sans-serif", textTransform: "uppercase", letterSpacing: "0.04em" }}>Specialty</label>}
+                <SearchableSelect
+                  value={provider.specialty}
+                  onChange={val => updateMember(provider.id, "specialty", val)}
+                  options={["", ...CARE_SPECIALTIES].map(s => ({ value: s, label: s || "Select..." }))}
+                  placeholder="Select specialty..."
+                />
+              </div>
+              <div style={{ paddingTop: idx === 0 ? 24 : 0, flexShrink: 0 }}>
+                <button onClick={() => removeMember(provider.id)}
+                  style={{ background: "none", border: "none", color: "#ccc", cursor: "pointer", fontSize: 16, padding: "8px 4px", lineHeight: 1 }}
+                  title="Remove">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
-      ))}
-      <button
-        onClick={addProvider}
-        style={{
-          background: "none", border: `1px dashed ${BORDER}`,
-          borderRadius: 8, padding: "7px 14px", fontSize: 12.5,
-          color: SAGE_DARK, cursor: "pointer", fontFamily: "sans-serif",
-          textAlign: "left", transition: "all 0.15s", marginTop: 2,
-        }}
-        onMouseEnter={e => { e.target.style.background = SAGE_LIGHT; e.target.style.borderColor = SAGE; }}
-        onMouseLeave={e => { e.target.style.background = "none"; e.target.style.borderColor = BORDER; }}
-      >
-        + Add another provider
-      </button>
+      )}
+
+      {/* ── Caregivers ── */}
+      {caregiverMembers.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <p style={{ fontSize: 11, fontWeight: 600, color: WARM_GRAY, textTransform: "uppercase", letterSpacing: "0.05em", margin: 0, fontFamily: "sans-serif" }}>Caregivers & Support People</p>
+          {caregiverMembers.map((cg, idx) => (
+            <div key={cg.id} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+              <div style={{ flex: 1.2 }}>
+                {idx === 0 && <label style={{ display: "block", fontSize: 11, fontWeight: 500, color: WARM_GRAY, marginBottom: 4, fontFamily: "sans-serif", textTransform: "uppercase", letterSpacing: "0.04em" }}>Name</label>}
+                <StyledInput
+                  type="text"
+                  value={cg.name}
+                  onChange={e => updateMember(cg.id, "name", e.target.value)}
+                  placeholder="e.g. Mom, Sarah"
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                {idx === 0 && <label style={{ display: "block", fontSize: 11, fontWeight: 500, color: WARM_GRAY, marginBottom: 4, fontFamily: "sans-serif", textTransform: "uppercase", letterSpacing: "0.04em" }}>Role</label>}
+                <StyledSelect value={cg.careRole} onChange={e => updateMember(cg.id, "careRole", e.target.value)}>
+                  <option value="">Select role...</option>
+                  {CAREGIVER_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                </StyledSelect>
+              </div>
+              <div style={{ paddingTop: idx === 0 ? 24 : 0, flexShrink: 0 }}>
+                <button onClick={() => removeMember(cg.id)}
+                  style={{ background: "none", border: "none", color: "#ccc", cursor: "pointer", fontSize: 16, padding: "8px 4px", lineHeight: 1 }}
+                  title="Remove">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── Add buttons ── */}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <button onClick={addProvider}
+          style={{ background: "none", border: `1px dashed ${BORDER}`, borderRadius: 8, padding: "7px 14px", fontSize: 12.5, color: SAGE_DARK, cursor: "pointer", fontFamily: "sans-serif", transition: "all 0.15s" }}
+          onMouseEnter={e => { e.currentTarget.style.background = SAGE_LIGHT; e.currentTarget.style.borderColor = SAGE; }}
+          onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.borderColor = BORDER; }}>
+          + Add provider
+        </button>
+        <button onClick={addCaregiver}
+          style={{ background: "none", border: `1px dashed ${BORDER}`, borderRadius: 8, padding: "7px 14px", fontSize: 12.5, color: TEAL, cursor: "pointer", fontFamily: "sans-serif", transition: "all 0.15s" }}
+          onMouseEnter={e => { e.currentTarget.style.background = TEAL_LIGHT; e.currentTarget.style.borderColor = TEAL; }}
+          onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.borderColor = BORDER; }}>
+          + Add caregiver / support person
+        </button>
+      </div>
     </div>
   );
 }
@@ -850,13 +921,15 @@ function ProfilePanel({ form, setForm, markDirty }) {
 
           {/* DOB + sex */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14, boxSizing: "border-box" }}>
-            <Field label="Date of birth" optional hint="Used to personalize health insights">
-              <StyledInput type="date" value={form.dob} onChange={set("dob")} />
+            <Field label="Date of birth" hint="Required — helps personalize health insights for your age and life stage">
+              <StyledInput type="date" value={form.dob} onChange={set("dob")} max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split("T")[0]} />
             </Field>
             <Field label="Biological sex" optional hint="Affects some medical reference ranges">
               <StyledSelect value={form.sex} onChange={set("sex")}>
+                <option value="">— Leave blank —</option>
                 <option>Female</option>
                 <option>Male</option>
+                <option>Intersex</option>
                 <option>Prefer not to say</option>
               </StyledSelect>
             </Field>
@@ -865,9 +938,12 @@ function ProfilePanel({ form, setForm, markDirty }) {
           {/* Pronouns */}
           <Field label="Pronouns" optional>
             <StyledSelect value={form.pronouns} onChange={set("pronouns")}>
+              <option value="">— Leave blank —</option>
               <option>She / Her</option>
               <option>He / Him</option>
               <option>They / Them</option>
+              <option>She / They</option>
+              <option>He / They</option>
               <option>Prefer not to say</option>
             </StyledSelect>
           </Field>
@@ -917,9 +993,9 @@ function ProfilePanel({ form, setForm, markDirty }) {
             </StyledSelect>
           </Field>
 
-          <Field label="Care team" hint="Added providers appear in your doctor reports and are suggested when scheduling appointments">
+          <Field label="Care team" hint="Providers and caregivers appear in your reports and are suggested when scheduling appointments">
             <CareTeamInput
-              providers={form.careProviders || [{ id: 1, name: "", specialty: "" }, { id: 2, name: "", specialty: "" }]}
+              providers={form.careProviders || [{ id: 1, name: "", type: "provider", specialty: "", careRole: "" }, { id: 2, name: "", type: "provider", specialty: "", careRole: "" }]}
               onChange={providers => { setForm(f => ({ ...f, careProviders: providers })); markDirty(); }}
             />
           </Field>
@@ -2250,7 +2326,7 @@ export default function CareCompassSettings() {
     firstName: "", lastName: "", preferredName: "", email: "",
     dob: "", sex: "", pronouns: "",
     timezone: "",
-    condition: "", conditions: [], diagnosisStatus: "Formally diagnosed", careTeam: "", careProviders: [{ id: 1, name: "", specialty: "" }, { id: 2, name: "", specialty: "" }],
+    condition: "", conditions: [], diagnosisStatus: "Formally diagnosed", careTeam: "", careProviders: [{ id: 1, name: "", type: "provider", specialty: "", careRole: "" }, { id: 2, name: "", type: "provider", specialty: "", careRole: "" }],
   });
 
   // Notification prefs state
