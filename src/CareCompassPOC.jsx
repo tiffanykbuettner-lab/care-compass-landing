@@ -10,10 +10,6 @@ const LOADING_STYLES = `
   95% { width: 92%; }
   100% { width: 95%; }
 }
-@keyframes voicePulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(192,57,43,0.35); }
-  50%       { box-shadow: 0 0 0 7px rgba(192,57,43,0); }
-}
   0% { width: 0%; }
   10% { width: 15%; }
   30% { width: 40%; }
@@ -23,149 +19,6 @@ const LOADING_STYLES = `
   100% { width: 95%; }
 }
 `;
-
-function VoiceMicButton({ value, onChange, size = 34, style: extraStyle = {} }) {
-  const [listening, setListening] = React.useState(false);
-  const [supported, setSupported] = React.useState(true);
-  const [errMsg, setErrMsg]       = React.useState(""); // "" | "denied" | "capture"
-  const recognitionRef = React.useRef(null);
-  const committedRef   = React.useRef(value ?? "");
-
-  React.useEffect(() => { committedRef.current = value ?? ""; }, [value]);
-
-  React.useEffect(() => {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) setSupported(false);
-  }, []);
-
-  const start = () => {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR || listening) return;
-    setErrMsg("");
-
-    const rec = new SR();
-    rec.continuous     = true;
-    rec.interimResults = true;
-    rec.lang           = navigator.language || "en-US";
-    recognitionRef.current = rec;
-
-    rec.onstart = () => setListening(true);
-
-    rec.onresult = (e) => {
-      let interim = "", finalChunk = "";
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const t = e.results[i][0].transcript;
-        if (e.results[i].isFinal) finalChunk += t;
-        else interim += t;
-      }
-      if (finalChunk) {
-        const base   = committedRef.current;
-        const joined = base ? base.trimEnd() + " " + finalChunk.trim() : finalChunk.trim();
-        committedRef.current = joined;
-        onChange(joined + (interim ? " " + interim : ""));
-      } else if (interim) {
-        const base = committedRef.current;
-        onChange(base ? base.trimEnd() + " " + interim : interim);
-      }
-    };
-
-    rec.onerror = (e) => {
-      if (e.error === "not-allowed" || e.error === "service-not-allowed") {
-        setErrMsg("denied");
-      } else if (e.error === "audio-capture") {
-        setErrMsg("capture");
-      } else if (e.error !== "aborted" && e.error !== "no-speech") {
-        setErrMsg("denied");
-      }
-      setListening(false);
-    };
-
-    rec.onend = () => setListening(false);
-
-    try { rec.start(); }
-    catch (err) { setErrMsg("denied"); setListening(false); }
-  };
-
-  const stop = () => {
-    try { recognitionRef.current?.stop(); } catch {}
-    setListening(false);
-  };
-
-  const toggle = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setErrMsg("");
-    listening ? stop() : start();
-  };
-
-  if (!supported) return null;
-
-  const tipText = errMsg === "capture"
-    ? "Mic in use by another app. Close other tabs or apps using the mic, then try again."
-    : "Microphone blocked. Click the 🔒 icon in your address bar → allow microphone → try again.";
-
-  return (
-    <div style={{ position: "relative", display: "inline-flex", flexShrink: 0 }}>
-      <button
-        type="button"
-        onClick={toggle}
-        title={errMsg ? tipText : listening ? "Stop recording" : "Tap to speak"}
-        aria-label={listening ? "Stop voice input" : "Start voice input"}
-        style={{
-          width: size, height: size, borderRadius: "50%", flexShrink: 0, padding: 0,
-          border: errMsg
-            ? "1.5px solid #e8a838"
-            : listening
-              ? "2px solid #c0392b"
-              : "1.5px solid rgba(0,0,0,0.12)",
-          background: errMsg ? "#fef3da" : listening ? "#fdeaea" : "#fff",
-          color:      errMsg ? "#8a5a00" : listening ? "#c0392b" : "#7a9e87",
-          cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-          animation: listening ? "voicePulse 1.2s ease-in-out infinite" : "none",
-          transition: "background 0.15s, border-color 0.15s, color 0.15s",
-          ...extraStyle,
-        }}
-      >
-        {errMsg ? (
-          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-            <rect x="5" y="1" width="6" height="8" rx="3" fill="none" strokeDasharray="2 1.5"/>
-            <path d="M3 8a5 5 0 0010 0"/>
-            <line x1="8" y1="13" x2="8" y2="15"/>
-            <line x1="5" y1="15" x2="11" y2="15"/>
-            <line x1="2" y1="2" x2="14" y2="14" strokeWidth="1.8"/>
-          </svg>
-        ) : listening ? (
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-            <rect x="3" y="3" width="10" height="10" rx="2" fill="currentColor"/>
-          </svg>
-        ) : (
-          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-            <rect x="5" y="1" width="6" height="8" rx="3" fill="none"/>
-            <path d="M3 8a5 5 0 0010 0"/>
-            <line x1="8" y1="13" x2="8" y2="15"/>
-            <line x1="5" y1="15" x2="11" y2="15"/>
-          </svg>
-        )}
-      </button>
-
-      {errMsg && (
-        <div onClick={() => setErrMsg("")} style={{
-          position: "absolute", bottom: "calc(100% + 8px)", right: 0,
-          background: "#2d2926", color: "#fff", borderRadius: "0.6rem",
-          padding: "0.65rem 0.875rem", fontSize: "0.72rem", lineHeight: 1.6,
-          width: 230, zIndex: 1000, boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
-          cursor: "pointer",
-        }}>
-          <strong style={{ display: "block", marginBottom: "0.25rem", fontSize: "0.75rem" }}>
-            {errMsg === "capture" ? "Mic busy" : "Microphone blocked"}
-          </strong>
-          {tipText}
-          <div style={{ position: "absolute", bottom: -5, right: 12, width: 10, height: 10, background: "#2d2926", transform: "rotate(45deg)", borderRadius: 1 }}/>
-        </div>
-      )}
-    </div>
-  );
-}
 
 const SAGE       = "#7a9e87";
 const SAGE_LIGHT = "#e8f0eb";
@@ -449,11 +302,9 @@ function SymptomRow({ system, examples, hints, value, onChange }) {
           placeholder="Describe any symptoms here, or leave blank if none…"
           value={value}
           onChange={e => onChange(e.target.value)}
-          style={{ ...s.symptomTextarea, paddingRight: "2.5rem", width: "100%", boxSizing: "border-box" }}
+          style={{ ...s.symptomTextarea, width: "100%", boxSizing: "border-box" }}
           rows={2}
         />
-        <VoiceMicButton value={value} onChange={onChange} size={28}
-          style={{ position: "absolute", bottom: "0.45rem", right: "0.45rem" }}/>
       </div>
     </div>
   );
@@ -493,12 +344,8 @@ function LifestyleField({ label, val, set, placeholder, rows, hints }) {
           </ul>
         </div>
       )}
-      <div style={{ position: "relative" }}>
-        <textarea value={val} onChange={e => set(e.target.value)} placeholder={placeholder}
-          style={{ ...s.textarea, paddingRight: "2.5rem", width: "100%", boxSizing: "border-box" }} rows={rows}/>
-        <VoiceMicButton value={val} onChange={set} size={28}
-          style={{ position: "absolute", bottom: "0.45rem", right: "0.45rem" }}/>
-      </div>
+      <textarea value={val} onChange={e => set(e.target.value)} placeholder={placeholder}
+          style={{ ...s.textarea, width: "100%", boxSizing: "border-box" }} rows={rows}/>
     </div>
   );
 }
@@ -1163,8 +1010,6 @@ function SageChatbot({ currentStep }) {
           <div style={ss.inputRow}>
             <input style={ss.chatInput} value={input} onChange={e => setInput(e.target.value)}
               onKeyDown={handleKey} placeholder="Ask Sage a question…" disabled={loading}/>
-            <VoiceMicButton value={input} onChange={setInput} size={40}
-              style={{ borderRadius: "0.75rem", flexShrink: 0 }}/>
             <button style={ss.sendBtn} onClick={sendMessage} disabled={loading || !input.trim()} aria-label="Send">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
@@ -1593,12 +1438,8 @@ ${extraContext}` : ""}`;
                 ].map(({ label, val, set, placeholder, upload }) => (
                   <div key={label} style={s.formGroup}>
                     <label style={s.label}>{label}</label>
-                    <div style={{ position: "relative" }}>
-                      <textarea value={val} onChange={e => set(e.target.value)} placeholder={placeholder}
-                        style={{ ...s.textarea, paddingRight: "2.5rem", width: "100%", boxSizing: "border-box" }} rows={3}/>
-                      <VoiceMicButton value={val} onChange={set} size={28}
-                        style={{ position: "absolute", bottom: "0.45rem", right: "0.45rem" }}/>
-                    </div>
+                    <textarea value={val} onChange={e => set(e.target.value)} placeholder={placeholder}
+                        style={{ ...s.textarea, width: "100%", boxSizing: "border-box" }} rows={3}/>
                     {upload && (
                       <label style={s.uploadLabel}>
                         <span style={{...s.uploadBtn, display:"inline-flex", alignItems:"center", gap:"0.35rem"}}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M13 7.5l-5.5 5.5a4 4 0 01-5.7-5.6L7 2.3a2.5 2.5 0 013.5 3.5L5.3 11a1 1 0 01-1.4-1.4l4.8-4.9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg> Upload medication list (.txt, .csv, .pdf)</span>

@@ -16,10 +16,6 @@ const INSIGHTS_LOADING_STYLES = `
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
 }
-@keyframes voicePulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(192,57,43,0.35); }
-  50%       { box-shadow: 0 0 0 7px rgba(192,57,43,0); }
-}
 `;
 
 // Inject progress keyframe globally so all loading bars (Doctor Report, ER Report) animate correctly
@@ -30,148 +26,6 @@ if (typeof document !== "undefined" && !document.getElementById("cc-progress-key
   document.head.appendChild(_s);
 }
 
-function VoiceMicButton({ value, onChange, size = 34, style: extraStyle = {} }) {
-  const [listening, setListening] = React.useState(false);
-  const [supported, setSupported] = React.useState(true);
-  const [errMsg, setErrMsg]       = React.useState(""); // "" | "denied" | "capture"
-  const recognitionRef = React.useRef(null);
-  const committedRef   = React.useRef(value ?? "");
-
-  React.useEffect(() => { committedRef.current = value ?? ""; }, [value]);
-
-  React.useEffect(() => {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) setSupported(false);
-  }, []);
-
-  const start = () => {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR || listening) return;
-    setErrMsg("");
-
-    const rec = new SR();
-    rec.continuous     = true;
-    rec.interimResults = true;
-    rec.lang           = navigator.language || "en-US";
-    recognitionRef.current = rec;
-
-    rec.onstart = () => setListening(true);
-
-    rec.onresult = (e) => {
-      let interim = "", finalChunk = "";
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const t = e.results[i][0].transcript;
-        if (e.results[i].isFinal) finalChunk += t;
-        else interim += t;
-      }
-      if (finalChunk) {
-        const base   = committedRef.current;
-        const joined = base ? base.trimEnd() + " " + finalChunk.trim() : finalChunk.trim();
-        committedRef.current = joined;
-        onChange(joined + (interim ? " " + interim : ""));
-      } else if (interim) {
-        const base = committedRef.current;
-        onChange(base ? base.trimEnd() + " " + interim : interim);
-      }
-    };
-
-    rec.onerror = (e) => {
-      if (e.error === "not-allowed" || e.error === "service-not-allowed") {
-        setErrMsg("denied");
-      } else if (e.error === "audio-capture") {
-        setErrMsg("capture");
-      } else if (e.error !== "aborted" && e.error !== "no-speech") {
-        setErrMsg("denied");
-      }
-      setListening(false);
-    };
-
-    rec.onend = () => setListening(false);
-
-    try { rec.start(); }
-    catch (err) { setErrMsg("denied"); setListening(false); }
-  };
-
-  const stop = () => {
-    try { recognitionRef.current?.stop(); } catch {}
-    setListening(false);
-  };
-
-  const toggle = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setErrMsg("");
-    listening ? stop() : start();
-  };
-
-  if (!supported) return null;
-
-  const tipText = errMsg === "capture"
-    ? "Mic in use by another app. Close other tabs or apps using the mic, then try again."
-    : "Microphone blocked. Click the 🔒 icon in your address bar → allow microphone → try again.";
-
-  return (
-    <div style={{ position: "relative", display: "inline-flex", flexShrink: 0 }}>
-      <button
-        type="button"
-        onClick={toggle}
-        title={errMsg ? tipText : listening ? "Stop recording" : "Tap to speak"}
-        aria-label={listening ? "Stop voice input" : "Start voice input"}
-        style={{
-          width: size, height: size, borderRadius: "50%", flexShrink: 0, padding: 0,
-          border: errMsg
-            ? "1.5px solid #e8a838"
-            : listening
-              ? "2px solid #c0392b"
-              : "1.5px solid rgba(0,0,0,0.12)",
-          background: errMsg ? "#fef3da" : listening ? "#fdeaea" : "#fff",
-          color:      errMsg ? "#8a5a00" : listening ? "#c0392b" : "#7a9e87",
-          cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-          animation: listening ? "voicePulse 1.2s ease-in-out infinite" : "none",
-          transition: "background 0.15s, border-color 0.15s, color 0.15s",
-          ...extraStyle,
-        }}
-      >
-        {errMsg ? (
-          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-            <rect x="5" y="1" width="6" height="8" rx="3" fill="none" strokeDasharray="2 1.5"/>
-            <path d="M3 8a5 5 0 0010 0"/>
-            <line x1="8" y1="13" x2="8" y2="15"/>
-            <line x1="5" y1="15" x2="11" y2="15"/>
-            <line x1="2" y1="2" x2="14" y2="14" strokeWidth="1.8"/>
-          </svg>
-        ) : listening ? (
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-            <rect x="3" y="3" width="10" height="10" rx="2" fill="currentColor"/>
-          </svg>
-        ) : (
-          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-            <rect x="5" y="1" width="6" height="8" rx="3" fill="none"/>
-            <path d="M3 8a5 5 0 0010 0"/>
-            <line x1="8" y1="13" x2="8" y2="15"/>
-            <line x1="5" y1="15" x2="11" y2="15"/>
-          </svg>
-        )}
-      </button>
-
-      {errMsg && (
-        <div onClick={() => setErrMsg("")} style={{
-          position: "absolute", bottom: "calc(100% + 8px)", right: 0,
-          background: "#2d2926", color: "#fff", borderRadius: "0.6rem",
-          padding: "0.65rem 0.875rem", fontSize: "0.72rem", lineHeight: 1.6,
-          width: 230, zIndex: 1000, boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
-          cursor: "pointer",
-        }}>
-          <strong style={{ display: "block", marginBottom: "0.25rem", fontSize: "0.75rem" }}>
-            {errMsg === "capture" ? "Mic busy" : "Microphone blocked"}
-          </strong>
-          {tipText}
-          <div style={{ position: "absolute", bottom: -5, right: 12, width: 10, height: 10, background: "#2d2926", transform: "rotate(45deg)", borderRadius: 1 }}/>
-        </div>
-      )}
-    </div>
-  );
-}
 
 /* ─── Safety Alert — emergency threshold detection ──────────────────────── */
 
@@ -4571,22 +4425,16 @@ ${extraContext}` : ""}`;
               {/* Symptoms on waking */}
               <div style={s.formGroup}>
                 <label style={s.label}>Any symptoms on waking? <span style={s.optional}>(optional)</span></label>
-                <div style={{ position: "relative" }}>
-                  <textarea value={morningForm.symptoms} onChange={e => setMorningForm(f => ({ ...f, symptoms: e.target.value }))}
+                <textarea value={morningForm.symptoms} onChange={e => setMorningForm(f => ({ ...f, symptoms: e.target.value }))}
                     placeholder="e.g. stiff joints on waking, heart racing when I stood up from bed..."
-                    style={{ ...s.textarea, paddingRight: "2.75rem", width: "100%", boxSizing: "border-box" }} rows={2}/>
-                  <VoiceMicButton value={morningForm.symptoms} onChange={v => setMorningForm(f => ({ ...f, symptoms: v }))} size={30} style={{ position: "absolute", bottom: "0.5rem", right: "0.5rem" }}/>
-                </div>
+                    style={{ ...s.textarea, width: "100%", boxSizing: "border-box" }} rows={2}/>
               </div>
               {/* Notes */}
               <div style={s.formGroup}>
                 <label style={s.label}>Anything else to note? <span style={s.optional}>(optional)</span></label>
-                <div style={{ position: "relative" }}>
-                  <textarea value={morningForm.notes} onChange={e => setMorningForm(f => ({ ...f, notes: e.target.value }))}
+                <textarea value={morningForm.notes} onChange={e => setMorningForm(f => ({ ...f, notes: e.target.value }))}
                     placeholder="e.g. slept 6 hours, woke at 3am, vivid dreams..."
-                    style={{ ...s.textarea, paddingRight: "2.75rem", width: "100%", boxSizing: "border-box" }} rows={2}/>
-                  <VoiceMicButton value={morningForm.notes} onChange={v => setMorningForm(f => ({ ...f, notes: v }))} size={30} style={{ position: "absolute", bottom: "0.5rem", right: "0.5rem" }}/>
-                </div>
+                    style={{ ...s.textarea, width: "100%", boxSizing: "border-box" }} rows={2}/>
               </div>
             </div>
             <div style={s.modalFooter}>
@@ -4657,12 +4505,9 @@ ${extraContext}` : ""}`;
                       Already noted: {todaySymptoms.length > 120 ? todaySymptoms.slice(0, 120) + "..." : todaySymptoms}
                     </div>
                   )}
-                  <div style={{ position: "relative" }}>
-                    <textarea value={eveningForm.symptoms} onChange={e => setEveningForm(f => ({ ...f, symptoms: e.target.value }))}
+                  <textarea value={eveningForm.symptoms} onChange={e => setEveningForm(f => ({ ...f, symptoms: e.target.value }))}
                       placeholder={hasLoggedToday ? "Anything that changed as the day went on?" : "Describe each symptom in detail..."}
-                      style={{ ...s.textarea, paddingRight: "2.75rem", width: "100%", boxSizing: "border-box" }} rows={hasLoggedToday ? 2 : 3}/>
-                    <VoiceMicButton value={eveningForm.symptoms} onChange={v => setEveningForm(f => ({ ...f, symptoms: v }))} size={30} style={{ position: "absolute", bottom: "0.5rem", right: "0.5rem" }}/>
-                  </div>
+                      style={{ ...s.textarea, width: "100%", boxSizing: "border-box" }} rows={hasLoggedToday ? 2 : 3}/>
                 </div>
 
                 {/* Functional impact — always shown, key for doctor reports */}
@@ -4730,12 +4575,9 @@ ${extraContext}` : ""}`;
                     {hasLoggedToday ? "Anything else to reflect on?" : "Reflections"}
                     <span style={s.optional}> (optional)</span>
                   </label>
-                  <div style={{ position: "relative" }}>
-                    <textarea value={eveningForm.notes} onChange={e => setEveningForm(f => ({ ...f, notes: e.target.value }))}
+                  <textarea value={eveningForm.notes} onChange={e => setEveningForm(f => ({ ...f, notes: e.target.value }))}
                       placeholder={hasLoggedToday ? "Overall thoughts on today..." : "Anything you want to remember or reflect on from today..."}
-                      style={{ ...s.textarea, paddingRight: "2.75rem", width: "100%", boxSizing: "border-box" }} rows={2}/>
-                    <VoiceMicButton value={eveningForm.notes} onChange={v => setEveningForm(f => ({ ...f, notes: v }))} size={30} style={{ position: "absolute", bottom: "0.5rem", right: "0.5rem" }}/>
-                  </div>
+                      style={{ ...s.textarea, width: "100%", boxSizing: "border-box" }} rows={2}/>
                 </div>
               </div>
               <div style={s.modalFooter}>
@@ -4794,23 +4636,15 @@ ${extraContext}` : ""}`;
                     value={form.symptoms}
                     onChange={e => setForm(f => ({ ...f, symptoms: e.target.value }))}
                     placeholder="The more detail the better — where exactly (e.g. behind right eye, left hip), what it feels like (throbbing, stabbing, dull ache), what triggered or worsened it."
-                    style={{ ...s.textarea, paddingRight: "2.75rem", width: "100%", boxSizing: "border-box" }}
+                    style={{ ...s.textarea, width: "100%", boxSizing: "border-box" }}
                     rows={4}
                   />
-                  <VoiceMicButton value={form.symptoms} onChange={v => setForm(f => ({ ...f, symptoms: v }))} size={30}
-                    style={{ position: "absolute", bottom: "0.5rem", right: "0.5rem" }}/>
                 </div>
-                <p style={{ fontSize: "0.72rem", color: "#aaa", margin: "0.3rem 0 0", fontStyle: "italic" }}>
-                  Tip: tap the mic to speak your symptoms — great if typing is difficult
-                </p>
               </div>
               <div style={s.formGroup}><label style={s.label}>Symptom severity right now</label><SeveritySlider value={form.severity} onChange={v => setForm(f => ({ ...f, severity: v }))}/></div>
               <div style={s.formGroup}>
                 <label style={s.label}>Food & Drink</label>
-                <div style={{ position: "relative" }}>
-                  <textarea value={form.food} onChange={e => setForm(f => ({ ...f, food: e.target.value }))} placeholder="Have you eaten or had anything to drink?" style={{ ...s.textarea, paddingRight: "2.75rem", width: "100%", boxSizing: "border-box" }} rows={2}/>
-                  <VoiceMicButton value={form.food} onChange={v => setForm(f => ({ ...f, food: v }))} size={30} style={{ position: "absolute", bottom: "0.5rem", right: "0.5rem" }}/>
-                </div>
+                <textarea value={form.food} onChange={e => setForm(f => ({ ...f, food: e.target.value }))} placeholder="Have you eaten or had anything to drink?" style={{ ...s.textarea, width: "100%", boxSizing: "border-box" }} rows={2}/>
               </div>
 
               <div style={s.formGroup}>
@@ -4873,10 +4707,7 @@ ${extraContext}` : ""}`;
               )}
               <div style={s.formGroup}>
                 <label style={s.label}>Additional notes <span style={s.optional}>(optional)</span></label>
-                <div style={{ position: "relative" }}>
-                  <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Anything else worth noting…" style={{ ...s.textarea, paddingRight: "2.75rem", width: "100%", boxSizing: "border-box" }} rows={2}/>
-                  <VoiceMicButton value={form.notes} onChange={v => setForm(f => ({ ...f, notes: v }))} size={30} style={{ position: "absolute", bottom: "0.5rem", right: "0.5rem" }}/>
-                </div>
+                <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Anything else worth noting…" style={{ ...s.textarea, width: "100%", boxSizing: "border-box" }} rows={2}/>
               </div>
 
               <div style={s.formGroup}>
@@ -5354,7 +5185,6 @@ function SageChatbot() {
           <div style={ss.inputRow}>
             <input style={ss.chatInput} value={input} onChange={e => setInput(e.target.value)}
               onKeyDown={handleKey} placeholder="Ask Sage a question…" disabled={loading}/>
-            <VoiceMicButton value={input} onChange={setInput} size={40} style={{ borderRadius: "0.75rem", flexShrink: 0 }}/>
             <button style={ss.sendBtn} onClick={sendMessage} disabled={loading || !input.trim()} aria-label="Send">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
