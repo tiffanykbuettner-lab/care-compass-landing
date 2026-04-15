@@ -1696,9 +1696,10 @@ function PrivacyPanel({ prefs, setPrefs, markDirty }) {
                     ))}
                   </div>
                   <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${BORDER}`, fontSize: 11.5, color: WARM_GRAY, fontStyle: "italic", fontFamily: "sans-serif" }}>
-                    This is entirely optional and off by default. You can change this at any time.
+                    This is entirely optional. You can turn this off at any time.
                   </div>
                 </InfoPopover>
+                <span style={{ fontSize: 11, color: SAGE_DARK, fontStyle: "italic", fontFamily: "sans-serif", opacity: 0.8 }}>recommended</span>
               </div>
               <div style={{ fontSize: 12, color: WARM_GRAY, marginTop: 2, fontFamily: "sans-serif" }}>Anonymized patterns help train better insights for everyone</div>
             </div>
@@ -2339,7 +2340,7 @@ export default function CareCompassSettings() {
 
   // Privacy prefs state
   const [privacyPrefs, setPrivacyPrefs] = useState({
-    improveData: false, crashAnalytics: true,
+    improveData: true, crashAnalytics: true,
   });
 
   const markDirty = () => setDirty(true);
