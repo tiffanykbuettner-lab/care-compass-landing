@@ -1,0 +1,2016 @@
+import React, { useState, useEffect, useRef } from "react";
+import { useAuth } from "./AuthContext";
+import { Icon } from "./SageIcons";
+
+const SAGE       = "#7a9e87";
+const SAGE_LIGHT = "#e8f0eb";
+const SAGE_DARK  = "#4a7058";
+const TEAL       = "#4a9fa5";
+const TEAL_LIGHT = "#e0f2f4";
+const WARM_GRAY  = "#6b6560";
+const OFF_WHITE  = "#fafaf8";
+const CREAM      = "#f4f1ec";
+const INK        = "#2d2926";
+const INK_LIGHT  = "#4a4540";
+
+const STORAGE_KEY = "care-compass-tracker-v1";
+const APPT_KEY = "care-compass-appointments-v1";
+
+const BotanicalMark = ({ size = 32 }) => (
+  <svg width={size} height={size} viewBox="0 0 72 72" fill="none">
+    <circle cx="36" cy="36" r="34" fill="#e8f0eb" stroke="#7a9e87" strokeWidth="1"/>
+    <ellipse cx="36" cy="17" rx="7" ry="17" fill="#4a7058"/>
+    <ellipse cx="36" cy="55" rx="5.5" ry="13" fill="#7a9e87" opacity="0.55"/>
+    <ellipse cx="55" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.8"/>
+    <ellipse cx="17" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.45"/>
+    <ellipse cx="36" cy="36" rx="4.5" ry="11" fill="#4a7058" opacity="0.4" transform="rotate(42 36 36) translate(0 -14)"/>
+    <ellipse cx="36" cy="36" rx="4.5" ry="11" fill="#4a7058" opacity="0.4" transform="rotate(-42 36 36) translate(0 -14)"/>
+    <ellipse cx="36" cy="36" rx="3.5" ry="9" fill="#4a9fa5" opacity="0.6" transform="rotate(135 36 36) translate(0 -14)"/>
+    <ellipse cx="36" cy="36" rx="3.5" ry="9" fill="#4a9fa5" opacity="0.6" transform="rotate(-135 36 36) translate(0 -14)"/>
+    <circle cx="36" cy="36" r="7" fill="#4a7058"/>
+    <circle cx="36" cy="36" r="3" fill="#e8f0eb"/>
+  </svg>
+);
+
+
+const APPT_SPECIALTIES = [
+  "Cardiologist", "Dermatologist", "ENT", "Endocrinologist",
+  "Gastroenterologist", "Geneticist", "Gynecologist", "Hematologist",
+  "Immunologist / Allergist", "Nephrologist", "Neurologist", "Oncologist",
+  "Ophthalmologist", "Orthopedist", "Pain Management", "Physical Therapist",
+  "Primary Care", "Psychiatrist / Psychologist", "Pulmonologist",
+  "Rheumatologist", "Urologist", "Other",
+];
+
+
+
+/* ─── SearchableSelect — type-to-search dropdown ─────────────────────────── */
+function SearchableSelect({ value, onChange, options, placeholder = "Select...", style: extraStyle = {} }) {
+  const [query, setQuery] = React.useState("");
+  const [open, setOpen]   = React.useState(false);
+  const ref = React.useRef(null);
+  const inputRef = React.useRef(null);
+  React.useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setQuery(""); } };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+  const selectedLabel = options.find(o => (o.value !== undefined ? o.value : o) === value)?.label ?? value ?? "";
+  const filtered = options.filter(o => { const l = o.label ?? o; return !query || l.toLowerCase().includes(query.toLowerCase()); });
+  return (
+    <div ref={ref} style={{ position: "relative", width: "100%" }}>
+      <div onClick={() => { setOpen(o => !o); setTimeout(() => inputRef.current?.focus(), 50); }}
+        style={{ padding: "0.65rem 0.9rem", borderRadius: "0.65rem", border: `1.5px solid ${open ? SAGE : "rgba(0,0,0,0.12)"}`, fontSize: "0.9rem", color: INK, background: OFF_WHITE, outline: "none", fontFamily: "inherit", cursor: "pointer", width: "100%", boxSizing: "border-box", ...extraStyle }}>
+        {open ? (
+          <input ref={inputRef} value={query} onChange={e => setQuery(e.target.value)} placeholder={selectedLabel || placeholder}
+            style={{ border: "none", outline: "none", background: "transparent", width: "100%", fontSize: "0.9rem", color: INK, fontFamily: "inherit" }} autoComplete="off"/>
+        ) : (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ color: selectedLabel ? INK : "#aaa" }}>{selectedLabel || placeholder}</span>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0, marginLeft: 8 }}><path d="M2 4l4 4 4-4" stroke={WARM_GRAY} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          </div>
+        )}
+      </div>
+      {open && (
+        <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 999, background: "#fff", borderRadius: "0.75rem", border: "1.5px solid rgba(0,0,0,0.1)", boxShadow: "0 8px 32px rgba(0,0,0,0.12)", maxHeight: 240, overflowY: "auto" }}>
+          {filtered.length === 0 ? <div style={{ padding: "0.75rem 1rem", fontSize: "0.85rem", color: "#aaa" }}>No matches</div>
+          : filtered.map((o, i) => {
+            const val = o.value !== undefined ? o.value : o;
+            const label = o.label ?? o;
+            const isSel = val === value;
+            return <div key={String(val)+i} onMouseDown={() => { onChange(val); setOpen(false); setQuery(""); }}
+              style={{ padding: "0.65rem 1rem", fontSize: "0.875rem", cursor: "pointer", color: isSel ? SAGE_DARK : INK, background: isSel ? SAGE_LIGHT : "transparent", fontWeight: isSel ? 600 : 400, fontFamily: "inherit", borderBottom: i < filtered.length-1 ? "1px solid rgba(0,0,0,0.04)" : "none" }}
+              onMouseEnter={e => { if(!isSel) e.currentTarget.style.background="#f5f9f6"; }}
+              onMouseLeave={e => { if(!isSel) e.currentTarget.style.background="transparent"; }}>
+              {query ? (() => { const idx=label.toLowerCase().indexOf(query.toLowerCase()); if(idx<0) return label; return <>{label.slice(0,idx)}<strong style={{color:SAGE_DARK}}>{label.slice(idx,idx+query.length)}</strong>{label.slice(idx+query.length)}</>; })() : label}
+            </div>;
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Appointment time picker ────────────────────────────────────────────── */
+function ApptTimePicker({ value, onChange, style: extraStyle = {} }) {
+  const parse = (val) => {
+    if (!val) return { h: 9, m: 0, period: "AM" };
+    const [hh, mm] = val.split(":").map(Number);
+    return { h: hh % 12 || 12, m: mm, period: hh >= 12 ? "PM" : "AM" };
+  };
+  const toValue = (h, m, period) => {
+    let h24 = h % 12;
+    if (period === "PM") h24 += 12;
+    return `${String(h24).padStart(2,"0")}:${String(m).padStart(2,"0")}`;
+  };
+  const { h, m, period } = parse(value);
+  const hours = [12,1,2,3,4,5,6,7,8,9,10,11];
+  const minutes = [0,5,10,15,20,25,30,35,40,45,50,55];
+  const sel = (w) => ({
+    border: "1.5px solid rgba(0,0,0,0.12)", borderRadius: "0.65rem",
+    padding: "0.65rem 0.3rem", fontSize: "0.85rem", color: INK,
+    background: OFF_WHITE, outline: "none", cursor: "pointer",
+    fontFamily: "inherit", appearance: "none", WebkitAppearance: "none",
+    textAlign: "center", width: w, boxSizing: "border-box", ...extraStyle,
+  });
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+      <select value={h} onChange={e => onChange(toValue(Number(e.target.value), m, period))} style={sel("54px")}>
+        {hours.map(hr => <option key={hr} value={hr}>{hr}</option>)}
+      </select>
+      <span style={{ color: WARM_GRAY, fontWeight: 600, fontSize: "1rem" }}>:</span>
+      <select value={m} onChange={e => onChange(toValue(h, Number(e.target.value), period))} style={sel("54px")}>
+        {minutes.map(min => <option key={min} value={min}>{String(min).padStart(2,"0")}</option>)}
+      </select>
+      <select value={period} onChange={e => onChange(toValue(h, m, e.target.value))} style={sel("58px")}>
+        <option>AM</option>
+        <option>PM</option>
+      </select>
+    </div>
+  );
+}
+
+/* ─── Google Places location autocomplete ────────────────────────────────── */
+function LocationInput({ value, onChange, style: inp }) {
+  const inputRef = React.useRef(null);
+  const autocompleteRef = React.useRef(null);
+
+  React.useEffect(() => {
+    const key = import.meta.env.VITE_GOOGLE_PLACES_KEY;
+    if (!key) return;
+
+    const initAutocomplete = () => {
+      if (!window.google?.maps?.places || !inputRef.current) return;
+      try {
+        autocompleteRef.current = new window.google.maps.places.Autocomplete(inputRef.current, {
+          types: ["establishment", "geocode"],
+          fields: ["formatted_address", "name"],
+        });
+        autocompleteRef.current.addListener("place_changed", () => {
+          const place = autocompleteRef.current.getPlace();
+          if (place.name && place.formatted_address) {
+            onChange(`${place.name}, ${place.formatted_address}`);
+          } else if (place.formatted_address) {
+            onChange(place.formatted_address);
+          }
+        });
+      } catch (e) {
+        console.warn("Places autocomplete error:", e);
+      }
+    };
+
+    window.gm_authFailure = () => console.warn("Google Maps auth failed");
+
+    if (window.google?.maps?.places) {
+      initAutocomplete();
+    } else if (!document.getElementById("google-maps-script")) {
+      const script = document.createElement("script");
+      script.id = "google-maps-script";
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places`;
+      script.async = true;
+      script.defer = true;
+      script.onload = initAutocomplete;
+      document.head.appendChild(script);
+    } else {
+      const interval = setInterval(() => {
+        if (window.google?.maps?.places) {
+          clearInterval(interval);
+          initAutocomplete();
+        }
+      }, 200);
+      return () => clearInterval(interval);
+    }
+  }, []);
+
+  return (
+    <input
+      ref={inputRef}
+      type="text"
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      placeholder="e.g. Houston Methodist, 6565 Fannin St"
+      style={inp}
+      autoComplete="off"
+    />
+  );
+}
+
+
+const REMINDER_OPTIONS = [
+  { value: "2880", label: "2 days before" },
+  { value: "1440", label: "1 day before" },
+  { value: "240",  label: "4 hours before" },
+  { value: "120",  label: "2 hours before" },
+  { value: "60",   label: "1 hour before" },
+  { value: "30",   label: "30 minutes before" },
+];
+
+function daysUntil(dateStr) {
+  // Parse date as local date (YYYY-MM-DD) to avoid timezone shifts
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const appt = new Date(y, m - 1, d);
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  appt.setHours(0, 0, 0, 0);
+  return Math.floor((appt - now) / 86400000);
+}
+
+function formatApptDate(dateStr, timeStr) {
+  const d = new Date(`${dateStr}T${timeStr || "00:00"}`);
+  return d.toLocaleDateString("en-US", { weekday: "short", month: "long", day: "numeric", year: "numeric" }) +
+    (timeStr ? " · " + d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "");
+}
+
+function urgencyColor(days) {
+  if (days < 0) return "#aaa";
+  if (days <= 3) return "#c0392b";
+  if (days <= 7) return "#e8a838";
+  return SAGE_DARK;
+}
+
+function AppointmentCard({ appt, onEdit, onDelete }) {
+  const days = daysUntil(appt.date);
+  const color = urgencyColor(days);
+  const isPast = days < 0;
+  return (
+    <div style={{
+      background: "#fff", borderRadius: "1rem",
+      border: `1px solid rgba(0,0,0,0.07)`,
+      borderLeft: `4px solid ${color}`,
+      padding: "1rem 1.25rem",
+      display: "flex", justifyContent: "space-between", alignItems: "flex-start",
+      gap: "1rem", opacity: isPast ? 0.6 : 1,
+    }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap", marginBottom: "0.3rem" }}>
+          <span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "0.95rem", fontWeight: 700, color: INK }}>
+            {appt.specialty}
+          </span>
+          {appt.doctor && <span style={{ fontSize: "0.8rem", color: WARM_GRAY }}>· {appt.doctor}</span>}
+          <span style={{
+            fontSize: "0.7rem", fontWeight: 700, padding: "0.15rem 0.6rem",
+            borderRadius: "100px", background: isPast ? "#f0ede8" : color + "18",
+            color: isPast ? WARM_GRAY : color, marginLeft: "auto", whiteSpace: "nowrap",
+          }}>
+            {isPast ? "Past" : days === 0 ? "Today!" : days === 1 ? "Tomorrow" : `${days} days`}
+          </span>
+        </div>
+        <p style={{ fontSize: "0.78rem", color: TEAL, margin: "0 0 0.3rem", fontWeight: 500 }}>
+          {formatApptDate(appt.date, appt.time)}
+        </p>
+        {appt.location && <p style={{ fontSize: "0.75rem", color: WARM_GRAY, margin: "0 0 0.2rem" }}><span style={{ display:"inline-flex", alignItems:"center", gap:"0.3rem", color:WARM_GRAY }}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M8 1a4 4 0 014 4c0 3-4 9-4 9S4 8 4 5a4 4 0 014-4z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><circle cx="8" cy="5" r="1.5" stroke="currentColor" strokeWidth="1.2"/></svg>{appt.location}</span></p>}
+        {appt.reason && <p style={{ fontSize: "0.78rem", color: INK_LIGHT, margin: 0, fontStyle: "italic" }}>"{appt.reason}"</p>}
+        <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
+          {appt.reminder && (
+            <span style={{ fontSize: "0.7rem", background: SAGE_LIGHT, color: SAGE_DARK, borderRadius: "100px", padding: "0.2rem 0.65rem", fontWeight: 500 }}>
+              🔔 {(REMINDER_OPTIONS.find(o => o.value === appt.reminderAdvance) || REMINDER_OPTIONS[1]).label}
+            </span>
+          )}
+          {appt.prepReport && (
+            <span style={{ fontSize: "0.7rem", background: TEAL_LIGHT, color: TEAL, borderRadius: "100px", padding: "0.2rem 0.65rem", fontWeight: 500 }}>
+              <span style={{ display:"inline-flex", alignItems:"center", gap:"0.35rem" }}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M3 13c1-4 2-8 9-10-3 5-4 8-9 10z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><path d="M3 13c2-3 4-5 6-7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg> Report requested</span>
+            </span>
+          )}
+        </div>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", flexShrink: 0 }}>
+        <button onClick={() => onEdit(appt)} style={{ background: "none", border: "1px solid rgba(0,0,0,0.12)", borderRadius: "6px", padding: "0.25rem 0.65rem", fontSize: "0.72rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit" }}>Edit</button>
+        <button onClick={() => onDelete(appt.id)} style={{ background: "none", border: "none", color: "#ddd", cursor: "pointer", fontSize: "0.9rem", textAlign: "center" }}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg></button>
+      </div>
+    </div>
+  );
+}
+
+
+/* ─── Calendar export helpers ────────────────────────────────────────────── */
+function makeICSContent(appt) {
+  const [y, m, d] = appt.date.split("-").map(Number);
+  const [hh, mm] = appt.time ? appt.time.split(":").map(Number) : [9, 0];
+  const pad = n => String(n).padStart(2, "0");
+  const dtStart = `${y}${pad(m)}${pad(d)}T${pad(hh)}${pad(mm)}00`;
+  const dtEnd = `${y}${pad(m)}${pad(d)}T${pad(hh + 1)}${pad(mm)}00`;
+  const now = new Date().toISOString().replace(/[-:]/g, "").slice(0, 15) + "Z";
+  const title = `${appt.specialty} Appointment${appt.doctor ? " — " + appt.doctor : ""}`;
+  const desc = [appt.reason, "Prepared with Care Compass (joincarecompass.com)"].filter(Boolean).join("\n");
+  return [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//CareCompass//EN",
+    "BEGIN:VEVENT",
+    `UID:${now}-carecompass@joincarecompass.com`,
+    `DTSTAMP:${now}`,
+    `DTSTART:${dtStart}`,
+    `DTEND:${dtEnd}`,
+    `SUMMARY:${title}`,
+    `DESCRIPTION:${desc}`,
+    appt.location ? `LOCATION:${appt.location}` : "",
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ].filter(Boolean).join("\r\n");
+}
+
+function makeGoogleCalUrl(appt) {
+  const [y, m, d] = appt.date.split("-").map(Number);
+  const [hh, mm] = appt.time ? appt.time.split(":").map(Number) : [9, 0];
+  const pad = n => String(n).padStart(2, "0");
+  const dt = `${y}${pad(m)}${pad(d)}T${pad(hh)}${pad(mm)}00`;
+  const dtEnd = `${y}${pad(m)}${pad(d)}T${pad(hh + 1)}${pad(mm)}00`;
+  const title = encodeURIComponent(`${appt.specialty} Appointment${appt.doctor ? " — " + appt.doctor : ""}`);
+  const details = encodeURIComponent(appt.reason || "");
+  const loc = encodeURIComponent(appt.location || "");
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dt}/${dtEnd}&details=${details}&location=${loc}`;
+}
+
+function downloadICS(appt) {
+  const content = makeICSContent(appt);
+  const blob = new Blob([content], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `carecompass-appointment.ics`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function AppointmentForm({ initial, onSave, onCancel }) {
+  const blank = { specialty: "", doctor: "", date: "", time: "", location: "", reason: "", reminder: true, reminderAdvance: "1440", prepReport: true };
+  const careTeamProviders = (() => {
+    try { const s = localStorage.getItem("cc-care-team"); return s ? JSON.parse(s) : []; } catch { return []; }
+  })();
+  const [form, setForm] = useState(initial || blank);
+  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
+  const toggle = (k) => setForm(f => ({ ...f, [k]: !f[k] }));
+  const valid = form.specialty && form.date;
+
+  const inp = {
+    padding: "0.65rem 0.9rem", borderRadius: "0.65rem",
+    border: "1.5px solid rgba(0,0,0,0.12)", fontSize: "0.9rem",
+    color: INK, background: OFF_WHITE, outline: "none",
+    fontFamily: "inherit", width: "100%", boxSizing: "border-box",
+  };
+  const lbl = { fontSize: "0.78rem", fontWeight: 600, color: INK_LIGHT, marginBottom: "0.3rem", display: "block" };
+
+  const [showDoctorSuggestions, setShowDoctorSuggestions] = useState(false);
+  const activeCareTeam = careTeamProviders.filter(p => p.name.trim());
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+
+      {/* Doctor — first field, suggests from care team */}
+      <div style={{ position: "relative" }}>
+        <label style={lbl}>Doctor <span style={{ fontWeight: 400, color: "#aaa" }}>(optional)</span></label>
+        {activeCareTeam.length > 0 ? (
+          <>
+            <select
+              value={form.doctor}
+              onChange={e => {
+                const val = e.target.value;
+                const match = activeCareTeam.find(p => p.name === val);
+                setForm(f => ({
+                  ...f,
+                  doctor: val,
+                  specialty: match?.specialty || f.specialty,
+                }));
+              }}
+              style={{ ...inp, WebkitAppearance: "none" }}
+            >
+              <option value="">Select from your care team...</option>
+              {activeCareTeam.map((p, i) => (
+                <option key={i} value={p.name}>
+                  {p.name}{p.specialty ? ` — ${p.specialty}` : ""}
+                </option>
+              ))}
+              <option value="__other__">Other / not in my care team</option>
+            </select>
+            {form.doctor === "__other__" && (
+              <div style={{ marginTop: "0.5rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                <input
+                  type="text"
+                  value={form._customDoctor || ""}
+                  onChange={e => setForm(f => ({ ...f, _customDoctor: e.target.value }))}
+                  placeholder="Enter doctor name..."
+                  style={inp}
+                  autoFocus
+                />
+                {form._customDoctor?.trim() && (
+                  <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", fontSize: "0.8rem", color: SAGE_DARK }}>
+                    <input
+                      type="checkbox"
+                      checked={form._saveToTeam || false}
+                      onChange={() => setForm(f => ({ ...f, _saveToTeam: !f._saveToTeam }))}
+                      style={{ accentColor: SAGE_DARK, width: 14, height: 14 }}
+                    />
+                    Save this provider to my care team in Account Settings
+                  </label>
+                )}
+              </div>
+            )}
+          </>
+        ) : (
+          <input
+            type="text"
+            value={form.doctor}
+            onChange={set("doctor")}
+            placeholder="e.g. Dr. Patel"
+            style={inp}
+          />
+        )}
+        {activeCareTeam.length === 0 && (
+          <p style={{ fontSize: "0.72rem", color: "#aaa", margin: "0.25rem 0 0", fontStyle: "italic" }}>
+            Add providers in <a href="/account" style={{ color: SAGE_DARK }}>Account Settings → Care team</a> to see suggestions here.
+          </p>
+        )}
+      </div>
+
+      {/* Specialty */}
+      <div>
+        <label style={lbl}>Specialty <span style={{ color: "#c0392b" }}>*</span></label>
+        <select value={form.specialty} onChange={set("specialty")} style={{ ...inp, WebkitAppearance: "none" }}>
+          <option value="">Select specialty...</option>
+          {APPT_SPECIALTIES.map(s => <option key={s}>{s}</option>)}
+        </select>
+      </div>
+
+      {/* Date + Time */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "0.875rem" }}>
+        <div>
+          <label style={lbl}>Date <span style={{ color: "#c0392b" }}>*</span></label>
+          <input type="date" value={form.date} onChange={set("date")} style={inp}/>
+        </div>
+        <div>
+          <label style={lbl}>Time <span style={{ fontWeight: 400, color: "#aaa" }}>(optional)</span></label>
+          <ApptTimePicker value={form.time} onChange={val => setForm(f => ({ ...f, time: val }))}/>
+        </div>
+      </div>
+
+      {/* Location */}
+      <div>
+        <label style={lbl}>Location <span style={{ fontWeight: 400, color: "#aaa" }}>(optional)</span></label>
+        <LocationInput value={form.location} onChange={val => setForm(f => ({ ...f, location: val }))} style={inp}/>
+      </div>
+
+      {/* Reason */}
+      <div>
+        <label style={lbl}>Reason for appointment <span style={{ fontWeight: 400, color: "#aaa" }}>(optional)</span></label>
+        <textarea value={form.reason} onChange={set("reason")} placeholder="e.g. Follow-up on dysautonomia symptoms, medication review..." rows={2} style={{ ...inp, resize: "vertical", lineHeight: 1.5 }}/>
+      </div>
+
+      {/* Reminder + Report toggles */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", userSelect: "none" }}>
+            <input type="checkbox" checked={form.reminder} onChange={() => toggle("reminder")} style={{ accentColor: SAGE_DARK, width: 16, height: 16 }}/>
+            <span style={{ fontSize: "0.85rem", color: INK }}>Set reminder</span>
+          </label>
+          {form.reminder && (
+            <select
+              value={form.reminderAdvance}
+              onChange={e => setForm(f => ({ ...f, reminderAdvance: e.target.value }))}
+              style={{ border: "1.5px solid rgba(0,0,0,0.12)", borderRadius: "0.5rem", padding: "0.35rem 0.65rem", fontSize: "0.82rem", color: INK, background: OFF_WHITE, outline: "none", fontFamily: "inherit", cursor: "pointer", WebkitAppearance: "none" }}
+            >
+              {REMINDER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          )}
+        </div>
+        <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", userSelect: "none" }}>
+          <input type="checkbox" checked={form.prepReport} onChange={() => toggle("prepReport")} style={{ accentColor: TEAL, width: 16, height: 16 }}/>
+          <span style={{ fontSize: "0.85rem", color: INK }}>Request report prep</span>
+        </label>
+      </div>
+
+      {form.prepReport && (
+        <div style={{ background: TEAL_LIGHT, borderRadius: "0.75rem", padding: "0.75rem 1rem", fontSize: "0.78rem", color: TEAL, lineHeight: 1.6 }}>
+          📋 We'll remind you to generate a symptom report 48 hours before your appointment so you can walk in prepared.
+        </div>
+      )}
+
+      <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end", paddingTop: "0.25rem" }}>
+        <button onClick={onCancel} style={{ background: "transparent", border: "1.5px solid rgba(0,0,0,0.12)", borderRadius: "100px", padding: "0.6rem 1.25rem", fontSize: "0.875rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+        <button onClick={() => valid && onSave(form)} disabled={!valid} style={{ background: valid ? SAGE_DARK : "#ccc", color: "#fff", border: "none", borderRadius: "100px", padding: "0.6rem 1.5rem", fontSize: "0.875rem", fontWeight: 600, cursor: valid ? "pointer" : "default", fontFamily: "inherit" }}>
+          {initial ? "Save changes" : "Add appointment"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+const severityColor = (n) => {
+  if (!n) return SAGE;
+  if (n <= 3) return "#7a9e87";
+  if (n <= 6) return "#e8a838";
+  return "#c0392b";
+};
+
+/* ─── Mini spark line ────────────────────────────────────────────────────── */
+function SparkLine({ data, color = SAGE }) {
+  if (!data || data.length < 2) return null;
+  const W = 120, H = 40, PAD = 4;
+  const max = Math.max(...data, 1);
+  const xStep = (W - PAD * 2) / (data.length - 1);
+  const points = data.map((v, i) => ({
+    x: PAD + i * xStep,
+    y: H - PAD - ((v / max) * (H - PAD * 2)),
+  }));
+  const pathD = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+  return (
+    <svg width={W} height={H} style={{ overflow: "visible" }}>
+      <path d={pathD} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.7"/>
+      {points.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r="2.5" fill={color} opacity="0.8"/>)}
+    </svg>
+  );
+}
+
+/* ─── Goals — shared constants & storage key ────────────────────────────── */
+const GOALS_KEY = "cc-goals";
+
+/* ─── GoalIcon — maps goal type to a SageIcons icon ─────────────────────── */
+const GOAL_ICON_MAP = {
+  pain:     { name: "heart",     color: "#c0392b" },
+  mobility: { name: "forward",   color: "#4a9fa5" },
+  energy:   { name: "pulse",     color: "#e8a838" },
+  sleep:    { name: "alarm",     color: "#7c5cbf" },
+  stress:   { name: "leaf",      color: "#4a7058" },
+  limits:   { name: "check",     color: "#4a7058" },
+  custom:   { name: "compass",   color: "#4a9fa5" },
+};
+
+function GoalIcon({ type, size = 16 }) {
+  const map = GOAL_ICON_MAP[type] || GOAL_ICON_MAP.custom;
+  return <Icon name={map.name} size={size} color={map.color} />;
+}
+
+const GOAL_TYPES = [
+  { id: "pain",      label: "Reduced pain", metric: "severity", direction: "lower", desc: "Average severity score" },
+  { id: "mobility",  label: "More mobility", metric: "activity",  direction: "more",  desc: "Days with activity logged" },
+  { id: "energy",    label: "More energy / less fatigue", metric: "energy",   direction: "higher", desc: "Energy-related entries" },
+  { id: "sleep",     label: "Better sleep", metric: "sleep",    direction: "higher", desc: "Average sleep quality" },
+  { id: "stress",    label: "Lower stress", metric: "stress",   direction: "lower",  desc: "Average stress score" },
+  { id: "limits",    label: "Fewer daily limitations", metric: "activity", direction: "less_limits", desc: "Entries mentioning limitations" },
+  { id: "custom",    label: "Custom goal", metric: null,       direction: null,     desc: "Your own definition of progress" },
+];
+
+const loadGoals = () => {
+  try { const s = localStorage.getItem(GOALS_KEY); return s ? JSON.parse(s) : []; } catch { return []; }
+};
+
+const saveGoals = (goals) => {
+  try { localStorage.setItem(GOALS_KEY, JSON.stringify(goals)); } catch {}
+};
+
+/**
+ * Compute progress for a goal against real tracker entries.
+ * Returns { baseline, recent, percentChange, trend, label, canCompute }
+ */
+const computeGoalProgress = (goal, entries) => {
+  if (!entries || entries.length < 5) return { canCompute: false };
+  const sorted = [...entries].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+  const mid = Math.floor(sorted.length / 2);
+  const baselineEntries = sorted.slice(0, mid);
+  const recentEntries   = sorted.slice(-Math.min(30, Math.ceil(sorted.length / 2)));
+
+  const avg = (arr, field) => {
+    const vals = arr.map(e => e[field]).filter(v => v != null && !isNaN(v));
+    return vals.length ? vals.reduce((s, v) => s + Number(v), 0) / vals.length : null;
+  };
+
+  const countActivity = (arr) =>
+    arr.filter(e => e.activity && e.activity.trim().length > 0).length / Math.max(arr.length, 1);
+
+  const countLimits = (arr) => {
+    const limitWords = ["couldn't", "can't", "unable", "limited", "couldn't", "stopped", "missed", "sat", "rested", "pain", "skipped"];
+    return arr.filter(e => {
+      const text = ((e.activity || "") + " " + (e.symptoms || "")).toLowerCase();
+      return limitWords.some(w => text.includes(w));
+    }).length / Math.max(arr.length, 1);
+  };
+
+  let baseline, recent, label;
+
+  switch (goal.type) {
+    case "pain":
+      baseline = avg(baselineEntries, "severity");
+      recent   = avg(recentEntries, "severity");
+      label    = "avg severity";
+      break;
+    case "sleep":
+      baseline = avg(baselineEntries, "sleep");
+      recent   = avg(recentEntries, "sleep");
+      label    = "avg sleep quality";
+      break;
+    case "stress":
+      baseline = avg(baselineEntries, "stress");
+      recent   = avg(recentEntries, "stress");
+      label    = "avg stress";
+      break;
+    case "mobility":
+      baseline = countActivity(baselineEntries) * 10;
+      recent   = countActivity(recentEntries) * 10;
+      label    = "activity rate";
+      break;
+    case "limits":
+      baseline = countLimits(baselineEntries) * 10;
+      recent   = countLimits(recentEntries) * 10;
+      label    = "limitation rate";
+      break;
+    default:
+      return { canCompute: false };
+  }
+
+  if (baseline == null || recent == null) return { canCompute: false };
+
+  const direction   = GOAL_TYPES.find(t => t.id === goal.type)?.direction;
+  const isImproving = direction === "lower" || direction === "less_limits"
+    ? recent < baseline
+    : recent > baseline;
+
+  const rawChange   = baseline !== 0 ? ((recent - baseline) / baseline) * 100 : 0;
+  const absChange   = Math.abs(rawChange);
+  const percentChange = Math.round(absChange);
+  const trend       = isImproving ? "improving" : rawChange === 0 ? "stable" : "worsening";
+
+  return { canCompute: true, baseline: +baseline.toFixed(1), recent: +recent.toFixed(1), percentChange, trend, label, isImproving };
+};
+
+/* ─── GoalsSection — dashboard card with add/manage goals ─────────────────── */
+function GoalsSection({ entries }) {
+  const [goals, setGoals]       = useState(() => loadGoals());
+  const [showForm, setShowForm] = useState(false);
+  const [editId, setEditId]     = useState(null);
+  const [form, setForm]         = useState({ type: "", title: "", notes: "" });
+  const [confirmDelete, setConfirmDelete] = useState(null);
+
+  const persist = (updated) => { setGoals(updated); saveGoals(updated); };
+
+  const openAdd = () => {
+    setEditId(null);
+    setForm({ type: "", title: "", notes: "" });
+    setShowForm(true);
+  };
+
+  const openEdit = (goal) => {
+    setEditId(goal.id);
+    setForm({ type: goal.type, title: goal.title, notes: goal.notes || "" });
+    setShowForm(true);
+  };
+
+  const handleSave = () => {
+    if (!form.type) return;
+    const typeObj = GOAL_TYPES.find(t => t.id === form.type);
+    const title   = form.title.trim() || typeObj?.label || "Goal";
+    if (editId) {
+      persist(goals.map(g => g.id === editId ? { ...g, type: form.type, title, notes: form.notes } : g));
+    } else {
+      persist([...goals, { id: Date.now(), type: form.type, title, notes: form.notes, createdAt: new Date().toISOString() }]);
+    }
+    setShowForm(false); setEditId(null);
+  };
+
+  const handleDelete = (id) => {
+    persist(goals.filter(g => g.id !== id));
+    setConfirmDelete(null);
+  };
+
+  const hasEntries = entries && entries.length >= 5;
+
+  return (
+    <div style={{ background: "#fff", borderRadius: "1.25rem", border: "1px solid rgba(0,0,0,0.07)", padding: "1.75rem", display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div>
+          <p style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#4a9fa5", margin: "0 0 0.3rem" }}>Health Goals</p>
+          <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.1rem", fontWeight: 700, color: "#2d2926", margin: 0 }}>Your journey goals</h2>
+        </div>
+        <button onClick={openAdd} style={{ background: "#4a7058", color: "#fff", border: "none", borderRadius: "100px", padding: "0.45rem 1rem", fontSize: "0.8rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+          + Add goal
+        </button>
+      </div>
+
+      {/* Goals list or empty state */}
+      {goals.length === 0 ? (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem", padding: "1.5rem 1rem", textAlign: "center" }}>
+          <Icon name="leaf" size={32} color="#7a9e87" />
+          <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1rem", fontWeight: 700, color: "#2d2926", margin: 0 }}>What are you working towards?</p>
+          <p style={{ fontSize: "0.875rem", color: "#6b6560", lineHeight: 1.7, margin: 0, maxWidth: 300 }}>Add goals like reduced pain, better sleep, or more mobility — your tracker data will show your progress over time.</p>
+          <button onClick={openAdd} style={{ background: "#4a7058", color: "#fff", border: "none", borderRadius: "100px", padding: "0.65rem 1.5rem", fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", marginTop: "0.25rem" }}>
+            Add your first goal →
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+          {goals.map(goal => {
+            const typeObj  = GOAL_TYPES.find(t => t.id === goal.type);
+            const progress = computeGoalProgress(goal, entries);
+            const trendColor = !progress.canCompute ? "#aaa"
+              : progress.trend === "improving" ? "#4a7058"
+              : progress.trend === "stable"    ? "#8a5a00"
+              : "#c0392b";
+            const trendLabel = !progress.canCompute
+              ? (hasEntries ? "Calculating…" : "Log 5+ entries to see progress")
+              : progress.trend === "improving" ? `↑ ${progress.percentChange}% improvement`
+              : progress.trend === "stable"    ? "→ Holding steady"
+              : `↓ ${progress.percentChange}% decline`;
+            const progressPct = !progress.canCompute ? null
+              : progress.trend === "improving" ? Math.min(progress.percentChange, 100)
+              : 0;
+
+            return (
+              <div key={goal.id} style={{ background: "#fafaf8", borderRadius: "0.875rem", border: "1px solid rgba(0,0,0,0.07)", padding: "1rem 1.25rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.75rem", marginBottom: progress.canCompute ? "0.75rem" : "0.25rem" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.65rem", flex: 1, minWidth: 0 }}>
+                    <GoalIcon type={goal.type} size={20} />
+                    <div style={{ minWidth: 0 }}>
+                      <p style={{ fontSize: "0.9rem", fontWeight: 700, color: "#2d2926", margin: "0 0 0.1rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{goal.title}</p>
+                      {goal.notes && <p style={{ fontSize: "0.75rem", color: "#6b6560", margin: 0, lineHeight: 1.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{goal.notes}</p>}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: "0.35rem", flexShrink: 0 }}>
+                    <button onClick={() => openEdit(goal)} style={{ background: "none", border: "1px solid rgba(0,0,0,0.1)", borderRadius: "0.4rem", padding: "0.2rem 0.55rem", fontSize: "0.72rem", color: "#6b6560", cursor: "pointer", fontFamily: "inherit" }}>Edit</button>
+                    <button onClick={() => setConfirmDelete(goal.id)} style={{ background: "none", border: "none", color: "#ccc", cursor: "pointer", padding: "0.2rem", display: "flex", alignItems: "center" }}>
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Progress bar + label */}
+                {progress.canCompute && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+                    <div style={{ height: 6, background: "#e8e4e0", borderRadius: 100, overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: `${progressPct}%`, background: trendColor, borderRadius: 100, transition: "width 0.6s ease" }}/>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: "0.72rem", fontWeight: 700, color: trendColor }}>{trendLabel}</span>
+                      <span style={{ fontSize: "0.7rem", color: "#aaa" }}>baseline {progress.baseline} → now {progress.recent} ({progress.label})</span>
+                    </div>
+                  </div>
+                )}
+                {!progress.canCompute && (
+                  <p style={{ fontSize: "0.72rem", color: "#aaa", margin: "0.25rem 0 0", fontStyle: "italic" }}>{trendLabel}</p>
+                )}
+
+                {/* Delete confirm */}
+                {confirmDelete === goal.id && (
+                  <div style={{ marginTop: "0.75rem", background: "#fdeaea", borderRadius: "0.6rem", padding: "0.6rem 0.875rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.75rem" }}>
+                    <span style={{ fontSize: "0.78rem", color: "#c0392b" }}>Remove this goal?</span>
+                    <div style={{ display: "flex", gap: "0.5rem" }}>
+                      <button onClick={() => handleDelete(goal.id)} style={{ background: "#c0392b", color: "#fff", border: "none", borderRadius: "100px", padding: "0.3rem 0.75rem", fontSize: "0.75rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Remove</button>
+                      <button onClick={() => setConfirmDelete(null)} style={{ background: "none", border: "1px solid rgba(0,0,0,0.12)", borderRadius: "100px", padding: "0.3rem 0.75rem", fontSize: "0.75rem", color: "#6b6560", cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Add/edit form modal */}
+      {showForm && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 300, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={() => setShowForm(false)}>
+          <div style={{ background: "#fff", borderRadius: "1.25rem 1.25rem 0 0", width: "100%", maxWidth: 560, padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1.25rem", maxHeight: "85vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h3 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.15rem", fontWeight: 700, color: "#2d2926", margin: 0 }}>{editId ? "Edit goal" : "Add a health goal"}</h3>
+              <button onClick={() => setShowForm(false)} style={{ background: "none", border: "none", color: "#aaa", cursor: "pointer", fontSize: "1rem", padding: "0.25rem" }}>✕</button>
+            </div>
+
+            {/* Goal type picker */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+              <label style={{ fontSize: "0.82rem", fontWeight: 600, color: "#4a4540" }}>Goal type</label>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "0.5rem" }}>
+                {GOAL_TYPES.map(t => (
+                  <button key={t.id} onClick={() => setForm(f => ({ ...f, type: t.id, title: f.title || t.label }))}
+                    style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.6rem 0.875rem", borderRadius: "0.75rem", border: `1.5px solid ${form.type === t.id ? "#4a7058" : "rgba(0,0,0,0.1)"}`, background: form.type === t.id ? "#e8f0eb" : "#fafaf8", color: form.type === t.id ? "#4a7058" : "#4a4540", fontSize: "0.82rem", fontWeight: form.type === t.id ? 700 : 400, cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}>
+                    <GoalIcon type={t.id} size={15} /><span>{t.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Custom title */}
+            {form.type && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                <label style={{ fontSize: "0.82rem", fontWeight: 600, color: "#4a4540" }}>Goal name <span style={{ fontWeight: 400, color: "#aaa", fontSize: "0.78rem" }}>(optional — customize it)</span></label>
+                <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+                  placeholder={GOAL_TYPES.find(t => t.id === form.type)?.label || "Name your goal"}
+                  style={{ padding: "0.7rem 1rem", borderRadius: "0.65rem", border: "1.5px solid rgba(0,0,0,0.12)", fontSize: "0.9rem", color: "#2d2926", background: "#fafaf8", outline: "none", fontFamily: "inherit" }}/>
+              </div>
+            )}
+
+            {/* Notes */}
+            {form.type && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                <label style={{ fontSize: "0.82rem", fontWeight: 600, color: "#4a4540" }}>Notes <span style={{ fontWeight: 400, color: "#aaa", fontSize: "0.78rem" }}>(optional)</span></label>
+                <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+                  placeholder="e.g. My pain is worst in the morning. I want to be able to drive again without flaring."
+                  rows={3} style={{ padding: "0.7rem 1rem", borderRadius: "0.65rem", border: "1.5px solid rgba(0,0,0,0.12)", fontSize: "0.875rem", color: "#2d2926", background: "#fafaf8", outline: "none", fontFamily: "inherit", resize: "vertical", lineHeight: 1.6 }}/>
+              </div>
+            )}
+
+            {form.type && (
+              <div style={{ background: "#e8f0eb", borderRadius: "0.75rem", padding: "0.75rem 1rem", fontSize: "0.78rem", color: "#4a7058", lineHeight: 1.6 }}>
+                <Icon name="pulse" size={14} color="#4a7058" style={{ marginRight: "0.35rem", verticalAlign: "middle" }} /><strong>How progress is measured:</strong> {GOAL_TYPES.find(t => t.id === form.type)?.desc || "Tracked against your logged entries over time."}
+                {form.type !== "custom" && " Care Compass compares your recent entries to your baseline to show whether you're trending in the right direction."}
+              </div>
+            )}
+
+            <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end", paddingTop: "0.25rem" }}>
+              <button onClick={() => setShowForm(false)} style={{ background: "none", border: "1.5px solid rgba(0,0,0,0.12)", borderRadius: "100px", padding: "0.65rem 1.25rem", fontSize: "0.875rem", color: "#6b6560", cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+              <button onClick={handleSave} disabled={!form.type}
+                style={{ background: form.type ? "#4a7058" : "#ccc", color: "#fff", border: "none", borderRadius: "100px", padding: "0.65rem 1.5rem", fontSize: "0.875rem", fontWeight: 600, cursor: form.type ? "pointer" : "default", fontFamily: "inherit" }}>
+                {editId ? "Save changes →" : "Add goal →"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── New user welcome screen (full-page, matches tracker onboarding style) ─ */
+function NewUserWelcome({ userName, onComplete }) {
+  // Build assessment URL pre-filled with account settings data
+  const assessmentUrl = (() => {
+    try {
+      const params = new URLSearchParams();
+      const fullName = localStorage.getItem("cc-display-name") || "";
+      if (fullName) params.set("name", fullName);
+      const profile = localStorage.getItem("cc-profile");
+      if (profile) {
+        const p = JSON.parse(profile);
+        if (p.ageRange) params.set("age", p.ageRange);
+        if (p.conditions?.length) params.set("conditions", p.conditions.join(","));
+      }
+      const meds = localStorage.getItem("care-compass-medications-v1");
+      if (meds) {
+        const medList = JSON.parse(meds);
+        if (medList.length) params.set("meds", medList.map(m => m.name + (m.dose ? " " + m.dose : "")).join(","));
+      }
+      const query = params.toString();
+      return `/compass${query ? "?" + query : ""}`;
+    } catch { return "/compass"; }
+  })();
+
+  const STEPS = [
+    {
+      num: 1,
+      title: "Set up your account",
+      desc: "Add your medications, care team, and health context. This pre-fills your assessment and makes every insight more accurate.",
+    },
+    {
+      num: 2,
+      title: "Take your full health assessment",
+      desc: "Map your symptoms across every area of your health. AI surfaces patterns and questions to bring to your doctor.",
+    },
+    {
+      num: 3,
+      title: "Track daily and bring reports to appointments",
+      desc: "Log how you're feeling in real time. Generate doctor-ready reports that change the conversation at every visit.",
+    },
+  ];
+
+  return (
+    <div style={{ minHeight: "100vh", background: OFF_WHITE, display: "flex", flexDirection: "column" }}>
+      {/* Nav */}
+      <nav style={{ padding: "1rem 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(0,0,0,0.06)", background: "#fff" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
+          <BotanicalMark size={30}/>
+          <span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.1rem", fontWeight: 700, color: INK }}>Care Compass</span>
+        </div>
+        <button onClick={onComplete} style={{ background: "none", border: "none", fontSize: "0.82rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit", textDecoration: "underline", textDecorationColor: "rgba(0,0,0,0.2)" }}>
+          Go to dashboard
+        </button>
+      </nav>
+
+      {/* Content */}
+      <main style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1rem" }}>
+        <div style={{ maxWidth: 560, width: "100%", display: "flex", flexDirection: "column", alignItems: "center", gap: "1.75rem", textAlign: "center" }}>
+
+          <BotanicalMark size={56}/>
+
+          {userName && (
+            <div style={{ background: SAGE_LIGHT, color: SAGE_DARK, borderRadius: "100px", padding: "0.35rem 1.25rem", fontSize: "0.9rem", fontWeight: 600 }}>
+              Welcome, {userName}!
+            </div>
+          )}
+
+          <div>
+            <h1 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "clamp(1.75rem, 4vw, 2.4rem)", fontWeight: 700, color: INK, margin: "0 0 0.75rem", letterSpacing: "-0.02em", lineHeight: 1.2 }}>
+              Welcome to Care Compass.<br/>Here's how to get started.
+            </h1>
+            <p style={{ fontSize: "1rem", color: WARM_GRAY, lineHeight: 1.75, margin: 0, maxWidth: 440 }}>
+              Start by setting up your account — add your medications and care team so your assessment and AI insights are personalised from the start.
+            </p>
+          </div>
+
+          {/* Step cards */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.875rem", width: "100%", textAlign: "left" }}>
+            {STEPS.map(step => (
+              <div key={step.num} style={{ display: "flex", gap: "1rem", alignItems: "flex-start", background: "#fff", borderRadius: "0.875rem", padding: "1rem 1.25rem", border: "1px solid rgba(0,0,0,0.07)", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
+                <span style={{ width: 28, height: 28, borderRadius: "50%", background: SAGE_DARK, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.8rem", fontWeight: 700, flexShrink: 0, marginTop: "0.1rem" }}>
+                  {step.num}
+                </span>
+                <div>
+                  <p style={{ fontSize: "0.9rem", fontWeight: 600, color: INK, margin: "0 0 0.2rem" }}>{step.title}</p>
+                  <p style={{ fontSize: "0.82rem", color: WARM_GRAY, lineHeight: 1.6, margin: 0 }}>{step.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Privacy note */}
+          <div style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", background: SAGE_LIGHT, borderRadius: "0.75rem", padding: "0.875rem 1.25rem", width: "100%", textAlign: "left" }}>
+            <span style={{ color:"#7a9e87" }}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><rect x="3" y="7" width="10" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M5 7V5a3 3 0 016 0v2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="8" cy="10.5" r="1" fill="currentColor"/></svg></span>
+            <p style={{ fontSize: "0.82rem", color: SAGE_DARK, lineHeight: 1.6, margin: 0 }}>
+              Your data is stored privately on this device only. It is never uploaded, sold, or shared.
+            </p>
+          </div>
+
+          {/* CTAs */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem", width: "100%" }}>
+            <a
+              href="/account"
+              style={{ background: SAGE_DARK, color: "#fff", textDecoration: "none", padding: "0.95rem 2.5rem", borderRadius: "100px", fontSize: "1rem", fontWeight: 600, width: "100%", textAlign: "center", boxSizing: "border-box" }}
+            >
+              Set up my account →
+            </a>
+            <a
+              href={assessmentUrl}
+              style={{ display: "block", background: "#fff", color: SAGE_DARK, textDecoration: "none", padding: "0.85rem 2.5rem", borderRadius: "100px", fontSize: "0.9rem", fontWeight: 600, width: "100%", textAlign: "center", boxSizing: "border-box", border: `1.5px solid ${SAGE}` }}
+            >
+              Skip to assessment
+            </a>
+            <a
+              href="/tracker"
+              style={{ fontSize: "0.82rem", color: WARM_GRAY, textDecoration: "underline", textDecorationColor: "rgba(0,0,0,0.2)" }}
+            >
+              Start tracking instead
+            </a>
+
+          </div>
+
+        </div>
+      </main>
+    </div>
+  );
+}
+
+/* ─── Sage Chatbot ───────────────────────────────────────────────────────── */
+const SAGE_KEYFRAMES = `
+  @keyframes ffDrift { 0%,100%{transform:translate(0,0)} 33%{transform:translate(0.6px,-0.8px)} 66%{transform:translate(-0.5px,0.6px)} }
+  @keyframes ffWingL { 0%,100%{transform-origin:50% 50%;transform:rotate(0deg) scaleY(1);opacity:0.55} 50%{transform-origin:50% 50%;transform:rotate(-18deg) scaleY(0.82);opacity:0.8} }
+  @keyframes ffWingR { 0%,100%{transform-origin:50% 50%;transform:rotate(0deg) scaleY(1);opacity:0.55} 50%{transform-origin:50% 50%;transform:rotate(18deg) scaleY(0.82);opacity:0.8} }
+  @keyframes ffLeaf  { 0%,100%{transform-origin:36px 36px;transform:scale(1)} 50%{transform-origin:36px 36px;transform:scale(1.03)} }
+  @keyframes ffAntL  { 0%,100%{transform:rotate(0deg)} 50%{transform:rotate(-5deg)} }
+  @keyframes ffAntR  { 0%,100%{transform:rotate(0deg)} 50%{transform:rotate(5deg)} }
+  @keyframes sageGreetIn  { from{opacity:0;transform:translateY(10px) scale(0.95)} to{opacity:1;transform:translateY(0) scale(1)} }
+  @keyframes sageGreetOut { from{opacity:1;transform:translateY(0) scale(1)} to{opacity:0;transform:translateY(6px) scale(0.97)} }
+  @keyframes sageDrawerIn { from{opacity:0;transform:translateY(12px) scale(0.95)} to{opacity:1;transform:translateY(0) scale(1)} }
+`;
+
+const FireflyMark = ({ size = 36 }) => (
+  <svg width={size} height={size} viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg"
+    style={{ animation:"ffDrift 4s ease-in-out infinite", display:"block" }}>
+    <circle cx="36" cy="36" r="34" fill="#e8f0eb" stroke="#7a9e87" strokeWidth="1"/>
+    <g style={{ animation:"ffLeaf 3.5s ease-in-out infinite" }}>
+      <ellipse cx="36" cy="17" rx="7" ry="17" fill="#4a7058"/>
+      <ellipse cx="36" cy="55" rx="5.5" ry="13" fill="#7a9e87" opacity="0.55"/>
+      <ellipse cx="55" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.8"/>
+      <ellipse cx="17" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.45"/>
+      <ellipse cx="36" cy="36" rx="4.5" ry="11" fill="#4a7058" opacity="0.35" transform="rotate(42 36 36) translate(0 -14)"/>
+      <ellipse cx="36" cy="36" rx="4.5" ry="11" fill="#4a7058" opacity="0.35" transform="rotate(-42 36 36) translate(0 -14)"/>
+      <ellipse cx="36" cy="36" rx="3.5" ry="9" fill="#4a9fa5" opacity="0.5" transform="rotate(135 36 36) translate(0 -14)"/>
+      <ellipse cx="36" cy="36" rx="3.5" ry="9" fill="#4a9fa5" opacity="0.5" transform="rotate(-135 36 36) translate(0 -14)"/>
+    </g>
+    <ellipse cx="36" cy="36" rx="4" ry="6.5" fill="#2d4a35"/>
+    <ellipse cx="28" cy="34" rx="8" ry="3.5" fill="#a8d4b0" opacity="0.55" style={{ animation:"ffWingL 0.6s ease-in-out infinite" }}/>
+    <ellipse cx="44" cy="34" rx="8" ry="3.5" fill="#a8d4b0" opacity="0.55" style={{ animation:"ffWingR 0.6s ease-in-out infinite", animationDelay:"0.05s" }}/>
+    <g style={{ transformOrigin:"34.5px 30px", animation:"ffAntL 2.8s ease-in-out infinite" }}>
+      <line x1="34.5" y1="30" x2="31" y2="25" stroke="#4a7058" strokeWidth="0.9" strokeLinecap="round"/>
+      <circle cx="31" cy="24.5" fill="#a8ffb0"><animate attributeName="r" values="1;1.6;1" dur="2.4s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.4;0.9;0.4" dur="2.4s" repeatCount="indefinite"/></circle>
+    </g>
+    <g style={{ transformOrigin:"37.5px 30px", animation:"ffAntR 2.8s ease-in-out infinite", animationDelay:"0.4s" }}>
+      <line x1="37.5" y1="30" x2="41" y2="25" stroke="#4a7058" strokeWidth="0.9" strokeLinecap="round"/>
+      <circle cx="41" cy="24.5" fill="#a8ffb0"><animate attributeName="r" values="1;1.6;1" dur="2.4s" begin="0.5s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.4;0.9;0.4" dur="2.4s" begin="0.5s" repeatCount="indefinite"/></circle>
+    </g>
+    <ellipse cx="34.2" cy="33.5" fill="#b8f0b0">
+      <animate attributeName="rx" values="1.3;1.3;1.3;0.2;1.3" dur="5s" keyTimes="0;0.7;0.85;0.9;1" repeatCount="indefinite"/>
+      <animate attributeName="ry" values="1.3;1.3;1.3;0.15;1.3" dur="5s" keyTimes="0;0.7;0.85;0.9;1" repeatCount="indefinite"/>
+    </ellipse>
+    <ellipse cx="37.8" cy="33.5" fill="#b8f0b0">
+      <animate attributeName="rx" values="1.3;1.3;1.3;0.2;1.3" dur="5s" keyTimes="0;0.7;0.85;0.9;1" begin="0.08s" repeatCount="indefinite"/>
+      <animate attributeName="ry" values="1.3;1.3;1.3;0.15;1.3" dur="5s" keyTimes="0;0.7;0.85;0.9;1" begin="0.08s" repeatCount="indefinite"/>
+    </ellipse>
+    <circle cx="36" cy="41" r="3" fill="#7fff7a" opacity="0.18"/>
+    <circle cx="36" cy="41" fill="#c8ffb0">
+      <animate attributeName="r" values="2.8;4;2.8" dur="1.8s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.25;1;0.25" dur="1.8s" repeatCount="indefinite"/>
+    </circle>
+  </svg>
+);
+
+const DASHBOARD_SYSTEM_PROMPT = `You are Sage, the friendly Care Compass guide on the dashboard. Care Compass helps people with chronic illness manage their health — tracking symptoms, medications, appointments, and generating AI-powered insights and doctor reports.
+
+Help users understand their dashboard, navigate features, set up appointments, understand their tracking data, or get started with Care Compass. Be warm, encouraging, and concise — 2-3 sentences max. No bullet points or markdown. Never give medical advice.`;
+
+const DASHBOARD_SYSTEM_PROMPT_NUDGE_ASSESSMENT = `You are Sage, the friendly Care Compass guide on the dashboard. This user is brand new — they've set up their account but haven't taken the Care Compass assessment yet.
+
+Your top priority is gently encouraging them to take the assessment when relevant. The assessment is the most important first step — it maps their symptoms with AI and generates their first insights report. If they ask what to do first, or how to get started, point them to the assessment at /compass. Be warm, never pushy. 2-3 sentences max. No bullet points or markdown. Never give medical advice.`;
+
+const DASHBOARD_SUGGESTIONS = [
+  "How do I log my symptoms?",
+  "What does the AI Insights feature do?",
+  "How do I generate a doctor report?",
+  "How do I add an appointment?",
+  "What is the ER Report for?",
+  "How is my data kept private?",
+];
+
+const DASHBOARD_SUGGESTIONS_NUDGE = [
+  "What is the assessment?",
+  "How long does the assessment take?",
+  "Can I skip the assessment and start tracking?",
+  "What happens after I take the assessment?",
+  "How do I log my symptoms?",
+  "How is my data kept private?",
+];
+
+function SageChatbot() {
+  const skippedSetup       = (() => { try { return localStorage.getItem("cc-skipped-setup") === "true" && localStorage.getItem("cc-setup-complete") !== "true"; } catch { return false; } })();
+  const skippedAssessment  = (() => {
+    try { return localStorage.getItem("cc-skipped-assessment") === "true" && localStorage.getItem("cc-assessment-done") !== "true"; } catch { return false; }
+  })();
+
+  const systemPrompt = skippedSetup
+    ? DASHBOARD_SYSTEM_PROMPT_NUDGE_ASSESSMENT.replace("hasn't taken the Care Compass assessment yet", "hasn't set up their profile or taken the assessment yet. Your top priority is nudging them to set up their profile first at /account?setup=true, then take the assessment at /compass.")
+    : skippedAssessment ? DASHBOARD_SYSTEM_PROMPT_NUDGE_ASSESSMENT : DASHBOARD_SYSTEM_PROMPT;
+
+  const suggestions = skippedSetup || skippedAssessment ? DASHBOARD_SUGGESTIONS_NUDGE : DASHBOARD_SUGGESTIONS;
+  const greetingText = skippedSetup
+    ? "A quick profile setup will make your experience much better — ready?"
+    : skippedAssessment
+    ? "Ready to take your assessment? It's the best first step."
+    : "Questions about your dashboard? I'm here to help.";
+
+  const [greetPhase, setGreetPhase] = useState("hidden"); // "hidden" | "showing" | "fading" | "gone"
+  const [open, setOpen]             = useState(false);
+  const [messages, setMessages]     = useState([]);
+  const [input, setInput]           = useState("");
+  const [loading, setLoading]       = useState(false);
+  const messagesEndRef              = useRef(null);
+
+  // Auto-fade greeting: appears at 3s, fades at 6.5s, gone at 7.2s
+  useEffect(() => {
+    const t1 = setTimeout(() => setGreetPhase("showing"), 3000);
+    const t2 = setTimeout(() => setGreetPhase("fading"),  6500);
+    const t3 = setTimeout(() => setGreetPhase("gone"),    7200);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+  }, []);
+
+  useEffect(() => {
+    if (open && messagesEndRef.current)
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+  }, [messages, open]);
+
+  const sendMessageWith = async (text) => {
+    if (!text || loading) return;
+    const newMessages = [...messages, { role: "user", content: text }];
+    setMessages(newMessages);
+    setInput("");
+    setLoading(true);
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1000,
+          system: systemPrompt,
+          messages: newMessages,
+        }),
+      });
+      const data = await res.json();
+      const reply = data.content?.[0]?.text || "I'm having trouble connecting. Please try again in a moment.";
+      setMessages([...newMessages, { role: "assistant", content: reply }]);
+    } catch {
+      setMessages([...newMessages, { role: "assistant", content: "I'm having trouble connecting. Please try again in a moment." }]);
+    }
+    setLoading(false);
+  };
+
+  const sendMessage = async () => { const t = input.trim(); if (t) await sendMessageWith(t); };
+  const handleKey   = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } };
+  const openChat    = () => { setOpen(true); setGreetPhase("gone"); };
+
+  return (
+    <>
+      <style>{SAGE_KEYFRAMES}</style>
+
+      {/* Auto-fading greeting bubble */}
+      {(greetPhase === "showing" || greetPhase === "fading") && !open && (
+        <div style={{
+          position: "fixed", bottom: "5.75rem", right: "1.5rem",
+          background: "#fff", borderRadius: "1rem",
+          boxShadow: "0 4px 32px rgba(0,0,0,0.10), 0 1px 6px rgba(0,0,0,0.06)",
+          padding: "0.875rem 1.1rem", maxWidth: 240, zIndex: 9000,
+          animation: greetPhase === "showing"
+            ? "sageGreetIn 0.45s cubic-bezier(0.34,1.56,0.64,1) forwards"
+            : "sageGreetOut 0.65s ease forwards",
+          pointerEvents: greetPhase === "fading" ? "none" : "auto",
+        }}>
+          <p style={{ margin: "0 0 0.2rem", fontSize: "0.88rem", fontWeight: 600, color: "#4a7058" }}>Hi, I'm Sage! 🌿</p>
+          <p style={{ margin: 0, fontSize: "0.82rem", color: "#2d2926", lineHeight: 1.5 }}>{greetingText}</p>
+        </div>
+      )}
+
+      {/* Chat drawer */}
+      {open && (
+        <div style={{
+          position: "fixed", bottom: "1.5rem", right: "1.5rem",
+          width: 340, maxWidth: "calc(100vw - 2rem)", maxHeight: "70vh",
+          background: "#fff", borderRadius: "1.25rem",
+          boxShadow: "0 8px 48px rgba(0,0,0,0.14)", border: "1px solid rgba(0,0,0,0.07)",
+          display: "flex", flexDirection: "column", zIndex: 9000, overflow: "hidden",
+          animation: "sageDrawerIn 0.35s cubic-bezier(0.34,1.56,0.64,1)",
+        }}>
+          {/* Header */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "1rem 1.1rem", borderBottom: "1px solid rgba(0,0,0,0.06)", background: "#fafaf8" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+              <FireflyMark size={44}/>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#2d2926", lineHeight: 1.2 }}>Sage</div>
+                <div style={{ fontSize: "0.75rem", color: "#7a9e87" }}>Your Care Compass guide</div>
+              </div>
+            </div>
+            <button onClick={() => setOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#aaa", fontSize: "1rem", padding: "4px", lineHeight: 1 }}>✕</button>
+          </div>
+
+          {/* Messages */}
+          <div style={{ flex: 1, overflowY: "auto", padding: "1rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+            {messages.length === 0 && (
+              <div>
+                  <div style={{ fontSize: "0.875rem", color: "#aaa", textAlign: "center", lineHeight: 1.6, padding: "1rem 0.5rem 0.75rem", fontStyle: "italic" }}>
+                  Ask me anything about your Care Compass dashboard.
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.45rem", justifyContent: "center", padding: "0 0.25rem 0.5rem" }}>
+                  {suggestions.map(q => (
+                    <button key={q} onClick={() => sendMessageWith(q)}
+                      style={{ background: "#f0f7f2", border: "1px solid #c2d9c8", borderRadius: "100px", padding: "0.4rem 0.85rem", fontSize: "0.78rem", color: "#4a7058", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", lineHeight: 1.4 }}>
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {messages.map((m, i) => (
+              <div key={i} style={{
+                alignSelf: m.role === "user" ? "flex-end" : "flex-start",
+                background: m.role === "user" ? "#4a7058" : "#e8f0eb",
+                color: m.role === "user" ? "#fff" : "#2d2926",
+                borderRadius: m.role === "user" ? "1rem 1rem 0.25rem 1rem" : "1rem 1rem 1rem 0.25rem",
+                padding: "0.65rem 0.9rem", fontSize: "0.88rem", lineHeight: 1.5, maxWidth: "82%",
+              }}>{m.content}</div>
+            ))}
+            {loading && (
+              <div style={{ alignSelf: "flex-start", background: "#e8f0eb", borderRadius: "1rem 1rem 1rem 0.25rem", padding: "0.65rem 0.9rem" }}>
+                <span style={{ color: "#7a9e87", letterSpacing: "0.1em", fontSize: "0.75rem" }}>●&nbsp;●&nbsp;●</span>
+              </div>
+            )}
+            <div ref={messagesEndRef}/>
+          </div>
+
+          {/* Input */}
+          <div style={{ display: "flex", gap: "0.5rem", padding: "0.75rem", borderTop: "1px solid rgba(0,0,0,0.06)", background: "#fafaf8" }}>
+            <input
+              style={{ flex: 1, padding: "0.65rem 0.9rem", borderRadius: "0.75rem", border: "1.5px solid rgba(0,0,0,0.1)", fontSize: "0.88rem", fontFamily: "inherit", color: "#2d2926", background: "#fff", outline: "none" }}
+              value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKey}
+              placeholder="Ask Sage a question…" disabled={loading}
+            />
+            <button onClick={sendMessage} disabled={loading || !input.trim()}
+              style={{ width: 40, height: 40, borderRadius: "0.75rem", background: "#4a7058", color: "#fff", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+              aria-label="Send">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* FAB */}
+      {!open && (
+        <button onClick={openChat} aria-label="Chat with Sage"
+          style={{ position: "fixed", bottom: "1.5rem", right: "1.5rem", width: 68, height: 68, borderRadius: "50%", background: "#e8f0eb", border: "2px solid #c2d9c8", boxShadow: "0 4px 24px rgba(74,112,88,0.18)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9000, padding: 0 }}>
+          <FireflyMark size={48}/>
+        </button>
+      )}
+    </>
+  );
+}
+
+/* ─── Main Dashboard ─────────────────────────────────────────────────────── */
+export default function CareCompassDashboard() {
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const style = document.createElement("style");
+    style.id = "dashboard-responsive";
+    style.innerHTML = `
+      @media (max-width: 600px) {
+        .dash-nav-links { display: none !important; }
+        .dash-hamburger { display: flex !important; }
+        .dash-demo-bar { flex-wrap: wrap; }
+      }
+      @media (min-width: 601px) {
+        .dash-hamburger { display: none !important; }
+      }
+    `;
+    document.head.appendChild(style);
+    return () => { const el = document.getElementById("dashboard-responsive"); if (el) el.remove(); };
+  }, []);
+  // Check onboarding step — redirect new users to welcome splash
+  useEffect(() => {
+    try {
+      const step = localStorage.getItem("cc-onboarding-step");
+      // Redirect to welcome if they haven't been through the flow at all
+      if (!step || step === "1" || step === "2") {
+        window.location.href = "/welcome";
+      }
+    } catch {}
+  }, []);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showPostAssessment, setShowPostAssessment] = useState(() => {
+    try { return localStorage.getItem("cc-first-assessment-done") === "true"; } catch { return false; }
+  });
+
+  // Skipped states — detect which steps are still incomplete
+  const [showSkippedSetup, setShowSkippedSetup] = useState(() => {
+    try { return localStorage.getItem("cc-skipped-setup") === "true" && localStorage.getItem("cc-setup-complete") !== "true"; } catch { return false; }
+  });
+  const [showSkippedAssessment, setShowSkippedAssessment] = useState(() => {
+    try { return localStorage.getItem("cc-skipped-assessment") === "true" && localStorage.getItem("cc-assessment-done") !== "true"; } catch { return false; }
+  });
+
+  const dismissPostAssessment = () => {
+    setShowPostAssessment(false);
+    try { localStorage.removeItem("cc-first-assessment-done"); } catch {}
+  };
+
+  const dismissSkippedSetup = () => {
+    setShowSkippedSetup(false);
+    try { localStorage.removeItem("cc-skipped-setup"); } catch {}
+  };
+
+  const dismissSkippedAssessment = () => {
+    setShowSkippedAssessment(false);
+    try { localStorage.removeItem("cc-skipped-assessment"); } catch {}
+  };
+
+  // ── Appointments state ────────────────────────────────────────────────────
+  const [appointments, setAppointments] = useState([]);
+  const [showApptForm, setShowApptForm]     = useState(false);
+  const [editingAppt, setEditingAppt]       = useState(null);
+  const [calendarAppt, setCalendarAppt]     = useState(null); // newly saved appt for calendar prompt
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(APPT_KEY);
+      if (stored) setAppointments(JSON.parse(stored));
+    } catch {}
+  }, []);
+
+  const saveAppointments = (updated) => {
+    setAppointments(updated);
+    try { localStorage.setItem(APPT_KEY, JSON.stringify(updated)); } catch {}
+  };
+
+  const handleSaveAppt = (form) => {
+    // Resolve custom doctor name if "Other" was selected
+    const resolvedDoctor = form.doctor === "__other__" ? (form._customDoctor || "") : form.doctor;
+    const resolvedForm = { ...form, doctor: resolvedDoctor };
+
+    // Optionally save new provider to care team
+    if (form._saveToTeam && resolvedDoctor) {
+      try {
+        const existing = JSON.parse(localStorage.getItem("cc-care-team") || "[]");
+        const alreadyExists = existing.some(p => p.name.toLowerCase() === resolvedDoctor.toLowerCase());
+        if (!alreadyExists) {
+          existing.push({ id: Date.now(), name: resolvedDoctor, specialty: form.specialty || "" });
+          localStorage.setItem("cc-care-team", JSON.stringify(existing));
+        }
+      } catch {}
+    }
+
+    if (editingAppt) {
+      saveAppointments(appointments.map(a => a.id === editingAppt.id ? { ...resolvedForm, id: editingAppt.id } : a));
+    } else {
+      saveAppointments([...appointments, { ...resolvedForm, id: Date.now() }]);
+    }
+    setShowApptForm(false);
+    setEditingAppt(null);
+    // Prompt to add to calendar for new appointments only
+    if (!editingAppt) setCalendarAppt(resolvedForm);
+  };
+
+  const handleEditAppt = (appt) => { setEditingAppt(appt); setShowApptForm(true); };
+  const handleDeleteAppt = (id) => saveAppointments(appointments.filter(a => a.id !== id));
+
+  // Sort: upcoming first, then past
+  const upcomingAppts = appointments
+    .filter(a => daysUntil(a.date) >= 0)
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
+  const pastAppts = appointments
+    .filter(a => daysUntil(a.date) < 0)
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+  const nextAppt = upcomingAppts[0] || null;
+  const [demoState, setDemoState] = useState("returning"); // new | empty | returning
+
+  // Auth context — replace with Clerk's useUser() when integrated
+  const { user: authUser, signOut } = useAuth();
+  const storedDisplayName = (() => { try { return localStorage.getItem("cc-display-name"); } catch { return null; } })();
+  const user = {
+    name: storedDisplayName || authUser?.displayName || authUser?.firstName || "Friend",
+    fullName: (() => { try { return localStorage.getItem("cc-full-name"); } catch { return null; } })() || authUser?.firstName || "",
+    subscriptionTier: authUser?.subscriptionTier || "pro",
+    memberSince: authUser?.createdAt ? new Date(authUser.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" }) : "Recently",
+  };
+
+  // Mock assessment data — replace with Supabase query
+  const assessment = demoState === "new" || demoState === "empty" ? null : {
+    date: "March 28, 2026",
+    topPatterns: [
+      "Joint instability, dizziness on standing, and heart palpitations may be connected",
+      "Food sensitivities and bloating appear alongside neurological symptoms",
+      "Sleep quality correlates with next-day severity",
+    ],
+    specialists: ["Rheumatologist", "Cardiologist (dysautonomia)", "Allergist/Immunologist"],
+    insightCount: 5,
+  };
+
+  // Read real tracker entries from localStorage
+  const [trackerEntries, setTrackerEntries] = useState(() => {
+    try { const s = localStorage.getItem(STORAGE_KEY); return s ? JSON.parse(s) : []; } catch { return []; }
+  });
+
+  // Mock tracker data — replace with Supabase query; real entries used for goals
+  const tracker = demoState === "new" ? null : demoState === "empty" ? { entries: 0, streak: 0, avgSeverityWeek: null, sparkData: [], lastEntry: null } : (() => {
+    if (trackerEntries.length === 0) return { entries: 0, streak: 0, avgSeverityWeek: null, sparkData: [], lastEntry: null };
+    const now = new Date();
+    const weekEntries = trackerEntries.filter(e => new Date(e.timestamp) >= new Date(now - 7 * 86400000));
+    const avgSev = weekEntries.length ? +(weekEntries.reduce((s, e) => s + e.severity, 0) / weekEntries.length).toFixed(1) : null;
+    const sparkData = weekEntries.slice(-7).map(e => e.severity);
+    const days = [...new Set(trackerEntries.map(e => new Date(e.timestamp).toDateString()))];
+    const sorted = days.sort((a, b) => new Date(b) - new Date(a));
+    let streak = 0;
+    for (let i = 0; i < sorted.length; i++) {
+      const expected = new Date(now - i * 86400000).toDateString();
+      if (sorted[i] === expected) streak++;
+      else break;
+    }
+    const last = trackerEntries[0];
+    const lastDate = last ? new Date(last.timestamp) : null;
+    const lastEntry = lastDate ? (lastDate.toDateString() === now.toDateString() ? "Today, " + lastDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : lastDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })) : null;
+    return { entries: trackerEntries.length, streak, avgSeverityWeek: avgSev, sparkData, lastEntry, recentSymptoms: last?.symptoms?.slice(0, 60) || null };
+  })();
+
+  const hasAssessment = !!assessment;
+  const hasTrackerData = tracker && tracker.entries > 0;
+  const isNew = demoState === "new";
+
+  return (
+    <div style={s.root}>
+      {/* Nav */}
+      <nav style={s.nav}>
+        <div style={s.navInner}>
+          <a href="/" style={s.navLogo}>
+            <BotanicalMark size={28}/>
+            <span style={s.navLogoText}>Care Compass</span>
+          </a>
+          {/* Desktop links */}
+          <div style={s.navLinks} className="dash-nav-links">
+            <a href="/compass" style={s.navLink}>Assessment</a>
+            <a href="/tracker" style={s.navLink}>Tracker</a>
+            <a href="/pricing" style={s.navLink}>Pricing</a>
+            <a href="/account" style={s.navAvatar}>{(user.fullName || user.name)[0]}</a>
+          </div>
+          {/* Hamburger — mobile only */}
+          <button className="dash-hamburger" onClick={() => setMenuOpen(o => !o)} style={s.hamburgerBtn} aria-label="Toggle menu">
+            {menuOpen
+              ? <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={SAGE_DARK} strokeWidth="2.2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              : <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={SAGE_DARK} strokeWidth="2.2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            }
+          </button>
+        </div>
+        {/* Mobile dropdown */}
+        {menuOpen && (
+          <div style={s.mobileMenu}>
+            <a href="/compass" style={s.mobileMenuLink} onClick={() => setMenuOpen(false)}>Assessment</a>
+            <a href="/tracker" style={s.mobileMenuLink} onClick={() => setMenuOpen(false)}>Tracker</a>
+            <a href="/pricing" style={s.mobileMenuLink} onClick={() => setMenuOpen(false)}>Pricing</a>
+            <div style={s.mobileMenuDivider}/>
+            <a href="/account" style={s.mobileMenuLink} onClick={() => setMenuOpen(false)}>
+              <span style={s.mobileMenuAvatar}>{user.name[0]}</span>
+              Account settings
+            </a>
+          </div>
+        )}
+      </nav>
+
+      <main style={s.main}>
+        <div style={s.container}>
+
+          {/* ── Demo state switcher (remove in production) ── */}
+          <div style={s.demoBar} className="dash-demo-bar">
+            <span style={s.demoLabel}>Preview state:</span>
+            {["new", "empty", "returning"].map(state => (
+              <button key={state} onClick={() => { setDemoState(state); if (state === "new") setShowOnboarding(true); }} style={{ ...s.demoBtn, background: demoState === state ? SAGE_DARK : "transparent", color: demoState === state ? "#fff" : WARM_GRAY }}>
+                {state === "new" ? "New user" : state === "empty" ? "No tracker data" : "Returning user"}
+              </button>
+            ))}
+          </div>
+
+          {/* ── Header ── */}
+          <div style={s.header}>
+            <div>
+              <p style={s.eyebrow}>Dashboard</p>
+              <h1 style={s.title}>
+                {isNew ? `Welcome, ${user.name} 🌿` : `Good ${getTimeOfDay()}, ${user.name}`}
+              </h1>
+              {isNew && <p style={s.subtitle}>Let's get you set up. It only takes a few minutes.</p>}
+            </div>
+            <button onClick={() => window.location.href = "/tracker"} style={s.logEntryBtn}>
+              + Log Entry
+            </button>
+          </div>
+
+          {/* ── Skipped setup nudge — shown first if profile not set up ── */}
+          {showSkippedSetup && !isNew && !showPostAssessment && (
+            <div style={{ background: `linear-gradient(135deg, ${SAGE_LIGHT}, #f0f9f4)`, borderRadius: "1.25rem", border: `1px solid ${SAGE}`, padding: "1.25rem 1.5rem", marginBottom: "0.5rem", position: "relative", display: "flex", gap: "1rem", alignItems: "flex-start", flexWrap: "wrap" }}>
+              <button onClick={dismissSkippedSetup}
+                style={{ position: "absolute", top: "1rem", right: "1rem", background: "none", border: "none", cursor: "pointer", color: WARM_GRAY, padding: "4px", lineHeight: 1, opacity: 0.6 }}
+                aria-label="Dismiss">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
+              </button>
+              <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#fff", border: `1.5px solid ${SAGE}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: "1.25rem" }}>⚙️</div>
+              <div style={{ flex: 1, minWidth: 200, paddingRight: "1.5rem" }}>
+                <p style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: SAGE_DARK, margin: "0 0 0.25rem" }}>Step 1 of 3 — Profile setup</p>
+                <h3 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.05rem", fontWeight: 700, color: INK, margin: "0 0 0.35rem" }}>
+                  Your profile is still empty
+                </h3>
+                <p style={{ fontSize: "0.85rem", color: INK_LIGHT, margin: "0 0 1rem", lineHeight: 1.6 }}>
+                  Adding your medications, care team, and health history makes your AI insights significantly more accurate. It only takes 5–10 minutes.
+                </p>
+                <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "center" }}>
+                  <a href="/account?setup=true"
+                    onClick={dismissSkippedSetup}
+                    style={{ background: SAGE_DARK, color: "#fff", borderRadius: "100px", padding: "0.6rem 1.25rem", fontSize: "0.875rem", fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" }}>
+                    Set up my profile →
+                  </a>
+                  <button onClick={dismissSkippedSetup}
+                    style={{ background: "none", border: "none", fontSize: "0.82rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit", textDecoration: "underline", textDecorationColor: "rgba(0,0,0,0.2)", padding: 0 }}>
+                    Dismiss for now
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Skipped assessment nudge — shown after setup is done (or dismissed) ── */}
+          {showSkippedAssessment && !showSkippedSetup && !isNew && !showPostAssessment && (
+            <div style={{ background: `linear-gradient(135deg, ${TEAL_LIGHT}, #f0f9fb)`, borderRadius: "1.25rem", border: `1px solid ${TEAL}`, padding: "1.25rem 1.5rem", marginBottom: "0.5rem", position: "relative", display: "flex", gap: "1rem", alignItems: "flex-start", flexWrap: "wrap" }}>
+              <button onClick={dismissSkippedAssessment}
+                style={{ position: "absolute", top: "1rem", right: "1rem", background: "none", border: "none", cursor: "pointer", color: WARM_GRAY, padding: "4px", lineHeight: 1, opacity: 0.6 }}
+                aria-label="Dismiss">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
+              </button>
+              <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#fff", border: `1.5px solid ${TEAL}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: "1.25rem" }}>🧭</div>
+              <div style={{ flex: 1, minWidth: 200, paddingRight: "1.5rem" }}>
+                <p style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: TEAL, margin: "0 0 0.25rem" }}>Step 2 of 3 — Assessment</p>
+                <h3 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.05rem", fontWeight: 700, color: INK, margin: "0 0 0.35rem" }}>
+                  Ready to map your symptoms?
+                </h3>
+                <p style={{ fontSize: "0.85rem", color: INK_LIGHT, margin: "0 0 1rem", lineHeight: 1.6 }}>
+                  The Care Compass assessment maps your symptoms with AI, surfaces patterns across your health, and generates your first personalised insights report. Takes 10–15 minutes.
+                </p>
+                <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "center" }}>
+                  <a href="/compass"
+                    onClick={dismissSkippedAssessment}
+                    style={{ background: TEAL, color: "#fff", borderRadius: "100px", padding: "0.6rem 1.25rem", fontSize: "0.875rem", fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" }}>
+                    Take the assessment →
+                  </a>
+                  <button onClick={dismissSkippedAssessment}
+                    style={{ background: "none", border: "none", fontSize: "0.82rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit", textDecoration: "underline", textDecorationColor: "rgba(0,0,0,0.2)", padding: 0 }}>
+                    Dismiss for now
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Post-assessment welcome banner (shows once after first assessment) ── */}
+          {showPostAssessment && !isNew && (
+            <div style={{ background: `linear-gradient(135deg, ${SAGE_LIGHT}, ${TEAL_LIGHT})`, borderRadius: "1.25rem", border: `1px solid ${SAGE}`, padding: "1.5rem 1.75rem", marginBottom: "0.5rem", position: "relative" }}>
+              <button
+                onClick={dismissPostAssessment}
+                style={{ position: "absolute", top: "1rem", right: "1rem", background: "none", border: "none", cursor: "pointer", color: WARM_GRAY, fontSize: "1rem", padding: "4px", lineHeight: 1, opacity: 0.6 }}
+                aria-label="Dismiss">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
+              </button>
+
+              <div style={{ display: "flex", gap: "1rem", alignItems: "flex-start", flexWrap: "wrap" }}>
+                <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#fff", border: `1.5px solid ${SAGE}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <BotanicalMark size={28}/>
+                </div>
+                <div style={{ flex: 1, minWidth: 240 }}>
+                  <p style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: SAGE_DARK, margin: "0 0 0.3rem" }}>Welcome to Care Compass</p>
+                  <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.2rem", fontWeight: 700, color: INK, margin: "0 0 0.4rem", lineHeight: 1.3 }}>
+                    Your assessment is saved. Here's what to do next.
+                  </h2>
+                  <p style={{ fontSize: "0.875rem", color: INK_LIGHT, margin: "0 0 1.25rem", lineHeight: 1.65 }}>
+                    Your insights are a starting point — daily tracking is what turns them into patterns your doctor can act on. Start with one entry today while your symptoms are top of mind.
+                  </p>
+                  <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+                    <a href="/tracker"
+                      onClick={dismissPostAssessment}
+                      style={{ background: SAGE_DARK, color: "#fff", borderRadius: "100px", padding: "0.65rem 1.4rem", fontSize: "0.875rem", fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" }}>
+                      Log your first entry →
+                    </a>
+                    <a href="/account"
+                      style={{ background: "#fff", color: SAGE_DARK, border: `1.5px solid ${SAGE}`, borderRadius: "100px", padding: "0.65rem 1.4rem", fontSize: "0.875rem", fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" }}>
+                      Complete your profile
+                    </a>
+                  </div>
+                </div>
+              </div>
+
+              {/* Three next steps */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "0.75rem", marginTop: "1.25rem", paddingTop: "1.25rem", borderTop: "1px solid rgba(0,0,0,0.07)" }}>
+                {[
+                  { num: "1", title: "Log today's symptoms", desc: "Even a quick entry helps us start finding patterns.", href: "/tracker", cta: "Open tracker →", onClick: dismissPostAssessment },
+                  { num: "2", title: "Add an appointment", desc: "Save an upcoming visit and Care Compass will prep your report automatically.", href: null, cta: "Add appointment →", onClick: () => { dismissPostAssessment(); setShowApptForm(true); window.scrollTo({ top: 0, behavior: "smooth" }); } },
+                  { num: "3", title: "Complete your profile", desc: "Add medications and care team to personalise your AI insights.", href: "/account", cta: "Account settings →", onClick: dismissPostAssessment },
+                ].map((step, i) => (
+                  <div key={i} style={{ background: "rgba(255,255,255,0.65)", borderRadius: "0.875rem", padding: "0.875rem 1rem" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.35rem" }}>
+                      <div style={{ width: 22, height: 22, borderRadius: "50%", background: SAGE_DARK, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.7rem", fontWeight: 700, flexShrink: 0 }}>{step.num}</div>
+                      <p style={{ fontSize: "0.85rem", fontWeight: 600, color: INK, margin: 0 }}>{step.title}</p>
+                    </div>
+                    <p style={{ fontSize: "0.78rem", color: WARM_GRAY, margin: "0 0 0.6rem", lineHeight: 1.55 }}>{step.desc}</p>
+                    {step.href ? (
+                      <a href={step.href} onClick={step.onClick} style={{ fontSize: "0.78rem", color: SAGE_DARK, fontWeight: 600, textDecoration: "none" }}>{step.cta}</a>
+                    ) : (
+                      <button onClick={step.onClick} style={{ fontSize: "0.78rem", color: SAGE_DARK, fontWeight: 600, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", padding: 0 }}>{step.cta}</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── New user empty state ── */}
+          {isNew && (
+            <div style={s.newUserGrid}>
+              {[
+                { icon: "⚙️", title: "Set up your account", desc: "Add medications, care team, and health context to personalise your experience.", href: "/account?setup=true", cta: "Set up account →" },
+                { icon: "🧭", title: "Take your assessment", desc: "Map your symptoms across every area of your health. AI surfaces patterns and next steps.", href: "/compass", cta: "Start assessment →" },
+                { icon: "📋", title: "Track daily symptoms", desc: "Log how you feel in real time and generate doctor-ready reports for every appointment.", href: "/tracker", cta: "Open tracker →" },
+              ].map((step, i) => (
+                <div key={i} style={s.newUserCard}>
+                  <div style={s.newUserCardNum}>{i + 1}</div>
+                  <span style={s.newUserCardIcon}>{step.icon}</span>
+                  <h3 style={s.newUserCardTitle}>{step.title}</h3>
+                  <p style={s.newUserCardDesc}>{step.desc}</p>
+                  <a href={step.href} style={s.newUserCardBtn}>{step.cta}</a>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* ── Stats row ── */}
+          {!isNew && (
+            <div style={s.statsRow}>
+              {/* Streak */}
+              <div style={s.statCard}>
+                <div style={s.statCardInner}>
+                  <div>
+                    <p style={s.statLabel}>Tracking streak</p>
+                    <p style={s.statValue}>{tracker?.streak ?? 0}<span style={s.statUnit}> days</span></p>
+                    <p style={s.statSub}>{tracker?.streak >= 7 ? "Keep it up!" : tracker?.streak > 0 ? "Keep going!" : "Start tracking today"}</p>
+                  </div>
+                  <div style={s.streakBar}>
+                    {Array.from({ length: 7 }).map((_, i) => (
+                      <div key={i} style={{ ...s.streakDay, background: i < Math.min(tracker?.streak ?? 0, 7) ? SAGE_DARK : "#e0dbd5" }}/>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Avg severity */}
+              <div style={s.statCard}>
+                <div style={s.statCardInner}>
+                  <div>
+                    <p style={s.statLabel}>Avg severity this week</p>
+                    <p style={{ ...s.statValue, color: tracker?.avgSeverityWeek ? severityColor(tracker.avgSeverityWeek) : "#ccc" }}>
+                      {tracker?.avgSeverityWeek ?? "—"}<span style={s.statUnit}>{tracker?.avgSeverityWeek ? "/10" : ""}</span>
+                    </p>
+                    <p style={s.statSub}>{tracker?.avgSeverityWeek ? severityLabel(tracker.avgSeverityWeek) : "No entries yet this week"}</p>
+                  </div>
+                  {tracker?.sparkData?.length > 1 && (
+                    <SparkLine data={tracker.sparkData} color={severityColor(tracker.avgSeverityWeek)}/>
+                  )}
+                </div>
+              </div>
+
+              {/* Last entry */}
+              <div style={s.statCard}>
+                <div style={s.statCardInner}>
+                  <div>
+                    <p style={s.statLabel}>Last entry</p>
+                    <p style={s.statValue} >{tracker?.lastEntry ?? "—"}</p>
+                    {tracker?.recentSymptoms && <p style={s.statSub}>{tracker.recentSymptoms}</p>}
+                  </div>
+                  <a href="/tracker" style={s.statAction}>View →</a>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Main content grid ── */}
+          {!isNew && (
+            <div style={s.contentGrid}>
+
+              {/* Assessment card */}
+              <div style={s.sectionCard}>
+                <div style={s.sectionCardHeader}>
+                  <div>
+                    <p style={s.sectionEyebrow}>Assessment</p>
+                    <h2 style={s.sectionTitle}>Your pattern insights</h2>
+                  </div>
+                  <a href="/compass" style={s.sectionAction}>
+                    {hasAssessment ? "Re-run →" : "Take now →"}
+                  </a>
+                </div>
+
+                {hasAssessment ? (
+                  <div style={s.assessmentContent}>
+                    <p style={s.assessmentDate}>Last run: {assessment.date}</p>
+                    <div style={s.patternList}>
+                      {assessment.topPatterns.map((p, i) => (
+                        <div key={i} style={s.patternItem}>
+                          <BotanicalMark size={16}/>
+                          <p style={s.patternText}>{p}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={s.specialistRow}>
+                      <p style={s.specialistLabel}>Suggested specialists:</p>
+                      <div style={s.specialistTags}>
+                        {assessment.specialists.map(sp => (
+                          <span key={sp} style={s.specialistTag}>{sp}</span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={s.emptyCard}>
+                    <BotanicalMark size={40}/>
+                    <p style={s.emptyTitle}>No assessment yet</p>
+                    <p style={s.emptyDesc}>Take the full assessment to map your symptoms and get AI-powered pattern insights.</p>
+                    <a href="/compass" style={s.emptyBtn}>Take the Assessment →</a>
+                  </div>
+                )}
+              </div>
+
+              {/* Tracker card */}
+              <div style={s.sectionCard}>
+                <div style={s.sectionCardHeader}>
+                  <div>
+                    <p style={s.sectionEyebrow}>Tracker</p>
+                    <h2 style={s.sectionTitle}>Recent activity</h2>
+                  </div>
+                  <a href="/tracker" style={s.sectionAction}>Open →</a>
+                </div>
+
+                {hasTrackerData ? (
+                  <div style={s.trackerContent}>
+                    <div style={s.trackerStats}>
+                      <div style={s.trackerStat}>
+                        <span style={s.trackerStatVal}>{tracker.entries}</span>
+                        <span style={s.trackerStatLabel}>Total entries</span>
+                      </div>
+                      <div style={s.trackerStat}>
+                        <span style={s.trackerStatVal}>{tracker.streak}</span>
+                        <span style={s.trackerStatLabel}>Day streak</span>
+                      </div>
+                    </div>
+                    <div style={s.trackerActions}>
+                      <a href="/tracker" style={s.trackerActionBtn}>View Trends</a>
+                      <a href="/tracker" style={s.trackerActionBtnSecondary}>AI Insights</a>
+                      <a href="/tracker?report=1" style={s.trackerActionBtnSecondary}>Doctor Report</a>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={s.emptyCard}>
+                    <BotanicalMark size={40}/>
+                    <p style={s.emptyTitle}>No entries yet</p>
+                    <p style={s.emptyDesc}>Start logging your symptoms to build your health picture over time.</p>
+                    <a href="/tracker" style={s.emptyBtn}>Start Tracking →</a>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+
+          {/* ── Appointments ── */}
+          {!isNew && (
+            <div style={s.sectionCard}>
+              <div style={{ ...s.sectionCardHeader, marginBottom: "1rem" }}>
+                <div>
+                  <p style={s.sectionEyebrow}>Appointments</p>
+                  <h2 style={s.sectionTitle}>Upcoming visits</h2>
+                </div>
+                <button
+                  onClick={() => { setEditingAppt(null); setShowApptForm(true); }}
+                  style={{ background: SAGE_DARK, color: "#fff", border: "none", borderRadius: "100px", padding: "0.55rem 1.25rem", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}
+                >
+                  + Add appointment
+                </button>
+              </div>
+
+              {/* Inline form */}
+              {showApptForm && (
+                <div style={{ background: OFF_WHITE, borderRadius: "1rem", border: "1px solid rgba(0,0,0,0.07)", padding: "1.25rem", marginBottom: "1.25rem" }}>
+                  <p style={{ ...s.sectionEyebrow, marginBottom: "1rem" }}>{editingAppt ? "Edit appointment" : "New appointment"}</p>
+                  <AppointmentForm
+                    initial={editingAppt}
+                    onSave={handleSaveAppt}
+                    onCancel={() => { setShowApptForm(false); setEditingAppt(null); }}
+                  />
+                </div>
+              )}
+
+              {/* Next appointment highlight */}
+              {nextAppt && !showApptForm && (
+                <div style={{ background: `linear-gradient(135deg, ${SAGE_LIGHT}, ${TEAL_LIGHT})`, borderRadius: "1rem", padding: "1rem 1.25rem", marginBottom: "1.25rem", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.75rem" }}>
+                  <div>
+                    <p style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: SAGE_DARK, margin: "0 0 0.25rem" }}>Next appointment</p>
+                    <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.05rem", fontWeight: 700, color: INK, margin: "0 0 0.15rem" }}>
+                      {nextAppt.specialty}{nextAppt.doctor ? ` · ${nextAppt.doctor}` : ""}
+                    </p>
+                    <p style={{ fontSize: "0.8rem", color: TEAL, margin: 0, fontWeight: 500 }}>
+                      {formatApptDate(nextAppt.date, nextAppt.time)}
+                      {daysUntil(nextAppt.date) === 0 ? " · Today!" : daysUntil(nextAppt.date) === 1 ? " · Tomorrow" : ` · ${daysUntil(nextAppt.date)} days away`}
+                    </p>
+                  </div>
+                  {nextAppt.prepReport && (
+                    <a
+                      href={`/tracker?report=1&specialty=${encodeURIComponent(nextAppt.specialty)}${nextAppt.doctor ? `&doctor=${encodeURIComponent(nextAppt.doctor)}` : ""}${nextAppt.reason ? `&reason=${encodeURIComponent(nextAppt.reason)}` : ""}&date=${encodeURIComponent(nextAppt.date)}`}
+                      style={{ background: TEAL, color: "#fff", borderRadius: "100px", padding: "0.55rem 1.1rem", fontSize: "0.8rem", fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" }}
+                    >
+                      Generate report →
+                    </a>
+                  )}
+                </div>
+              )}
+
+              {/* ── Calendar prompt modal ── */}
+              {calendarAppt && (
+                <div style={{ background: SAGE_LIGHT, borderRadius: "1rem", padding: "1.25rem", marginBottom: "1.25rem", display: "flex", flexDirection: "column", gap: "0.875rem" }}>
+                  <div>
+                    <p style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: SAGE_DARK, margin: "0 0 0.2rem" }}>Appointment saved!</p>
+                    <p style={{ fontSize: "0.85rem", color: INK, margin: 0 }}>Add this to your calendar?</p>
+                  </div>
+                  <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                    <a
+                      href={makeGoogleCalUrl(calendarAppt)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ display: "flex", alignItems: "center", gap: "0.5rem", background: "#fff", border: "1px solid rgba(0,0,0,0.12)", borderRadius: "0.65rem", padding: "0.55rem 1rem", fontSize: "0.82rem", fontWeight: 600, color: INK, textDecoration: "none" }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="18" rx="2" stroke="#4285F4" strokeWidth="1.5"/><path d="M3 9h18" stroke="#4285F4" strokeWidth="1.5"/><path d="M8 2v4M16 2v4" stroke="#4285F4" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                      Add to Google Calendar
+                    </a>
+                    <button
+                      onClick={() => downloadICS(calendarAppt)}
+                      style={{ display: "flex", alignItems: "center", gap: "0.5rem", background: "#fff", border: "1px solid rgba(0,0,0,0.12)", borderRadius: "0.65rem", padding: "0.55rem 1rem", fontSize: "0.82rem", fontWeight: 600, color: INK, cursor: "pointer", fontFamily: "inherit" }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="18" rx="2" stroke="#888" strokeWidth="1.5"/><path d="M3 9h18" stroke="#888" strokeWidth="1.5"/><path d="M8 2v4M16 2v4" stroke="#888" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                      Add to Apple Calendar (.ics)
+                    </button>
+                    <button
+                      onClick={() => setCalendarAppt(null)}
+                      style={{ background: "none", border: "none", fontSize: "0.78rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit", padding: "0.55rem 0.5rem" }}
+                    >
+                      Skip
+                    </button>
+                  </div>
+                  <p style={{ fontSize: "0.7rem", color: WARM_GRAY, margin: 0, fontStyle: "italic" }}>
+                    The .ics file works with Apple Calendar, Outlook, and most calendar apps.
+                  </p>
+                </div>
+              )}
+
+              {/* Appointment list */}
+              {appointments.length === 0 && !showApptForm ? (
+                <div style={s.emptyCard}>
+                  <span style={{ color:"#7a9e87", display:"flex" }}><svg width="32" height="32" viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, color:"currentColor" }}><rect x="1.5" y="3" width="13" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M1.5 7h13M5 1v4M11 1v4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg></span>
+                  <p style={s.emptyTitle}>No appointments yet</p>
+                  <p style={s.emptyDesc}>Add upcoming doctor visits to get reminders and auto-prepare reports before you go.</p>
+                  <button onClick={() => setShowApptForm(true)} style={{ ...s.emptyBtn, border: "none", cursor: "pointer", fontFamily: "inherit" }}>Add your first appointment →</button>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
+                  {upcomingAppts.length > 0 && (
+                    <>
+                      {upcomingAppts.map(a => (
+                        <AppointmentCard key={a.id} appt={a} onEdit={handleEditAppt} onDelete={handleDeleteAppt}/>
+                      ))}
+                    </>
+                  )}
+                  {pastAppts.length > 0 && (
+                    <details style={{ marginTop: "0.5rem" }}>
+                      <summary style={{ fontSize: "0.78rem", color: WARM_GRAY, cursor: "pointer", fontWeight: 600, padding: "0.5rem 0", listStyle: "none", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                        <span>▸</span> Past appointments ({pastAppts.length})
+                      </summary>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.5rem" }}>
+                        {pastAppts.map(a => (
+                          <AppointmentCard key={a.id} appt={a} onEdit={handleEditAppt} onDelete={handleDeleteAppt}/>
+                        ))}
+                      </div>
+                    </details>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Goals ── */}
+          {!isNew && (
+            <GoalsSection entries={trackerEntries} />
+          )}
+
+          {/* ── Quick actions ── */}
+          {!isNew && (
+            <div style={s.quickActions}>
+              <p style={s.quickActionsLabel}>Quick actions</p>
+              <div style={s.quickActionsGrid}>
+                {[
+                  { label: "Log a new entry", desc: "Record how you're feeling right now", href: "/tracker", color: SAGE_DARK },
+                  { label: "Run the assessment", desc: "Map symptoms and get pattern insights", href: "/compass", color: TEAL },
+                  { label: "Generate a report", desc: "Create a PDF to bring to your doctor", href: "/tracker?report=1", color: WARM_GRAY },
+                  { label: "Add appointment", desc: "Schedule a visit and prep your report", href: null, color: "#7a6fa0" },
+                  { label: "Account settings", desc: "Manage your profile and subscription", href: "/account", color: INK_LIGHT },
+                ].map(({ label, desc, href, color }) => href ? (
+                  <a key={label} href={href} style={{ ...s.quickActionCard, borderTop: `3px solid ${color}` }}>
+                    <p style={{ ...s.quickActionLabel, color }}>{label}</p>
+                    <p style={s.quickActionDesc}>{desc}</p>
+                  </a>
+                ) : (
+                  <div key={label} onClick={() => { setShowApptForm(true); setEditingAppt(null); window.scrollTo({ top: 0, behavior: "smooth" }); }} style={{ ...s.quickActionCard, borderTop: `3px solid ${color}`, cursor: "pointer" }}>
+                    <p style={{ ...s.quickActionLabel, color }}>{label}</p>
+                    <p style={s.quickActionDesc}>{desc}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+        </div>
+      </main>
+
+      <footer style={s.footer}>
+        <p style={s.footerText}>© {new Date().getFullYear()} Care Compass · <a href="mailto:hello@joincarecompass.com" style={s.footerLink}>hello@joincarecompass.com</a></p>
+        <p style={s.footerDisclaimer}>Care Compass is not a medical service and does not provide medical advice, diagnosis, or treatment.</p>
+      </footer>
+
+      <SageChatbot />
+
+    </div>
+  );
+}
+
+function getTimeOfDay() {
+  const h = new Date().getHours();
+  if (h < 12) return "morning";
+  if (h < 17) return "afternoon";
+  return "evening";
+}
+
+function severityLabel(n) {
+  if (n <= 3) return "Manageable week";
+  if (n <= 6) return "Moderate week";
+  return "Difficult week";
+}
+
+const s = {
+  root: { fontFamily: "'DM Sans', Helvetica, sans-serif", color: INK, background: OFF_WHITE, minHeight: "100vh", display: "flex", flexDirection: "column", overflowX: "hidden", width: "100%" },
+
+  nav: { padding: "1rem 1.25rem", borderBottom: `1px solid rgba(0,0,0,0.07)`, background: "#fff", position: "sticky", top: 0, zIndex: 100, boxSizing: "border-box", width: "100%" },
+  navInner: { maxWidth: 1100, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center" },
+  navLogo: { display: "flex", alignItems: "center", gap: "0.55rem", textDecoration: "none" },
+  navLogoText: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1rem", fontWeight: 600, color: SAGE_DARK, whiteSpace: "nowrap" },
+  navLinks: { display: "flex", alignItems: "center", gap: "0.85rem", flexShrink: 0 },
+  navLink: { fontSize: "0.8rem", color: WARM_GRAY, textDecoration: "none", whiteSpace: "nowrap" },
+  navAvatar: { width: 34, height: 34, borderRadius: "50%", background: SAGE_DARK, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.875rem", textDecoration: "none", fontFamily: "'Playfair Display', Georgia, serif" },
+  hamburgerBtn: { display: "none", alignItems: "center", justifyContent: "center", background: "none", border: "none", cursor: "pointer", padding: "0.35rem", borderRadius: "8px", flexShrink: 0 },
+  mobileMenu: { borderTop: "1px solid rgba(0,0,0,0.07)", padding: "0.75rem 1.25rem 1rem", display: "flex", flexDirection: "column", gap: "0.15rem", background: "#fff" },
+  mobileMenuLink: { display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.75rem 0.5rem", fontSize: "0.95rem", color: INK, textDecoration: "none", borderRadius: "0.5rem", fontWeight: 500 },
+  mobileMenuDivider: { height: 1, background: "rgba(0,0,0,0.07)", margin: "0.35rem 0" },
+  mobileMenuAvatar: { width: 28, height: 28, borderRadius: "50%", background: SAGE_DARK, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.8rem", fontFamily: "'Playfair Display', Georgia, serif", flexShrink: 0 },
+
+  main: { flex: 1, padding: "2rem 1.25rem", boxSizing: "border-box", width: "100%" },
+  container: { maxWidth: 1100, margin: "0 auto", display: "flex", flexDirection: "column", gap: "2rem" },
+
+  demoBar: { display: "flex", alignItems: "center", gap: "0.5rem", background: CREAM, borderRadius: "0.75rem", padding: "0.6rem 1rem", flexWrap: "wrap" },
+  demoLabel: { fontSize: "0.75rem", fontWeight: 600, color: WARM_GRAY, marginRight: "0.25rem" },
+  demoBtn: { padding: "0.3rem 0.85rem", borderRadius: "100px", border: `1px solid rgba(0,0,0,0.1)`, fontSize: "0.75rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all 0.2s" },
+
+  header: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "1rem" },
+  eyebrow: { fontSize: "0.75rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: TEAL, margin: "0 0 0.3rem" },
+  title: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "clamp(1.6rem, 3vw, 2.2rem)", fontWeight: 700, color: INK, margin: "0 0 0.4rem", letterSpacing: "-0.02em" },
+  subtitle: { fontSize: "0.95rem", color: WARM_GRAY, margin: 0, lineHeight: 1.6 },
+  logEntryBtn: { background: SAGE_DARK, color: "#fff", border: "none", padding: "0.8rem 1.75rem", borderRadius: "100px", fontSize: "0.95rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" },
+
+  newUserGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1.25rem" },
+  newUserCard: { background: "#fff", borderRadius: "1.25rem", border: `1px solid rgba(0,0,0,0.07)`, padding: "2rem", display: "flex", flexDirection: "column", gap: "0.75rem", position: "relative" },
+  newUserCardNum: { position: "absolute", top: "1.25rem", right: "1.25rem", width: 28, height: 28, borderRadius: "50%", background: SAGE_LIGHT, color: SAGE_DARK, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.8rem", fontWeight: 700 },
+  newUserCardIcon: { fontSize: "1.75rem" },
+  newUserCardTitle: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.05rem", fontWeight: 700, color: INK, margin: 0 },
+  newUserCardDesc: { fontSize: "0.875rem", color: WARM_GRAY, lineHeight: 1.7, margin: 0 },
+  newUserCardBtn: { background: SAGE_DARK, color: "#fff", padding: "0.7rem 1.25rem", borderRadius: "100px", fontSize: "0.875rem", fontWeight: 600, textDecoration: "none", display: "inline-block", marginTop: "0.5rem", alignSelf: "flex-start" },
+
+  statsRow: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "1rem" },
+  statCard: { background: "#fff", borderRadius: "1rem", border: `1px solid rgba(0,0,0,0.07)`, padding: "1.25rem 1.5rem" },
+  statCardInner: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem" },
+  statLabel: { fontSize: "0.75rem", fontWeight: 600, color: WARM_GRAY, textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 0.35rem" },
+  statValue: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.75rem", fontWeight: 700, color: SAGE_DARK, margin: "0 0 0.25rem", lineHeight: 1 },
+  statUnit: { fontSize: "0.9rem", fontWeight: 400, color: WARM_GRAY },
+  statSub: { fontSize: "0.78rem", color: WARM_GRAY, margin: 0 },
+  statAction: { fontSize: "0.8rem", color: SAGE_DARK, fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap", marginTop: "0.25rem" },
+  streakBar: { display: "flex", gap: "0.25rem", alignItems: "flex-end" },
+  streakDay: { width: 8, height: 28, borderRadius: 4, transition: "background 0.3s" },
+
+  contentGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: "1.25rem" },
+  sectionCard: { background: "#fff", borderRadius: "1.25rem", border: `1px solid rgba(0,0,0,0.07)`, padding: "1.75rem", display: "flex", flexDirection: "column", gap: "1.25rem" },
+  sectionCardHeader: { display: "flex", justifyContent: "space-between", alignItems: "flex-start" },
+  sectionEyebrow: { fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: TEAL, margin: "0 0 0.3rem" },
+  sectionTitle: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.1rem", fontWeight: 700, color: INK, margin: 0 },
+  sectionAction: { fontSize: "0.82rem", color: SAGE_DARK, fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap", marginTop: "0.25rem" },
+
+  assessmentContent: { display: "flex", flexDirection: "column", gap: "1rem" },
+  assessmentDate: { fontSize: "0.75rem", color: "#aaa", margin: 0, fontStyle: "italic" },
+  patternList: { display: "flex", flexDirection: "column", gap: "0.65rem" },
+  patternItem: { display: "flex", alignItems: "flex-start", gap: "0.65rem" },
+  patternText: { fontSize: "0.875rem", color: INK_LIGHT, lineHeight: 1.65, margin: 0 },
+  specialistRow: { display: "flex", flexDirection: "column", gap: "0.5rem", paddingTop: "0.75rem", borderTop: `1px solid ${SAGE_LIGHT}` },
+  specialistLabel: { fontSize: "0.75rem", fontWeight: 600, color: WARM_GRAY, margin: 0, textTransform: "uppercase", letterSpacing: "0.05em" },
+  specialistTags: { display: "flex", flexWrap: "wrap", gap: "0.4rem" },
+  specialistTag: { background: TEAL_LIGHT, color: TEAL, fontSize: "0.78rem", fontWeight: 600, padding: "0.25rem 0.75rem", borderRadius: "100px" },
+
+  trackerContent: { display: "flex", flexDirection: "column", gap: "1.25rem" },
+  trackerStats: { display: "flex", gap: "1.5rem" },
+  trackerStat: { display: "flex", flexDirection: "column", gap: "0.2rem" },
+  trackerStatVal: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.5rem", fontWeight: 700, color: SAGE_DARK },
+  trackerStatLabel: { fontSize: "0.72rem", color: WARM_GRAY, textTransform: "uppercase", letterSpacing: "0.05em" },
+  trackerActions: { display: "flex", gap: "0.5rem", flexWrap: "wrap" },
+  trackerActionBtn: { background: SAGE_DARK, color: "#fff", padding: "0.55rem 1rem", borderRadius: "100px", fontSize: "0.82rem", fontWeight: 600, textDecoration: "none" },
+  trackerActionBtnSecondary: { background: "transparent", color: SAGE_DARK, border: `1px solid ${SAGE}`, padding: "0.55rem 1rem", borderRadius: "100px", fontSize: "0.82rem", fontWeight: 600, textDecoration: "none" },
+
+  emptyCard: { display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem", padding: "2rem 1rem", textAlign: "center" },
+  emptyTitle: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1rem", fontWeight: 700, color: INK, margin: 0 },
+  emptyDesc: { fontSize: "0.875rem", color: WARM_GRAY, lineHeight: 1.7, margin: 0, maxWidth: 300 },
+  emptyBtn: { background: SAGE_DARK, color: "#fff", padding: "0.65rem 1.5rem", borderRadius: "100px", fontSize: "0.875rem", fontWeight: 600, textDecoration: "none", marginTop: "0.25rem" },
+
+  quickActions: { display: "flex", flexDirection: "column", gap: "0.75rem" },
+  quickActionsLabel: { fontSize: "0.75rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: 0 },
+  quickActionsGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "0.75rem" },
+  quickActionCard: { background: "#fff", borderRadius: "0.875rem", padding: "1.1rem 1.25rem", textDecoration: "none", border: `1px solid rgba(0,0,0,0.06)`, display: "flex", flexDirection: "column", gap: "0.3rem", transition: "box-shadow 0.2s" },
+  quickActionLabel: { fontSize: "0.875rem", fontWeight: 600, margin: 0 },
+  quickActionDesc: { fontSize: "0.78rem", color: WARM_GRAY, margin: 0, lineHeight: 1.5 },
+
+  footer: { padding: "1.5rem 2rem", borderTop: `1px solid rgba(0,0,0,0.07)`, textAlign: "center" },
+  apptCard: { background: "#fff", borderRadius: "1rem", border: "1px solid rgba(0,0,0,0.07)", padding: "1rem 1.25rem", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem" },
+  footerText: { fontSize: "0.85rem", color: WARM_GRAY, margin: "0 0 0.25rem" },
+  footerLink: { color: SAGE_DARK, textDecoration: "none" },
+  footerDisclaimer: { fontSize: "0.75rem", color: "#aaa", margin: 0 },
+
+  // Onboarding overlay
+  onboardingOverlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: "1.5rem" },
+  onboardingCard: { background: "#fff", borderRadius: "1.5rem", padding: "2.5rem", maxWidth: 480, width: "100%", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: "1.1rem" },
+  onboardingDots: { display: "flex", gap: "0.4rem", alignItems: "center" },
+  onboardingDot: { height: 8, borderRadius: 100, transition: "all 0.3s ease" },
+  onboardingIcon: { fontSize: "2.5rem" },
+  onboardingWelcome: { fontSize: "0.9rem", fontWeight: 600, color: SAGE_DARK, background: SAGE_LIGHT, padding: "0.35rem 1rem", borderRadius: "100px", margin: 0 },
+  onboardingTitle: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.4rem", fontWeight: 700, color: INK, margin: 0, lineHeight: 1.3 },
+  onboardingDesc: { fontSize: "0.95rem", color: WARM_GRAY, lineHeight: 1.75, margin: 0 },
+  onboardingActions: { display: "flex", flexDirection: "column", gap: "0.65rem", width: "100%" },
+  onboardingCta: { background: SAGE_DARK, color: "#fff", padding: "0.95rem", borderRadius: "0.75rem", fontSize: "0.95rem", fontWeight: 600, textDecoration: "none", display: "block" },
+  onboardingSkip: { background: "transparent", border: "none", color: WARM_GRAY, fontSize: "0.875rem", cursor: "pointer", fontFamily: "inherit", textDecoration: "underline", textDecorationColor: "rgba(0,0,0,0.2)" },
+  onboardingStep: { fontSize: "0.72rem", color: "#bbb", margin: 0 },
+};

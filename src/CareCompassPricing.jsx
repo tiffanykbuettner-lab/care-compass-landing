@@ -1,0 +1,639 @@
+import { useState, useEffect, useRef } from "react";
+
+const SAGE       = "#7a9e87";
+const SAGE_LIGHT = "#e8f0eb";
+const SAGE_DARK  = "#4a7058";
+const TEAL       = "#4a9fa5";
+const WARM_GRAY  = "#6b6560";
+const OFF_WHITE  = "#fafaf8";
+const CREAM      = "#f4f1ec";
+const INK        = "#2d2926";
+const INK_LIGHT  = "#4a4540";
+
+function useInView(threshold = 0.15) {
+  const ref = useRef(null);
+  const [inView, setInView] = useState(false);
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setInView(true); observer.disconnect(); } },
+      { threshold }
+    );
+    if (ref.current) observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, []);
+  return [ref, inView];
+}
+
+function FadeIn({ children, delay = 0 }) {
+  const [ref, inView] = useInView();
+  return (
+    <div ref={ref} style={{
+      opacity: inView ? 1 : 0,
+      transform: inView ? "translateY(0)" : "translateY(24px)",
+      transition: `opacity 0.7s ease ${delay}s, transform 0.7s ease ${delay}s`,
+    }}>
+      {children}
+    </div>
+  );
+}
+
+const BotanicalMark = ({ size = 32 }) => (
+  <svg width={size} height={size} viewBox="0 0 72 72" fill="none">
+    <circle cx="36" cy="36" r="34" fill="#e8f0eb" stroke="#7a9e87" strokeWidth="1"/>
+    <ellipse cx="36" cy="17" rx="7" ry="17" fill="#4a7058"/>
+    <ellipse cx="36" cy="55" rx="5.5" ry="13" fill="#7a9e87" opacity="0.55"/>
+    <ellipse cx="55" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.8"/>
+    <ellipse cx="17" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.45"/>
+    <ellipse cx="36" cy="36" rx="4.5" ry="11" fill="#4a7058" opacity="0.4" transform="rotate(42 36 36) translate(0 -14)"/>
+    <ellipse cx="36" cy="36" rx="4.5" ry="11" fill="#4a7058" opacity="0.4" transform="rotate(-42 36 36) translate(0 -14)"/>
+    <ellipse cx="36" cy="36" rx="3.5" ry="9" fill="#4a9fa5" opacity="0.6" transform="rotate(135 36 36) translate(0 -14)"/>
+    <ellipse cx="36" cy="36" rx="3.5" ry="9" fill="#4a9fa5" opacity="0.6" transform="rotate(-135 36 36) translate(0 -14)"/>
+    <circle cx="36" cy="36" r="7" fill="#4a7058"/>
+    <circle cx="36" cy="36" r="3" fill="#e8f0eb"/>
+  </svg>
+);
+
+const CheckIcon = () => (
+  <div style={{ width: 22, height: 22, flexShrink: 0, marginTop: "0.15rem" }}>
+    <svg width="22" height="22" viewBox="0 0 72 72" fill="none">
+      <circle cx="36" cy="36" r="34" fill="#e8f0eb" stroke="#7a9e87" strokeWidth="1"/>
+      <ellipse cx="36" cy="17" rx="7" ry="17" fill="#4a7058"/>
+      <ellipse cx="36" cy="55" rx="5.5" ry="13" fill="#7a9e87" opacity="0.55"/>
+      <ellipse cx="55" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.8"/>
+      <ellipse cx="17" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.45"/>
+      <ellipse cx="36" cy="36" rx="4.5" ry="11" fill="#4a7058" opacity="0.4" transform="rotate(42 36 36) translate(0 -14)"/>
+      <ellipse cx="36" cy="36" rx="4.5" ry="11" fill="#4a7058" opacity="0.4" transform="rotate(-42 36 36) translate(0 -14)"/>
+      <ellipse cx="36" cy="36" rx="3.5" ry="9" fill="#4a9fa5" opacity="0.6" transform="rotate(135 36 36) translate(0 -14)"/>
+      <ellipse cx="36" cy="36" rx="3.5" ry="9" fill="#4a9fa5" opacity="0.6" transform="rotate(-135 36 36) translate(0 -14)"/>
+      <circle cx="36" cy="36" r="7" fill="#4a7058"/>
+      <circle cx="36" cy="36" r="3" fill="#e8f0eb"/>
+    </svg>
+  </div>
+);
+
+const FEATURES = [
+  { label: "Full symptom assessment", desc: "Map symptoms across every body system with AI-powered pattern recognition" },
+  { label: "Unlimited assessments", desc: "Run as many assessments as you need — no monthly limits" },
+  { label: "Daily symptom tracker", desc: "Log entries multiple times a day with unlimited history" },
+  { label: "AI pattern insights", desc: "Time-based correlation analysis across symptoms, food, medications, and activity" },
+  { label: "Trends & frequency reports", desc: "See which symptoms appear most often and when" },
+  { label: "Photo logging", desc: "Attach photos to entries to document rashes, swelling, or other visual symptoms" },
+  { label: "Doctor-ready PDF reports", desc: "Generate formatted reports to bring to your next appointment" },
+  { label: "Secure account with 2FA", desc: "Two-factor authentication and encrypted data storage" },
+  { label: "Data export", desc: "Your data is always yours — export everything at any time" },
+];
+
+const FAQS = [
+  {
+    q: "Can I cancel anytime?",
+    a: "Yes — you can cancel your subscription at any time from your account settings. You'll keep access until the end of your current billing period.",
+  },
+  {
+    q: "Is my health data private?",
+    a: "Absolutely. Your health data is encrypted, never sold, and never shared with third parties. We take privacy seriously — it's built into the foundation of Care Compass.",
+  },
+  {
+    q: "What if I'm already an early tester?",
+    a: "If you've been part of our early testing community, we'll be reaching out with complimentary access as a thank-you for helping shape Care Compass.",
+  },
+  {
+    q: "Is Care Compass a medical service?",
+    a: "No. Care Compass provides pattern insights and conversation starters — not medical advice, diagnosis, or treatment. Always discuss findings with a qualified healthcare provider.",
+  },
+  {
+    q: "What devices can I use Care Compass on?",
+    a: "Care Compass works on any device with a modern web browser — phone, tablet, or desktop. Your account and data sync across all your devices.",
+  },
+  {
+    q: "Will there be more features in the future?",
+    a: "Yes — we're actively building. Coming soon: lab result interpretation, AI photo symptom analysis, and specialist directory matching. Subscribers get access to new features as they launch.",
+  },
+];
+
+function FAQ({ q, a }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={s.faqItem} onClick={() => setOpen(o => !o)}>
+      <div style={s.faqHeader}>
+        <p style={s.faqQ}>{q}</p>
+        <span style={{ ...s.faqChevron, transform: open ? "rotate(180deg)" : "rotate(0deg)" }}>▾</span>
+      </div>
+      {open && <p style={s.faqA}>{a}</p>}
+    </div>
+  );
+}
+
+/* ─── Sage Chatbot ───────────────────────────────────────────────────────── */
+const SAGE_KEYFRAMES = `
+  @keyframes ffDrift { 0%,100%{transform:translate(0,0)} 33%{transform:translate(0.6px,-0.8px)} 66%{transform:translate(-0.5px,0.6px)} }
+  @keyframes ffWingL { 0%,100%{transform-origin:50% 50%;transform:rotate(0deg) scaleY(1);opacity:0.55} 50%{transform-origin:50% 50%;transform:rotate(-18deg) scaleY(0.82);opacity:0.8} }
+  @keyframes ffWingR { 0%,100%{transform-origin:50% 50%;transform:rotate(0deg) scaleY(1);opacity:0.55} 50%{transform-origin:50% 50%;transform:rotate(18deg) scaleY(0.82);opacity:0.8} }
+  @keyframes ffLeaf  { 0%,100%{transform-origin:36px 36px;transform:scale(1)} 50%{transform-origin:36px 36px;transform:scale(1.03)} }
+  @keyframes ffAntL  { 0%,100%{transform:rotate(0deg)} 50%{transform:rotate(-5deg)} }
+  @keyframes ffAntR  { 0%,100%{transform:rotate(0deg)} 50%{transform:rotate(5deg)} }
+  @keyframes sageIn  { from{opacity:0;transform:translateY(12px) scale(0.95)} to{opacity:1;transform:translateY(0) scale(1)} }
+  @keyframes sageGreetOut { from{opacity:1;transform:translateY(0) scale(1)} to{opacity:0;transform:translateY(6px) scale(0.97)} }
+`;
+
+const FireflyMark = ({ size = 36 }) => (
+  <svg width={size} height={size} viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg"
+    style={{ animation:"ffDrift 4s ease-in-out infinite", display:"block" }}>
+    <circle cx="36" cy="36" r="34" fill="#e8f0eb" stroke="#7a9e87" strokeWidth="1"/>
+    <g style={{ animation:"ffLeaf 3.5s ease-in-out infinite" }}>
+      <ellipse cx="36" cy="17" rx="7" ry="17" fill="#4a7058"/>
+      <ellipse cx="36" cy="55" rx="5.5" ry="13" fill="#7a9e87" opacity="0.55"/>
+      <ellipse cx="55" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.8"/>
+      <ellipse cx="17" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.45"/>
+      <ellipse cx="36" cy="36" rx="4.5" ry="11" fill="#4a7058" opacity="0.35" transform="rotate(42 36 36) translate(0 -14)"/>
+      <ellipse cx="36" cy="36" rx="4.5" ry="11" fill="#4a7058" opacity="0.35" transform="rotate(-42 36 36) translate(0 -14)"/>
+      <ellipse cx="36" cy="36" rx="3.5" ry="9" fill="#4a9fa5" opacity="0.5" transform="rotate(135 36 36) translate(0 -14)"/>
+      <ellipse cx="36" cy="36" rx="3.5" ry="9" fill="#4a9fa5" opacity="0.5" transform="rotate(-135 36 36) translate(0 -14)"/>
+    </g>
+    <ellipse cx="36" cy="36" rx="4" ry="6.5" fill="#2d4a35"/>
+    <ellipse cx="28" cy="34" rx="8" ry="3.5" fill="#a8d4b0" opacity="0.55" style={{ animation:"ffWingL 0.6s ease-in-out infinite" }}/>
+    <ellipse cx="44" cy="34" rx="8" ry="3.5" fill="#a8d4b0" opacity="0.55" style={{ animation:"ffWingR 0.6s ease-in-out infinite", animationDelay:"0.05s" }}/>
+    <g style={{ transformOrigin:"34.5px 30px", animation:"ffAntL 2.8s ease-in-out infinite" }}>
+      <line x1="34.5" y1="30" x2="31" y2="25" stroke="#4a7058" strokeWidth="0.9" strokeLinecap="round"/>
+      <circle cx="31" cy="24.5" fill="#a8ffb0"><animate attributeName="r" values="1;1.6;1" dur="2.4s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.4;0.9;0.4" dur="2.4s" repeatCount="indefinite"/></circle>
+    </g>
+    <g style={{ transformOrigin:"37.5px 30px", animation:"ffAntR 2.8s ease-in-out infinite", animationDelay:"0.4s" }}>
+      <line x1="37.5" y1="30" x2="41" y2="25" stroke="#4a7058" strokeWidth="0.9" strokeLinecap="round"/>
+      <circle cx="41" cy="24.5" fill="#a8ffb0"><animate attributeName="r" values="1;1.6;1" dur="2.4s" begin="0.5s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.4;0.9;0.4" dur="2.4s" begin="0.5s" repeatCount="indefinite"/></circle>
+    </g>
+    <ellipse cx="34.2" cy="33.5" fill="#b8f0b0">
+      <animate attributeName="rx" values="1.3;1.3;1.3;0.2;1.3" dur="5s" keyTimes="0;0.7;0.85;0.9;1" repeatCount="indefinite"/>
+      <animate attributeName="ry" values="1.3;1.3;1.3;0.15;1.3" dur="5s" keyTimes="0;0.7;0.85;0.9;1" repeatCount="indefinite"/>
+    </ellipse>
+    <ellipse cx="37.8" cy="33.5" fill="#b8f0b0">
+      <animate attributeName="rx" values="1.3;1.3;1.3;0.2;1.3" dur="5s" keyTimes="0;0.7;0.85;0.9;1" begin="0.08s" repeatCount="indefinite"/>
+      <animate attributeName="ry" values="1.3;1.3;1.3;0.15;1.3" dur="5s" keyTimes="0;0.7;0.85;0.9;1" begin="0.08s" repeatCount="indefinite"/>
+    </ellipse>
+    <circle cx="36" cy="41" r="3" fill="#7fff7a" opacity="0.18"/>
+    <circle cx="36" cy="41" fill="#c8ffb0">
+      <animate attributeName="r" values="2.8;4;2.8" dur="1.8s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.25;1;0.25" dur="1.8s" repeatCount="indefinite"/>
+    </circle>
+  </svg>
+);
+
+const PRICING_SYSTEM_PROMPT = `You are Sage, the friendly Care Compass guide on the pricing page. Care Compass is an AI-powered health navigation app for people with chronic illness — it helps users track symptoms, identify patterns, prepare for appointments, and generate doctor-ready reports. There is one simple plan at $12/month or $99/year.
+
+Answer questions about pricing, features, cancellation, privacy, and what Care Compass does. Be warm, honest, and concise — 2-3 sentences max. No bullet points or markdown. If asked about medical advice, clarify that Care Compass provides pattern insights, not medical diagnoses.`;
+
+const PRICING_SUGGESTIONS = [
+  "What's included in the plan?",
+  "Can I cancel anytime?",
+  "Is my health data private?",
+  "Is there a free trial?",
+  "What makes Care Compass different?",
+  "Is this a medical service?",
+];
+
+function SageChatbot() {
+  const [open, setOpen]             = useState(false);
+  const [greetPhase, setGreetPhase] = useState("hidden"); // "hidden" | "showing" | "fading" | "gone"
+  const [messages, setMessages]     = useState([]);
+  const [input, setInput]           = useState("");
+  const [loading, setLoading]       = useState(false);
+  const messagesEndRef              = useRef(null);
+
+  // Auto-fade: appears at 4s, fades at 7.5s, gone at 8.2s — no dismiss needed
+  useEffect(() => {
+    const t1 = setTimeout(() => setGreetPhase("showing"), 4000);
+    const t2 = setTimeout(() => setGreetPhase("fading"),  7500);
+    const t3 = setTimeout(() => setGreetPhase("gone"),    8200);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+  }, []);
+
+  useEffect(() => {
+    if (open && messagesEndRef.current)
+      messagesEndRef.current.scrollIntoView({ behavior:"smooth" });
+  }, [messages, open]);
+
+  const sendMessageWith = async (text) => {
+    if (!text || loading) return;
+    const newMessages = [...messages, { role:"user", content:text }];
+    setMessages(newMessages);
+    setInput("");
+    setLoading(true);
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json",
+          "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY,
+          "anthropic-version":"2023-06-01",
+          "anthropic-dangerous-direct-browser-access":"true",
+        },
+        body:JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:1000, system:PRICING_SYSTEM_PROMPT, messages:newMessages }),
+      });
+      const data = await res.json();
+      const reply = data.content?.[0]?.text || "I'm having trouble connecting. Please try again in a moment.";
+      setMessages([...newMessages, { role:"assistant", content:reply }]);
+    } catch {
+      setMessages([...newMessages, { role:"assistant", content:"I'm having trouble connecting. Please try again in a moment." }]);
+    }
+    setLoading(false);
+  };
+
+  const sendMessage = async () => { const t = input.trim(); if (t) await sendMessageWith(t); };
+  const handleKey = (e) => { if (e.key==="Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } };
+  const openChat  = () => { setOpen(true); setGreetPhase("gone"); };
+
+  return (
+    <>
+      <style>{SAGE_KEYFRAMES}</style>
+
+      {/* Auto-fading greeting — no dismiss button needed */}
+      {(greetPhase === "showing" || greetPhase === "fading") && !open && (
+        <div style={{
+          ...ss.greeting,
+          animation: greetPhase === "showing"
+            ? "sageIn 0.45s cubic-bezier(0.34,1.56,0.64,1) forwards"
+            : "sageGreetOut 0.65s ease forwards",
+          pointerEvents: greetPhase === "fading" ? "none" : "auto",
+        }}>
+          <p style={ss.greetingText}>Hi, I'm Sage! Have questions about pricing or what's included?</p>
+          <p style={ss.greetingAttrib}>— <strong>Your Care Compass guide</strong></p>
+        </div>
+      )}
+
+      {open && (
+        <div style={ss.drawer}>
+          <div style={ss.drawerHeader}>
+            <div style={ss.drawerHeaderLeft}>
+              <FireflyMark size={44}/>
+              <div>
+                <div style={ss.drawerName}>Sage</div>
+                <div style={ss.drawerSub}>Your Care Compass guide</div>
+              </div>
+            </div>
+            <button style={ss.drawerClose} onClick={() => setOpen(false)} aria-label="Close">✕</button>
+          </div>
+          <div style={ss.messages}>
+            {messages.length === 0 && (
+              <div>
+                <div style={ss.emptyState}>Questions about Care Compass or the plan? I'm happy to help.</div>
+                <div style={ss.suggestedWrap}>
+                  {PRICING_SUGGESTIONS.map(q => (
+                    <button key={q} style={ss.suggestedPill} onClick={() => sendMessageWith(q)}>{q}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {messages.map((m, i) => (
+              <div key={i} style={m.role==="user" ? ss.userBubble : ss.sageBubble}>{m.content}</div>
+            ))}
+            {loading && <div style={ss.sageBubble}><span style={ss.typing}>●&nbsp;●&nbsp;●</span></div>}
+            <div ref={messagesEndRef}/>
+          </div>
+          <div style={ss.inputRow}>
+            <input style={ss.chatInput} value={input} onChange={e => setInput(e.target.value)}
+              onKeyDown={handleKey} placeholder="Ask Sage a question…" disabled={loading}/>
+            <button style={ss.sendBtn} onClick={sendMessage} disabled={loading || !input.trim()} aria-label="Send">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!open && (
+        <button style={ss.fab} onClick={openChat} aria-label="Chat with Sage">
+          <FireflyMark size={48}/>
+        </button>
+      )}
+    </>
+  );
+}
+
+const ss = {
+  fab:{ position:"fixed", bottom:"1.5rem", right:"1.5rem", width:68, height:68, borderRadius:"50%", background:"#e8f0eb", border:"2px solid #c2d9c8", boxShadow:"0 4px 24px rgba(74,112,88,0.18)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", zIndex:9000, padding:0 },
+  greeting:{ position:"fixed", bottom:"5.75rem", right:"1.5rem", background:"#fff", borderRadius:"1rem", boxShadow:"0 4px 32px rgba(0,0,0,0.10)", padding:"1rem 1.25rem 0.85rem", maxWidth:260, zIndex:9000, animation:"sageIn 0.4s cubic-bezier(0.34,1.56,0.64,1)" },
+  greetingText:{ margin:"0 0 0.3rem", fontSize:"0.92rem", color:"#2d2926", lineHeight:1.55, paddingRight:"1rem" },
+  greetingAttrib:{ margin:0, fontSize:"0.78rem", color:"#7a9e87" },
+  greetingClose:{ position:"absolute", top:"0.5rem", right:"0.6rem", background:"none", border:"none", cursor:"pointer", color:"#aaa", fontSize:"0.75rem", padding:"2px 4px", lineHeight:1 },
+  drawer:{ position:"fixed", bottom:"1.5rem", right:"1.5rem", width:340, maxWidth:"calc(100vw - 2rem)", maxHeight:"70vh", background:"#fff", borderRadius:"1.25rem", boxShadow:"0 8px 48px rgba(0,0,0,0.14)", border:"1px solid rgba(0,0,0,0.07)", display:"flex", flexDirection:"column", zIndex:9000, overflow:"hidden", animation:"sageIn 0.35s cubic-bezier(0.34,1.56,0.64,1)" },
+  drawerHeader:{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"1rem 1.1rem", borderBottom:"1px solid rgba(0,0,0,0.06)", background:"#fafaf8" },
+  drawerHeaderLeft:{ display:"flex", alignItems:"center", gap:"0.75rem" },
+  drawerName:{ fontWeight:700, fontSize:"0.95rem", color:"#2d2926", lineHeight:1.2 },
+  drawerSub:{ fontSize:"0.75rem", color:"#7a9e87" },
+  drawerClose:{ background:"none", border:"none", cursor:"pointer", color:"#aaa", fontSize:"1rem", padding:"4px", lineHeight:1 },
+  messages:{ flex:1, overflowY:"auto", padding:"1rem", display:"flex", flexDirection:"column", gap:"0.75rem" },
+  emptyState:{ fontSize:"0.875rem", color:"#aaa", textAlign:"center", lineHeight:1.6, padding:"1rem 0.5rem 0.75rem", fontStyle:"italic" },
+  suggestedWrap:{ display:"flex", flexWrap:"wrap", gap:"0.45rem", justifyContent:"center", padding:"0 0.25rem 0.5rem" },
+  suggestedPill:{ background:"#f0f7f2", border:"1px solid #c2d9c8", borderRadius:"100px", padding:"0.4rem 0.85rem", fontSize:"0.78rem", color:"#4a7058", fontWeight:600, cursor:"pointer", fontFamily:"inherit", lineHeight:1.4 },
+  userBubble:{ alignSelf:"flex-end", background:"#4a7058", color:"#fff", borderRadius:"1rem 1rem 0.25rem 1rem", padding:"0.65rem 0.9rem", fontSize:"0.88rem", lineHeight:1.5, maxWidth:"82%" },
+  sageBubble:{ alignSelf:"flex-start", background:"#e8f0eb", color:"#2d2926", borderRadius:"1rem 1rem 1rem 0.25rem", padding:"0.65rem 0.9rem", fontSize:"0.88rem", lineHeight:1.5, maxWidth:"82%" },
+  typing:{ color:"#7a9e87", letterSpacing:"0.1em", fontSize:"0.75rem" },
+  inputRow:{ display:"flex", gap:"0.5rem", padding:"0.75rem", borderTop:"1px solid rgba(0,0,0,0.06)", background:"#fafaf8" },
+  chatInput:{ flex:1, padding:"0.65rem 0.9rem", borderRadius:"0.75rem", border:"1.5px solid rgba(0,0,0,0.1)", fontSize:"0.88rem", fontFamily:"inherit", color:"#2d2926", background:"#fff", outline:"none" },
+  sendBtn:{ width:40, height:40, borderRadius:"0.75rem", background:"#4a7058", color:"#fff", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 },
+};
+
+export default function CareCompassPricing() {
+  const [billing, setBilling] = useState("annual");
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 40);
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const monthly = 12.99;
+  const annual = 140.30;
+  const annualMonthly = (annual / 12).toFixed(2);
+  const savings = ((monthly * 12 - annual)).toFixed(2);
+
+  return (
+    <div style={s.root}>
+
+      {/* Nav */}
+      <nav style={{ ...s.nav, ...(scrolled ? s.navScrolled : {}) }}>
+        <div style={s.navInner}>
+          <a href="/" style={s.navLogo}>
+            <BotanicalMark size={30}/>
+            <span style={s.navLogoText}>Care Compass</span>
+          </a>
+          <div style={s.navLinks}>
+            <a href="/compass" style={s.navLink}>Assessment</a>
+            <a href="/tracker" style={s.navLink}>Tracker</a>
+            <a href="/#waitlist" style={s.navCta}>Join Waitlist</a>
+          </div>
+        </div>
+      </nav>
+
+      <main>
+
+        {/* Hero */}
+        <section style={s.hero}>
+          <div style={s.heroBg} aria-hidden="true">
+            <div style={s.heroBlobA}/>
+            <div style={s.heroBlobB}/>
+          </div>
+          <div style={s.heroInner}>
+            <FadeIn>
+              <div style={s.heroBadge}>Simple, transparent pricing</div>
+              <h1 style={s.heroTitle}>
+                Everything you need to<br/>
+                <em style={s.heroEm}>advocate for your health.</em>
+              </h1>
+              <p style={s.heroSub}>
+                One plan. Every feature. Built for people navigating complex, chronic illness.
+              </p>
+            </FadeIn>
+          </div>
+        </section>
+
+        {/* Pricing card */}
+        <section style={s.pricingSection}>
+          <div style={s.container}>
+            <FadeIn>
+
+              {/* Billing toggle */}
+              <div style={s.toggleWrap}>
+                <button
+                  onClick={() => setBilling("monthly")}
+                  style={{ ...s.toggleBtn, background: billing === "monthly" ? "#fff" : "transparent", color: billing === "monthly" ? INK : WARM_GRAY, boxShadow: billing === "monthly" ? "0 1px 4px rgba(0,0,0,0.1)" : "none" }}
+                >
+                  Monthly
+                </button>
+                <button
+                  onClick={() => setBilling("annual")}
+                  style={{ ...s.toggleBtn, background: billing === "annual" ? "#fff" : "transparent", color: billing === "annual" ? INK : WARM_GRAY, boxShadow: billing === "annual" ? "0 1px 4px rgba(0,0,0,0.1)" : "none" }}
+                >
+                  Annual
+                  <span style={s.savingsBadge}>Save 10%</span>
+                </button>
+              </div>
+
+              {/* Main card */}
+              <div style={s.planCard}>
+                <div style={s.planCardLeft}>
+                  <div style={s.planHeader}>
+                    <BotanicalMark size={40}/>
+                    <div>
+                      <p style={s.planEyebrow}>Care Compass</p>
+                      <h2 style={s.planName}>Full Access</h2>
+                    </div>
+                  </div>
+
+                  <div style={s.priceWrap}>
+                    <span style={s.priceCurrency}>$</span>
+                    <span style={s.priceAmount}>
+                      {billing === "monthly" ? monthly.toFixed(2) : annualMonthly}
+                    </span>
+                    <span style={s.pricePer}>/ month</span>
+                  </div>
+
+                  {billing === "annual" && (
+                    <p style={s.annualNote}>
+                      Billed annually at $140.30 · Save 10%
+                    </p>
+                  )}
+                  {billing === "monthly" && (
+                    <p style={s.annualNote}>
+                      Switch to annual and save 10%
+                    </p>
+                  )}
+
+                  <a
+                    href="/#waitlist"
+                    style={s.subscribeBtn}
+                  >
+                    Get Started →
+                  </a>
+                  <p style={s.subscribeNote}>Cancel anytime · No hidden fees · Secure checkout</p>
+
+                  <div style={s.trustRow}>
+                    <span style={s.trustItem}><CheckIcon/> Encrypted & private</span>
+                    <span style={s.trustItem}><CheckIcon/> Cancel anytime</span>
+                  </div>
+                </div>
+
+                <div style={s.planCardRight}>
+                  <p style={s.featuresLabel}>Everything included</p>
+                  <div style={s.featuresList}>
+                    {FEATURES.map(({ label, desc }) => (
+                      <div key={label} style={s.featureItem}>
+                        <CheckIcon/>
+                        <div>
+                          <p style={s.featureLabel}>{label}</p>
+                          <p style={s.featureDesc}>{desc}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+            </FadeIn>
+          </div>
+        </section>
+
+        {/* Coming soon */}
+        <section style={s.comingSoonSection}>
+          <div style={{ ...s.container, maxWidth: 760 }}>
+            <FadeIn>
+              <p style={s.sectionEyebrow}>On the roadmap</p>
+              <h2 style={s.sectionTitle}>More coming for subscribers</h2>
+              <p style={s.comingSoonSub}>As Care Compass grows, subscribers get access to new features as they launch — at no extra cost until premium tiers are introduced.</p>
+              <div style={s.comingSoonGrid}>
+                {[
+                  { icon: "🔬", title: "Lab result interpretation", desc: "Upload lab results and get plain-language explanations of what they mean and what to ask your doctor." },
+                  { icon: "📸", title: "AI photo symptom analysis", desc: "Share a photo of a rash, swelling, or skin change and get contextual insight on what it might indicate." },
+                  { icon: "🩺", title: "Specialist directory", desc: "Find specialists near you who understand complex chronic conditions — not just generalists." },
+                  { icon: "💬", title: "Private consult", desc: "Connect directly with a Care Compass health navigator for personalized guidance." },
+                ].map(({ icon, title, desc }) => (
+                  <div key={title} style={s.comingSoonCard}>
+                    <span style={s.comingSoonIcon}>{icon}</span>
+                    <h3 style={s.comingSoonTitle}>{title}</h3>
+                    <p style={s.comingSoonDesc}>{desc}</p>
+                    <span style={s.comingSoonTag}>Coming soon</span>
+                  </div>
+                ))}
+              </div>
+            </FadeIn>
+          </div>
+        </section>
+
+        {/* FAQ */}
+        <section style={s.faqSection}>
+          <div style={{ ...s.container, maxWidth: 680 }}>
+            <FadeIn>
+              <p style={s.sectionEyebrow}>Questions</p>
+              <h2 style={s.sectionTitle}>Everything you need to know</h2>
+            </FadeIn>
+            <FadeIn delay={0.1}>
+              <div style={s.faqList}>
+                {FAQS.map(faq => <FAQ key={faq.q} {...faq}/>)}
+              </div>
+            </FadeIn>
+          </div>
+        </section>
+
+        {/* Bottom CTA */}
+        <section style={s.ctaSection}>
+          <div style={{ ...s.container, maxWidth: 600, textAlign: "center" }}>
+            <FadeIn>
+              <BotanicalMark size={52}/>
+              <h2 style={s.ctaTitle}>You deserve clarity about your health.</h2>
+              <p style={s.ctaSub}>Join Care Compass and start building the picture your doctors need to help you.</p>
+              <a href="/#waitlist" style={s.ctaBtn}>Get Started →</a>
+              <p style={s.ctaNote}>Questions? <a href="mailto:hello@joincarecompass.com" style={s.ctaLink}>hello@joincarecompass.com</a></p>
+            </FadeIn>
+          </div>
+        </section>
+
+      </main>
+
+      {/* Footer */}
+      <footer style={s.footer}>
+        <div style={s.footerInner}>
+          <div style={s.footerLogo}>
+            <BotanicalMark size={24}/>
+            <span style={s.footerLogoText}>Care Compass</span>
+          </div>
+          <div style={s.footerLinks}>
+            <a href="/privacy" style={s.footerLink}>Privacy Policy</a>
+            <a href="mailto:hello@joincarecompass.com" style={s.footerLink}>Contact</a>
+            <span style={s.footerCopy}>© {new Date().getFullYear()} Care Compass</span>
+          </div>
+        </div>
+        <p style={s.footerDisclaimer}>Care Compass is not a medical service and does not provide medical advice, diagnosis, or treatment.</p>
+      </footer>
+
+      <SageChatbot />
+
+    </div>
+  );
+}
+
+const s = {
+  root: { fontFamily: "'DM Sans', Helvetica, sans-serif", color: INK, background: OFF_WHITE, minHeight: "100vh", overflowX: "hidden", width: "100%", boxSizing: "border-box" },
+
+  nav: { position: "fixed", top: 0, left: 0, right: 0, zIndex: 100, padding: "1.1rem 2rem", transition: "background 0.3s, box-shadow 0.3s" },
+  navScrolled: { background: "rgba(250,250,248,0.94)", backdropFilter: "blur(12px)", boxShadow: "0 1px 0 rgba(0,0,0,0.07)" },
+  navInner: { maxWidth: 1100, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center" },
+  navLogo: { display: "flex", alignItems: "center", gap: "0.55rem", textDecoration: "none" },
+  navLogoText: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.1rem", fontWeight: 700, color: SAGE_DARK },
+  navLinks: { display: "flex", alignItems: "center", gap: "1.5rem" },
+  navLink: { fontSize: "0.875rem", color: WARM_GRAY, textDecoration: "none" },
+  navCta: { background: SAGE_DARK, color: "#fff", padding: "0.55rem 1.3rem", borderRadius: "100px", fontSize: "0.875rem", fontWeight: 600, textDecoration: "none" },
+
+  hero: { display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", padding: "5rem 2rem 3rem", position: "relative", overflow: "hidden" },
+  heroBg: { position: "absolute", inset: 0, zIndex: 0, pointerEvents: "none" },
+  heroBlobA: { position: "absolute", top: "-10%", left: "10%", width: 500, height: 500, borderRadius: "50%", background: `radial-gradient(circle, ${SAGE_LIGHT} 0%, transparent 70%)`, opacity: 0.6 },
+  heroBlobB: { position: "absolute", bottom: "-10%", right: "5%", width: 400, height: 400, borderRadius: "50%", background: `radial-gradient(circle, #e0f2f4 0%, transparent 70%)`, opacity: 0.5 },
+  heroInner: { position: "relative", zIndex: 1, maxWidth: 680 },
+  heroBadge: { display: "inline-block", background: SAGE_LIGHT, color: SAGE_DARK, fontSize: "0.78rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.4rem 1rem", borderRadius: "100px", marginBottom: "1.25rem" },
+  heroTitle: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "clamp(2rem, 5vw, 3rem)", fontWeight: 700, color: INK, margin: "0 0 1rem", letterSpacing: "-0.02em", lineHeight: 1.2 },
+  heroEm: { fontStyle: "italic", color: SAGE_DARK },
+  heroSub: { fontSize: "1.05rem", color: WARM_GRAY, lineHeight: 1.75, margin: 0 },
+
+  pricingSection: { padding: "4rem 1.5rem 6rem" },
+  container: { maxWidth: 1000, margin: "0 auto" },
+
+  toggleWrap: { display: "flex", background: SAGE_LIGHT, borderRadius: "100px", padding: "0.25rem", width: "fit-content", margin: "0 auto 2.5rem", gap: "0.15rem" },
+  toggleBtn: { padding: "0.6rem 1.5rem", borderRadius: "100px", border: "none", fontSize: "0.9rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all 0.2s", display: "flex", alignItems: "center", gap: "0.5rem" },
+  savingsBadge: { background: TEAL, color: "#fff", fontSize: "0.7rem", fontWeight: 700, padding: "0.15rem 0.5rem", borderRadius: "100px" },
+
+  planCard: { background: "#fff", borderRadius: "1.75rem", border: `1px solid rgba(0,0,0,0.07)`, boxShadow: "0 8px 48px rgba(0,0,0,0.08)", display: "flex", flexDirection: "column", overflow: "hidden", width: "100%", boxSizing: "border-box" },
+  planCardLeft: { padding: "2rem 2rem 1.5rem", display: "flex", flexDirection: "column", gap: "1.25rem" },
+  planCardRight: { padding: "1.5rem 2rem 2rem", background: OFF_WHITE, borderTop: `1px solid rgba(0,0,0,0.06)` },
+  planHeader: { display: "flex", alignItems: "center", gap: "1rem" },
+  planEyebrow: { fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: TEAL, margin: "0 0 0.2rem" },
+  planName: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.4rem", fontWeight: 700, color: INK, margin: 0 },
+  priceWrap: { display: "flex", alignItems: "flex-end", gap: "0.25rem" },
+  priceCurrency: { fontSize: "1.5rem", fontWeight: 700, color: SAGE_DARK, lineHeight: 1, paddingBottom: "0.3rem" },
+  priceAmount: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "3.5rem", fontWeight: 700, color: INK, lineHeight: 1 },
+  pricePer: { fontSize: "1rem", color: WARM_GRAY, paddingBottom: "0.5rem" },
+  annualNote: { fontSize: "0.82rem", color: WARM_GRAY, margin: 0, lineHeight: 1.6 },
+  subscribeBtn: { display: "block", background: SAGE_DARK, color: "#fff", padding: "1rem 2rem", borderRadius: "100px", fontSize: "1rem", fontWeight: 600, textDecoration: "none", textAlign: "center", transition: "background 0.2s" },
+  subscribeNote: { fontSize: "0.75rem", color: "#aaa", textAlign: "center", margin: 0 },
+  trustRow: { display: "flex", flexDirection: "column", gap: "0.6rem", alignItems: "flex-start" },
+  trustItem: { display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.85rem", fontWeight: 600, color: INK_LIGHT },
+
+  featuresLabel: { fontSize: "0.75rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: WARM_GRAY, margin: "0 0 1.25rem" },
+  featuresList: { display: "flex", flexDirection: "column", gap: "1rem" },
+  featureItem: { display: "flex", gap: "0.75rem", alignItems: "flex-start", textAlign: "left", minHeight: 22 },
+  featureLabel: { fontSize: "0.9rem", fontWeight: 600, color: INK, margin: "0 0 0.15rem" },
+  featureDesc: { fontSize: "0.78rem", color: WARM_GRAY, lineHeight: 1.6, margin: 0 },
+
+  comingSoonSection: { padding: "6rem 1.5rem", background: CREAM },
+  sectionEyebrow: { fontSize: "0.75rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: TEAL, margin: "0 0 0.5rem" },
+  sectionTitle: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "clamp(1.6rem, 3vw, 2.2rem)", fontWeight: 700, color: INK, margin: "0 0 1rem", letterSpacing: "-0.02em" },
+  comingSoonSub: { fontSize: "0.95rem", color: WARM_GRAY, lineHeight: 1.75, marginBottom: "2.5rem", marginTop: "-0.5rem" },
+  comingSoonGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1.25rem" },
+  comingSoonCard: { background: "#fff", borderRadius: "1.25rem", border: `1px solid rgba(0,0,0,0.06)`, padding: "1.75rem", display: "flex", flexDirection: "column", gap: "0.5rem" },
+  comingSoonIcon: { fontSize: "1.75rem" },
+  comingSoonTitle: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1rem", fontWeight: 700, color: INK, margin: 0 },
+  comingSoonDesc: { fontSize: "0.85rem", color: WARM_GRAY, lineHeight: 1.7, margin: 0, flex: 1 },
+  comingSoonTag: { display: "inline-block", background: SAGE_LIGHT, color: SAGE_DARK, fontSize: "0.72rem", fontWeight: 700, padding: "0.25rem 0.75rem", borderRadius: "100px", letterSpacing: "0.05em", alignSelf: "flex-start" },
+
+  faqSection: { padding: "6rem 1.5rem", background: "#fff" },
+  faqList: { display: "flex", flexDirection: "column", gap: "0", marginTop: "2rem" },
+  faqItem: { padding: "1.25rem 0", borderBottom: `1px solid rgba(0,0,0,0.07)`, cursor: "pointer" },
+  faqHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem" },
+  faqQ: { fontSize: "0.95rem", fontWeight: 600, color: INK, margin: 0 },
+  faqChevron: { color: WARM_GRAY, fontSize: "1.1rem", flexShrink: 0, transition: "transform 0.2s" },
+  faqA: { fontSize: "0.9rem", color: WARM_GRAY, lineHeight: 1.75, margin: "0.75rem 0 0" },
+
+  ctaSection: { padding: "7rem 1.5rem", background: SAGE_LIGHT, display: "flex", alignItems: "center", justifyContent: "center" },
+  ctaTitle: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "clamp(1.6rem, 3vw, 2.2rem)", fontWeight: 700, color: INK, margin: "1rem 0 0.75rem", letterSpacing: "-0.02em" },
+  ctaSub: { fontSize: "1rem", color: WARM_GRAY, lineHeight: 1.75, marginBottom: "2rem" },
+  ctaBtn: { display: "inline-block", background: SAGE_DARK, color: "#fff", padding: "1rem 2.5rem", borderRadius: "100px", fontSize: "1rem", fontWeight: 600, textDecoration: "none", marginBottom: "1.25rem" },
+  ctaNote: { fontSize: "0.85rem", color: WARM_GRAY, margin: 0 },
+  ctaLink: { color: SAGE_DARK, fontWeight: 600, textDecoration: "none" },
+
+  footer: { padding: "2rem 2rem 1.5rem", borderTop: `1px solid rgba(0,0,0,0.07)`, background: OFF_WHITE },
+  footerInner: { maxWidth: 1000, margin: "0 auto 1rem", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" },
+  footerLogo: { display: "flex", alignItems: "center", gap: "0.5rem" },
+  footerLogoText: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "0.95rem", fontWeight: 700, color: SAGE_DARK },
+  footerLinks: { display: "flex", alignItems: "center", gap: "1.5rem", flexWrap: "wrap" },
+  footerLink: { fontSize: "0.85rem", color: WARM_GRAY, textDecoration: "none" },
+  footerCopy: { fontSize: "0.8rem", color: "#aaa" },
+  footerDisclaimer: { fontSize: "0.75rem", color: "#aaa", textAlign: "center", maxWidth: 600, margin: "0 auto" },
+};
