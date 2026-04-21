@@ -5032,7 +5032,8 @@ ${extraContext}` : ""}`;
                 </div>
                 <div style={s.formGroup}><label style={s.label}>Weather / environment</label><input value={form.weather} onChange={e => setForm(f => ({ ...f, weather: e.target.value }))} placeholder="e.g. hot, humid, cold, indoors…" style={s.input}/></div>
               </div>
-              {/* ── Functional Impact fields ── */}
+              {/* ── Functional Impact fields — evening only ── */}
+              {isEveningTime && <>
               <div style={s.formGroup}>
                 <label style={s.label}>Hours upright today <span style={s.optional}>(optional)</span></label>
                 <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
@@ -5088,6 +5089,7 @@ ${extraContext}` : ""}`;
                 </div>
                 <p style={{ fontSize: "0.72rem", color: WARM_GRAY, margin: "0.35rem 0 0" }}>How much of your energy capacity did today's activity use?</p>
               </div>
+              </>}
               <div style={s.formGroup}>
                 <label style={s.label}>Stress level <span style={s.sevValue}>{form.stress}/10</span></label>
                 <input type="range" min="1" max="10" step="1" value={form.stress} onChange={e => setForm(f => ({ ...f, stress: Number(e.target.value) }))} style={{ width: "100%", accentColor: SAGE_DARK }}/>
