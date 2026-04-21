@@ -468,6 +468,9 @@ function EntryCard({ entry, onDelete, onEdit }) {
           {entry.food && <DR label="Food & drink" value={entry.food}/>}
           {entry.medications && <DR label="Medications" value={entry.medications}/>}
           {entry.activity && <DR label="Activity" value={entry.activity}/>}
+          {entry.hoursUpright && <DR label="Hours upright" value={entry.hoursUpright}/>}
+          {entry.tasksCompleted && entry.tasksCompleted.length > 0 && <DR label="Tasks managed" value={entry.tasksCompleted.join(", ")}/>}
+          {entry.energyEnvelope && <DR label="Energy used" value={entry.energyEnvelope}/>}
           {entry.sleep != null && <DR label="Sleep" value={`${entry.sleep}/10`}/>}
           {entry.stress && <DR label="Stress" value={`${entry.stress}/10`}/>}
           {entry.weather && <DR label="Weather" value={entry.weather}/>}
@@ -2402,7 +2405,7 @@ export default function CareCompassTracker() {
   const [editTime, setEditTime]           = useState("08:00");
   const [editLabel, setEditLabel]         = useState("");
 
-  const blankForm = { symptoms: "", severity: 5, food: "", medications: "", selectedMedIds: [], saveUnlistedMed: false, activity: "", sleep: null, stress: 5, weather: "", notes: "", photos: [] };
+  const blankForm = { symptoms: "", severity: 5, food: "", medications: "", selectedMedIds: [], saveUnlistedMed: false, activity: "", sleep: null, stress: 5, weather: "", notes: "", photos: [], hoursUpright: null, tasksCompleted: [], energyEnvelope: null };
   const [form, setForm] = useState(blankForm);
 
   useEffect(() => { try { const stored = localStorage.getItem(STORAGE_KEY); if (stored) setEntries(JSON.parse(stored)); } catch {} }, []);
@@ -2534,9 +2537,12 @@ export default function CareCompassTracker() {
       severity:       entry.severity       ?? 5,
       stress:         entry.stress         ?? 5,
       sleep:          entry.sleep          ?? null,
-      photos:         entry.photos         || [],
-      selectedMedIds: entry.selectedMedIds || [],
+      photos:          entry.photos          || [],
+      selectedMedIds:  entry.selectedMedIds  || [],
       saveUnlistedMed: false,
+      hoursUpright:    entry.hoursUpright    ?? null,
+      tasksCompleted:  entry.tasksCompleted  || [],
+      energyEnvelope:  entry.energyEnvelope  ?? null,
     });
     setShowForm(true);
   };
@@ -5025,6 +5031,62 @@ ${extraContext}` : ""}`;
                   />
                 </div>
                 <div style={s.formGroup}><label style={s.label}>Weather / environment</label><input value={form.weather} onChange={e => setForm(f => ({ ...f, weather: e.target.value }))} placeholder="e.g. hot, humid, cold, indoors…" style={s.input}/></div>
+              </div>
+              {/* ── Functional Impact fields ── */}
+              <div style={s.formGroup}>
+                <label style={s.label}>Hours upright today <span style={s.optional}>(optional)</span></label>
+                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                  {["< 2h", "2–4h", "4–8h", "8+h"].map(opt => {
+                    const active = form.hoursUpright === opt;
+                    return (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => setForm(f => ({ ...f, hoursUpright: active ? null : opt }))}
+                        style={{ padding: "0.45rem 1rem", borderRadius: "100px", border: `1.5px solid ${active ? SAGE_DARK : "rgba(0,0,0,0.15)"}`, background: active ? SAGE_DARK : "transparent", color: active ? "#fff" : INK, fontSize: "0.82rem", fontWeight: active ? 600 : 400, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}
+                      >
+                        {opt}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div style={s.formGroup}>
+                <label style={s.label}>Tasks managed today <span style={s.optional}>(optional — check all that applied)</span></label>
+                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                  {["Work / school", "Self-care", "Chores", "Social / errands"].map(task => {
+                    const checked = (form.tasksCompleted || []).includes(task);
+                    return (
+                      <button
+                        key={task}
+                        type="button"
+                        onClick={() => setForm(f => ({ ...f, tasksCompleted: checked ? (f.tasksCompleted || []).filter(t => t !== task) : [...(f.tasksCompleted || []), task] }))}
+                        style={{ padding: "0.45rem 1rem", borderRadius: "100px", border: `1.5px solid ${checked ? TEAL : "rgba(0,0,0,0.15)"}`, background: checked ? TEAL : "transparent", color: checked ? "#fff" : INK, fontSize: "0.82rem", fontWeight: checked ? 600 : 400, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}
+                      >
+                        {checked ? "✓ " : ""}{task}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div style={s.formGroup}>
+                <label style={s.label}>Energy envelope used <span style={s.optional}>(optional)</span></label>
+                <div style={{ display: "flex", gap: "0.5rem" }}>
+                  {[["Low", "#4A8C7A"], ["Medium", "#e8a838"], ["High", "#c0392b"]].map(([level, color]) => {
+                    const active = form.energyEnvelope === level;
+                    return (
+                      <button
+                        key={level}
+                        type="button"
+                        onClick={() => setForm(f => ({ ...f, energyEnvelope: active ? null : level }))}
+                        style={{ flex: 1, padding: "0.5rem 0", borderRadius: "0.6rem", border: `1.5px solid ${active ? color : "rgba(0,0,0,0.12)"}`, background: active ? color : "transparent", color: active ? "#fff" : INK, fontSize: "0.82rem", fontWeight: active ? 700 : 400, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s", textAlign: "center" }}
+                      >
+                        {level}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p style={{ fontSize: "0.72rem", color: WARM_GRAY, margin: "0.35rem 0 0" }}>How much of your energy capacity did today's activity use?</p>
               </div>
               <div style={s.formGroup}>
                 <label style={s.label}>Stress level <span style={s.sevValue}>{form.stress}/10</span></label>
