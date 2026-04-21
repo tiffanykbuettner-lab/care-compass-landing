@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "./AuthContext";
 import { Icon } from "./SageIcons";
+import SageAskWidget from "./SageAskWidget";
 
 const SAGE       = "#7a9e87";
 const SAGE_LIGHT = "#e8f0eb";
@@ -1726,6 +1727,11 @@ export default function CareCompassDashboard() {
             </div>
           )}
 
+
+          {/* ── Ask Sage ── */}
+          {!isNew && (
+            <SageAskWidget mode="dashboard" />
+          )}
 
           {/* ── Appointments ── */}
           {!isNew && (

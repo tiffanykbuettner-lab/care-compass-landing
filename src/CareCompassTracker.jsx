@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "./AuthContext";
 import { Icon, MorningSunIcon, EveningMoonIcon } from "./SageIcons";
+import SageAskWidget from "./SageAskWidget";
 
 const INSIGHTS_LOADING_STYLES = `
 @keyframes insightProgress {
@@ -2603,6 +2604,103 @@ export default function CareCompassTracker() {
 
   const uniqueDaysLogged = new Set(entries.map(e => new Date(e.timestamp).toDateString())).size;
 
+  // ── Shared patient context builder — used by ALL AI features ────────────────
+  // Returns a structured string block containing every data source the AI should
+  // be aware of. Pass `options` to control which sections to include.
+  const buildPatientContext = ({
+    includeBP       = true,
+    includeCycle    = true,
+    includeMeds     = true,
+    includeFamily   = true,
+    includeLabs     = true,
+    includeGoals    = true,
+    includeProfile  = true,
+    bpLimit         = 20,
+    labLimit        = 6,
+  } = {}) => {
+    const lines = [];
+
+    // Profile / diagnoses
+    if (includeProfile) {
+      try {
+        const profile = JSON.parse(localStorage.getItem("cc-profile") || "{}");
+        const conditions = (profile.conditions || []).join(", ");
+        const age        = profile.ageRange || profile.age || "";
+        const pronouns   = profile.pronouns || "";
+        if (conditions) lines.push(`CONFIRMED / SUSPECTED DIAGNOSES: ${conditions}`);
+        if (age)        lines.push(`AGE RANGE: ${age}`);
+        if (pronouns)   lines.push(`PRONOUNS: ${pronouns}`);
+      } catch {}
+    }
+
+    // Medications (full list with dose + frequency, not just duration context)
+    if (includeMeds && medications.length) {
+      const DURATION_LABELS = {
+        less_than_1_month: "< 1 month", "1_3_months": "1–3 months", "3_6_months": "3–6 months",
+        "6_12_months": "6–12 months", "1_2_years": "1–2 years", "2_5_years": "2–5 years",
+        "5_10_years": "5–10 years", "10_plus_years": "10+ years", "lifelong": "lifelong/since childhood",
+      };
+      const medLines = medications.filter(m => m.name).map(m =>
+        `  - ${m.name}${m.dose ? " " + m.dose : ""}${m.frequency ? " (" + m.frequency + ")" : ""}${m.duration ? " — taking for " + (DURATION_LABELS[m.duration] || m.duration) : ""}${m.notes ? " | " + m.notes : ""}`
+      );
+      if (medLines.length) lines.push(`CURRENT MEDICATIONS:\n${medLines.join("\n")}`);
+    }
+
+    // Family history
+    if (includeFamily && familyHistoryStr) {
+      lines.push(`FAMILY HISTORY:\n${familyHistoryStr}`);
+    }
+
+    // Blood pressure readings
+    if (includeBP && bpReadings.length) {
+      const bpLines = bpReadings.slice(0, bpLimit).map(r =>
+        `  ${formatBPTime(r.timestamp)}: ${r.systolic}/${r.diastolic} mmHg${r.pulse ? " | Pulse: " + r.pulse + " bpm" : ""}${r.position ? " | Position: " + r.position : ""}${r.notes ? " | " + r.notes : ""} — ${bpCategory(r.systolic, r.diastolic).label}`
+      );
+      lines.push(`BLOOD PRESSURE READINGS (most recent first, up to ${bpLimit}):\n${bpLines.join("\n")}`);
+    }
+
+    // Cycle data
+    if (includeCycle && cycleStr) {
+      lines.push(`MENSTRUAL CYCLE DATA (recent):\n${cycleStr}`);
+    }
+
+    // Lab results (summaries — name, date, ordered-by, and AI-generated summary if available)
+    if (includeLabs) {
+      try {
+        const labs = JSON.parse(localStorage.getItem("care-compass-labs-v1") || "[]");
+        const labsWithSummary = labs.filter(l => l.name && l.aiSummary).slice(0, labLimit);
+        if (labsWithSummary.length) {
+          const labLines = labsWithSummary.map(l => {
+            const dateStr  = l.date ? ` (${l.date})` : "";
+            const ordStr   = l.orderedBy ? ` — ordered by ${l.orderedBy}` : "";
+            // Trim AI summary to first 300 chars to keep prompt lean
+            const summary  = l.aiSummary ? "\n    " + l.aiSummary.slice(0, 300).replace(/\n/g, "\n    ") + (l.aiSummary.length > 300 ? "…" : "") : "";
+            return `  - ${l.name}${dateStr}${ordStr}:${summary}`;
+          });
+          lines.push(`LAB RESULTS (AI-analyzed summaries, most recent ${labsWithSummary.length}):\n${labLines.join("\n")}`);
+        }
+      } catch {}
+    }
+
+    // Health goals
+    if (includeGoals) {
+      try {
+        const goals = loadGoals();
+        if (goals.length) {
+          const goalLines = goals.map(g => `  - ${g.title}${g.notes ? " (" + g.notes + ")" : ""}`);
+          lines.push(`PATIENT HEALTH GOALS:\n${goalLines.join("\n")}`);
+        }
+      } catch {}
+    }
+
+    // Care team
+    if (careTeamStr) {
+      lines.push(`CARE TEAM: ${careTeamStr}`);
+    }
+
+    return lines.join("\n\n");
+  };
+
   const handleInsights = async (extraContext) => {
     if (uniqueDaysLogged < 3) return;
     setLoadingInsights(true); setInsights(null);
@@ -2643,6 +2741,8 @@ Please tailor your analysis specifically for a ${apptContext.specialty} visit. F
 ADDITIONAL CONTEXT PROVIDED BY USER (incorporate this into your analysis — treat it as important supplementary history that was not captured in the tracker entries above):
 ${extraContext}` : "";
 
+      const patientContext = buildPatientContext();
+
       const response = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" }, body: JSON.stringify({ model: "claude-opus-4-6", max_tokens: 8000, messages: [{ role: "user", content: `You are Care Compass, a compassionate health navigation assistant. Analyze these symptom tracker entries and identify patterns, triggers, and insights to discuss with a doctor.
 
 CORE PHILOSOPHY — WEIGHT SYMPTOMS OVER LABELS:
@@ -2651,26 +2751,21 @@ Your analysis must be grounded primarily in what the user actually logs — thei
 WEIGHTING HIERARCHY:
 1. HIGHEST — Logged symptoms and how they pattern across time, time-of-day, and days of the week
 2. HIGH — Correlations with food, medications, activity, sleep, stress
-3. MODERATE — Family history (genetic context)
+3. MODERATE — Family history (genetic context) and lab results (objective data points)
 4. LOWER — Existing diagnoses (treat as one possible explanation; flag if symptoms suggest something additional or misaligned)
 5. LOWEST — Long-standing medications (unlikely to cause new symptoms unless recently changed)
 
-${careTeamStr ? `CARE TEAM: ${careTeamStr}\n\n` : ""}${(() => {
-        const goals = loadGoals();
-        if (!goals.length) return "";
-        const goalLines = goals.map(g => `- ${g.title}${g.notes ? " (" + g.notes + ")" : ""}`).join("\n");
-        return `USER HEALTH GOALS (these are what the user is actively working towards — reference them when relevant. Flag if tracker data shows progress or regression towards any goal):\n${goalLines}\n\n`;
-      })()}${familyHistoryStr ? `FAMILY HISTORY (use this to add genetic/hereditary context to pattern analysis — flag if logged symptoms may have familial patterns):\n${familyHistoryStr}\n\n` : ""}${(() => {
-        const medsWithDuration = medications.filter(m => m.name && m.duration);
-        if (!medsWithDuration.length) return "";
-        const DURATION_LABELS = {
-          less_than_1_month: "< 1 month", "1_3_months": "1–3 months", "3_6_months": "3–6 months",
-          "6_12_months": "6–12 months", "1_2_years": "1–2 years", "2_5_years": "2–5 years",
-          "5_10_years": "5–10 years", "10_plus_years": "10+ years", "lifelong": "lifelong/since childhood"
-        };
-        return "MEDICATION DURATION CONTEXT (IMPORTANT for pattern analysis — a long-standing medication is less likely to be causing a NEW symptom than a recently started one):\n" +
-          medsWithDuration.map(m => `- ${m.name}${m.dose ? " " + m.dose : ""}: taking for ${DURATION_LABELS[m.duration] || m.duration}`).join("\n") + "\n\n";
-      })()}IMPORTANT CONTEXT: Users log entries MULTIPLE TIMES per day. Each day shows all entries chronologically with timestamps. Medications, food, and activity listed for a day represent the COMBINED picture across all that day's entries — not that each item was logged at every entry. Do NOT interpret partial fields in individual entries as missed doses or incomplete information. Look for TIME-BASED CORRELATIONS within days — e.g. a medication logged in the morning followed by symptom changes hours later, or food logged before a symptom spike.
+MEDICATION INTERACTION ANALYSIS — always perform this regardless of symptom data:
+Scan all medications in the patient context and assess: (1) known interactions between any two or more listed medications, (2) logged symptoms that are known side effects of a listed medication, (3) medications that may reduce the efficacy of another listed medication, (4) medications that appear misaligned with listed conditions. Flag anything notable in the ## Medication Notes section. Use cautious language — never advise stopping or changing anything. If no medications are listed or no concerns found, note that briefly.
+
+PATIENT CONTEXT (use all sections below to inform your analysis — cross-reference with symptom entries for correlations):
+${patientContext}
+
+MEDICATION DURATION NOTE: A long-standing medication is less likely to be causing a NEW symptom than a recently started one. Use the "taking for" duration in the medications list when assessing causality.
+
+LAB RESULTS NOTE: If lab results are provided above, cross-reference abnormal findings with symptom patterns. Note if logged symptoms align with what those results might indicate.
+
+IMPORTANT CONTEXT: Users log entries MULTIPLE TIMES per day. Each day shows all entries chronologically with timestamps. Medications, food, and activity listed for a day represent the COMBINED picture across all that day's entries — not that each item was logged at every entry. Do NOT interpret partial fields in individual entries as missed doses or incomplete information. Look for TIME-BASED CORRELATIONS within days — e.g. a medication logged in the morning followed by symptom changes hours later, or food logged before a symptom spike.
 
 ENTRIES (grouped by day, chronological within each day):
 ${summary}
@@ -2687,20 +2782,16 @@ Please provide a warm, specific analysis:
 ## Daily Life Impact
 ## Time-Based Correlations Worth Exploring
 ## Potential Triggers
+## Medication Notes
+Review the medications in the patient context. Flag any: (1) potential interactions between listed medications, (2) logged symptoms that may be known side effects of a listed medication, (3) medications that may be reducing the efficacy of another, (4) medications that seem misaligned with listed conditions. Use cautious language — "worth discussing with your prescriber", "some people experience...", "it may be worth asking...". If no medications are listed or no concerns are apparent, note that briefly. Never advise stopping or changing anything.
 ## What's Improving vs Worsening
 ## Questions to Bring to Your Doctor
 
 Never diagnose. Focus on patterns across days AND within-day timing. Be specific about which days or time patterns seem significant. If logged symptoms don't fully align with any existing diagnosis the user may have mentioned, gently note what the pattern does suggest and encourage them to explore it with their doctor. Many chronic illness patients carry incomplete or incorrect diagnoses — validating their lived experience is as important as pattern recognition.` + apptPromptContext + extraContextBlock + (bpReadings.length > 0 ? `
 
-BLOOD PRESSURE READINGS (most recent first):
-` + bpReadings.slice(0, 20).map(r => formatBPTime(r.timestamp) + ": " + r.systolic + "/" + r.diastolic + " mmHg" + (r.pulse ? " | Pulse: " + r.pulse + " bpm" : "") + (r.notes ? " | Notes: " + r.notes : "") + " — " + bpCategory(r.systolic, r.diastolic).label).join("\n") + `
+Please also include a ## Blood Pressure Patterns section analyzing the BP readings provided in the patient context above. Note correlations between BP readings and symptoms (e.g. high BP days correlating with headaches, stress, poor sleep, or specific activities).` : "") + (cycleStr ? `
 
-Please also include a ## Blood Pressure Patterns section if you notice correlations between BP readings and symptoms (e.g. high BP days correlating with headaches, stress, poor sleep, or specific activities).` : "") + (cycleStr ? `
-
-MENSTRUAL CYCLE DATA (most recent first):
-` + cycleStr + `
-
-IMPORTANT: Cross-reference cycle dates with symptom entries. Look for symptom flares around period start, ovulation window, or premenstrual phase. If patterns exist, include a ## Cycle & Symptom Patterns section noting which symptoms correlate with which cycle phases. This is especially important for conditions like endometriosis, PCOS, PMDD, fibromyalgia, and autoimmune conditions where cycle-driven symptom fluctuation is common.` : "") }] }) });
+Please also include a ## Cycle & Symptom Patterns section. Cross-reference the cycle dates in the patient context with symptom entries. Look for symptom flares around period start, ovulation window, or premenstrual phase. This is especially important for conditions like endometriosis, PCOS, PMDD, fibromyalgia, and autoimmune conditions.` : "") }] }) });
       const data = await response.json();
       setInsights(data.content[0].text); setView("insights");
     } catch { setInsights("Something went wrong. Please try again."); }
@@ -2748,11 +2839,18 @@ IMPORTANT: Cross-reference cycle dates with symptom entries. Look for symptom fl
       if (!grouped[day]) grouped[day] = [];
       grouped[day].push(e);
     });
-    const summary = Object.entries(grouped).map(([day, dayEntries]) =>
-      `${day}:\n${dayEntries.map(e =>
+    const summary = Object.entries(grouped).map(([day, dayEntries]) => {
+      const sorted = [...dayEntries].sort((a, b) => a.timestamp - b.timestamp);
+      const allMeds = [...new Set(sorted.flatMap(e => e.medications ? [e.medications] : []))].join(", ");
+      const allFood = [...new Set(sorted.flatMap(e => e.food ? [e.food] : []))].join(", ");
+      const sleepEntry = sorted.find(e => e.sleep != null);
+      const dayHeader = `${day}:${sleepEntry ? ` Sleep: ${sleepEntry.sleep}/10` : ""}${allMeds ? ` | Medications: ${allMeds}` : ""}${allFood ? ` | Food: ${allFood}` : ""}`;
+      const entryLines = sorted.map(e =>
         `  ${new Date(e.timestamp).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})}: Severity ${e.severity}/10${e.symptoms?` — ${e.symptoms}`:""}${e.stress?` | Stress: ${e.stress}/10`:""}${e.activity?` | Activity: ${e.activity}`:""}${e.notes?` | Notes: ${e.notes}`:""}`
-      ).join("\n")}`
-    ).join("\n\n");
+      ).join("\n");
+      return `${dayHeader}\n${entryLines}`;
+    }).join("\n\n");
+    const patientContext = buildPatientContext();
     const { focus, symptoms: highlightSymptoms, questions } = reportPrompt;
     const prompt = isCaregiver
       ? `You are Care Compass, a compassionate health navigation assistant. Generate a clear health update report for a caregiver or support person — someone who helps care for the patient but is not a medical provider. Use plain, warm language — no clinical jargon. Focus on practical day-to-day picture.
@@ -2761,7 +2859,9 @@ RECIPIENT: ${providerName} (${caregiverRole})
 UPDATE FOCUS: ${focus || "General health update"}
 ${highlightSymptoms ? `- Symptoms to highlight: ${highlightSymptoms}` : ""}
 ${questions ? `- Notes for recipient: ${questions}` : ""}
-${careTeamStr ? `\nCARE TEAM: ${careTeamStr}` : ""}${familyHistoryStr ? `\nFAMILY HISTORY: ${familyHistoryStr}` : ""}
+
+PATIENT CONTEXT:
+${patientContext}
 
 TRACKER DATA (last 60 days):
 ${summary}
@@ -2795,9 +2895,11 @@ APPOINTMENT DETAILS:
 - Visit focus: ${focus || "General symptom review"}
 ${highlightSymptoms ? `- Symptoms to highlight: ${highlightSymptoms}` : ""}
 ${questions ? `- Patient's questions: ${questions}` : ""}
-${careTeamStr ? `\nCARE TEAM: ${careTeamStr}` : ""}${familyHistoryStr ? `\nFAMILY HISTORY: ${familyHistoryStr}` : ""}${cycleStr ? `\nMENSTRUAL CYCLE DATA (recent periods):\n${cycleStr}` : ""}
 
-TRACKER DATA (last 60 days):
+PATIENT CONTEXT (use ALL sections below when building the report — cross-reference lab results, BP trends, medications, and family history with the symptom data):
+${patientContext}
+
+TRACKER DATA (last 60 days — includes symptoms, food, sleep, stress, activity, medications taken):
 ${summary}
 
 Write a warm, specific, appointment-focused report using exactly these section headers (##):
@@ -2806,10 +2908,16 @@ Write a warm, specific, appointment-focused report using exactly these section h
 2-3 sentences on the overall picture and visit focus.
 
 ## Key Patterns for This Visit
-Patterns most relevant to ${specialty || "this appointment"} and the focus. Be specific — reference dates and trends.
+Patterns most relevant to ${specialty || "this appointment"} and the focus. Be specific — reference dates and trends. If blood pressure readings are in the patient context and this is a cardiology/primary care/internal medicine visit, summarize BP trends here.
 
 ## Highlighted Symptom Entries
 Pull 4-6 most relevant entries from the log. Note date, severity, and quote the patient's words.
+
+## Relevant Lab Results & Vitals
+If lab results or blood pressure readings are in the patient context, summarize the findings most relevant to this visit. Note any abnormal values and how they correlate with logged symptoms. If no labs are available, omit this section.
+
+## Medication Notes
+Review the medications in the patient context. Flag any potential interactions, symptoms that may be side effects of a listed medication, medications that may reduce the efficacy of another, or medications that seem worth revisiting given the symptom picture and the specialty of this visit. Use cautious language — "worth discussing at this visit", "some patients find...". If no concerns are apparent, note that briefly. Never advise stopping or changing anything.
 
 ## Daily Life Impact
 How symptoms affect real-world functioning — driving, work, sleep, physical tasks. Be specific.
@@ -2818,7 +2926,7 @@ How symptoms affect real-world functioning — driving, work, sleep, physical ta
 Honest assessment of trends. Note if patterns are unclear.
 
 ## Questions to Raise at This Visit
-5-7 specific, targeted questions for ${providerName || "their " + (specialty || "doctor")} grounded in the data.
+5-7 specific, targeted questions for ${providerName || "their " + (specialty || "doctor")} grounded in the data. If lab results or BP trends are present, include questions about those findings.
 
 ## Suggested Next Steps
 2-3 concrete things to discuss or request (tests, referrals, adjustments).
@@ -2844,22 +2952,14 @@ ${extraContext}` : ""}`;
     setErView("generating");
     setErAI(null);
 
-    // Pull all context
-    const profile = (() => { try { return JSON.parse(localStorage.getItem("cc-profile") || "{}"); } catch { return {}; } })();
-    const conditions = (profile.conditions || []).join(", ");
-    const medsStr = medications.filter(m => m.name).map(m => `${m.name}${m.dose ? " " + m.dose : ""}${m.frequency ? ", " + m.frequency : ""}`).join("; ");
     const allergiesFromPrompt = erPrompt.allergies.trim();
+    const patientContext = buildPatientContext({ bpLimit: 10 });
 
-    // Recent entries — last 14 days for acute context
+    // Recent entries — last 14 days for acute context, with full fields
     const since14 = Date.now() - 14 * 24 * 60 * 60 * 1000;
     const recentEntries = [...entries].filter(e => e.timestamp >= since14).sort((a,b) => b.timestamp - a.timestamp);
     const entrySummary = recentEntries.slice(0, 30).map(e =>
-      `${new Date(e.timestamp).toLocaleDateString("en-US",{month:"short",day:"numeric"})} ${new Date(e.timestamp).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})}: Severity ${e.severity}/10${e.symptoms?` — ${e.symptoms}`:""}${e.activity?` | Functional impact: ${e.activity}`:""}${e.notes?` | ${e.notes}`:""}`
-    ).join("\n");
-
-    // BP last 10 readings
-    const bpSummary = bpReadings.slice(0,10).map(r =>
-      `${new Date(r.timestamp).toLocaleDateString("en-US",{month:"short",day:"numeric"})}: ${r.systolic}/${r.diastolic} mmHg${r.pulse?` | Pulse: ${r.pulse}`:""}${r.notes?` | ${r.notes}`:""} — ${bpCategory(r.systolic,r.diastolic).label}`
+      `${new Date(e.timestamp).toLocaleDateString("en-US",{month:"short",day:"numeric"})} ${new Date(e.timestamp).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})}: Severity ${e.severity}/10${e.symptoms?` — ${e.symptoms}`:""}${e.stress?` | Stress: ${e.stress}/10`:""}${e.food?` | Food: ${e.food}`:""}${e.medications?` | Medications taken: ${e.medications}`:""}${e.activity?` | Functional impact: ${e.activity}`:""}${e.notes?` | ${e.notes}`:""}`
     ).join("\n");
 
     const prompt = `You are helping a patient with chronic and complex illness prepare a clear, professional emergency room handoff document. This document needs to communicate quickly and authoritatively to ER staff who are unfamiliar with this patient's history.
@@ -2871,18 +2971,13 @@ TODAY'S VISIT:
 - Current severity: ${erPrompt.severity}/10
 - Duration of current symptoms: ${erPrompt.duration || "See symptom history"}
 ${erPrompt.relevantHistory ? `- Additional context the patient wants to highlight: ${erPrompt.relevantHistory}` : ""}
+${allergiesFromPrompt ? `- Known allergies (patient-reported): ${allergiesFromPrompt}` : ""}
 
 PATIENT MEDICAL CONTEXT:
-${conditions ? `Confirmed/suspected diagnoses: ${conditions}` : ""}
-${medsStr ? `Current medications: ${medsStr}` : ""}
-${allergiesFromPrompt ? `Known allergies: ${allergiesFromPrompt}` : ""}
-${careTeamStr ? `Care team: ${careTeamStr}` : ""}
-${familyHistoryStr ? `Relevant family history:\n${familyHistoryStr}` : ""}
+${patientContext}
 
 RECENT SYMPTOM TRACKING (last 14 days):
 ${entrySummary || "No recent entries logged"}
-
-${bpSummary ? `BLOOD PRESSURE READINGS (recent):\n${bpSummary}` : ""}
 
 Generate a structured ER handoff document using exactly these section headers (##). Keep each section tight and scannable — ER staff need to absorb this quickly. Use clinical-adjacent language (clear, not jargon-heavy). Be direct and factual.
 
@@ -2903,6 +2998,12 @@ Bulleted list of current medications with doses. Note any that are relevant to t
 
 ## Known Allergies & Sensitivities
 List any known medication allergies, sensitivities, or adverse reactions. If none stated, say "None reported by patient."
+
+## Medication Notes for ER Staff
+Review the current medications list. Flag any: (1) combinations with known interaction risks that ER staff should be aware of before administering additional medications, (2) medications that affect standard ER protocols (e.g. blood thinners, immunosuppressants, stimulants, MAOIs), (3) symptoms that may be side effects of a current medication rather than a new acute issue. Use direct clinical language appropriate for ER staff. If no concerns are apparent, state that briefly.
+
+## Recent Lab Results
+If lab results are in the patient context above, summarize the most clinically relevant findings here. Note any abnormal values. If no labs are available, omit this section.
 
 ## Care Team
 List of current providers with specialties. Include this so ER staff know who to coordinate with if needed.
@@ -3126,7 +3227,10 @@ ${extraContext}` : ""}`;
     { id: "labs", label: "Lab Results" },
     { id: "er", label: "ER Report" },
     { id: "cycle", label: "Cycle Tracker" },
+    { id: "ask", label: "Ask Sage" },
   ];
+
+  const DEFAULT_TAB_ORDER = ["log", "bp", "trends", "insights", "report", "labs", "er", "cycle", "ask"];
 
   const DEFAULT_TAB_ORDER = ["log", "bp", "trends", "insights", "report", "labs", "er", "cycle"];
   const DEFAULT_HIDDEN = []; // all tabs visible by default; user can hide/reorder
@@ -4123,6 +4227,12 @@ ${extraContext}` : ""}`;
           {view === "cycle" && (
             <div style={s.tabContent}>
               <CycleTab globalEntries={entries} />
+            </div>
+          )}
+
+          {view === "ask" && (
+            <div style={s.tabContent}>
+              <SageAskWidget mode="tracker" />
             </div>
           )}
 

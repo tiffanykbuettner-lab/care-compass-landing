@@ -1211,6 +1211,7 @@ IMPORTANT GUIDELINES:
 - Focus on cross-system pattern recognition — this is where Care Compass adds the most value
 - Be thorough but clear and readable
 - Use ## for main sections and - for bullet points
+- MEDICATION ANALYSIS: If medications are provided, actively assess them for: (1) known interactions between listed medications, (2) symptoms that could be side effects of a listed medication, (3) medications that may reduce the efficacy of another, (4) medications that may be poorly suited to a listed condition or diagnosis. Use language like "worth discussing with your prescriber", "some people find that...", "it may be worth asking whether...". Never advise stopping or changing a medication.
 
 USER'S HEALTH INFORMATION:
 Name: ${name || "the user"}
@@ -1243,6 +1244,8 @@ Please provide a Care Compass Insight Report with these sections:
 ## What We Notice
 ## Daily Life Impact
 ## Patterns Worth Exploring
+## Medication Notes
+For this section: review the medications listed and flag any that may be interacting with each other, causing reported symptoms as side effects, reducing the efficacy of another medication, or that may be worth revisiting given the symptom picture. If no medications were provided or no concerns are apparent, briefly note that. Always use cautious language — never advise stopping or changing anything, only flag for discussion.
 ## Specialists Who May Help
 ## Questions to Bring to Your Doctor
 ## A Note From Care Compass${extraContext ? `
