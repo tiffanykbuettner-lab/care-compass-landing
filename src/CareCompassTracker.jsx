@@ -2604,6 +2604,47 @@ export default function CareCompassTracker() {
 
   const uniqueDaysLogged = new Set(entries.map(e => new Date(e.timestamp).toDateString())).size;
 
+  const careTeam = (() => {
+    try {
+      const s = localStorage.getItem("cc-care-team");
+      if (!s) return [];
+      const members = JSON.parse(s);
+      // Back-fill any entries saved before type was tracked — default to "provider"
+      const migrated = members.map(p => p.type ? p : { ...p, type: "provider" });
+      // Persist the migration silently if anything changed
+      if (migrated.some((p, i) => p.type !== members[i]?.type)) {
+        localStorage.setItem("cc-care-team", JSON.stringify(migrated));
+      }
+      return migrated;
+    } catch { return []; }
+  })();
+  const careTeamStr = careTeam.filter(p => p.name).map(p => {
+    const role = p.type === "caregiver" ? (p.careRole || "Caregiver") : (p.specialty || "");
+    return `${p.name}${role ? " (" + role + ")" : ""}`;
+  }).join(", ");
+
+  // Read family history from settings
+  const familyHistory = (() => {
+    try { const s = localStorage.getItem("cc-family-history"); return s ? JSON.parse(s) : []; } catch { return []; }
+  })();
+  const familyHistoryStr = familyHistory.filter(e => e.member && e.conditions.length > 0).map(e => {
+    const MEMBERS = { mother:"Mother", father:"Father", maternal_grandmother:"Maternal grandmother", maternal_grandfather:"Maternal grandfather", paternal_grandmother:"Paternal grandmother", paternal_grandfather:"Paternal grandfather", sister:"Sister", brother:"Brother", maternal_aunt:"Maternal aunt", maternal_uncle:"Maternal uncle", paternal_aunt:"Paternal aunt", paternal_uncle:"Paternal uncle", daughter:"Daughter", son:"Son" };
+    return `${MEMBERS[e.member] || e.member}: ${e.conditions.join(", ")}${e.notes ? " (" + e.notes + ")" : ""}`;
+  }).join("\n");
+
+  // Read cycle data for AI context
+  const cycleData = (() => { try { return JSON.parse(localStorage.getItem(CYCLE_KEY) || "[]"); } catch { return []; } })();
+  const cycleStr = cycleData.length > 0 ? cycleData.slice(0, 6).map(c => {
+    const start = c.startDate;
+    const end = c.endDate ? ` to ${c.endDate}` : "";
+    const flow = c.flow ? ` | Flow: ${c.flow}` : "";
+    const pain = c.pain ? ` | Pain: ${c.pain}/10` : "";
+    const syms = c.symptoms?.length ? ` | Symptoms: ${c.symptoms.join(", ")}` : "";
+    const notes = c.notes ? ` | Notes: ${c.notes}` : "";
+    return `Period: ${start}${end}${flow}${pain}${syms}${notes}`;
+  }).join("\n") : null;
+
+
   // ── Shared patient context builder — used by ALL AI features ────────────────
   // Returns a structured string block containing every data source the AI should
   // be aware of. Pass `options` to control which sections to include.
@@ -2755,6 +2796,9 @@ WEIGHTING HIERARCHY:
 4. LOWER — Existing diagnoses (treat as one possible explanation; flag if symptoms suggest something additional or misaligned)
 5. LOWEST — Long-standing medications (unlikely to cause new symptoms unless recently changed)
 
+MEDICATION INTERACTION ANALYSIS — always perform this regardless of symptom data:
+Scan all medications in the patient context and assess: (1) known interactions between any two or more listed medications, (2) logged symptoms that are known side effects of a listed medication, (3) medications that may reduce the efficacy of another listed medication, (4) medications that appear misaligned with listed conditions. Flag anything notable in the ## Medication Notes section. Use cautious language — never advise stopping or changing anything. If no medications are listed or no concerns found, note that briefly.
+
 PATIENT CONTEXT (use all sections below to inform your analysis — cross-reference with symptom entries for correlations):
 ${patientContext}
 
@@ -2779,6 +2823,8 @@ Please provide a warm, specific analysis:
 ## Daily Life Impact
 ## Time-Based Correlations Worth Exploring
 ## Potential Triggers
+## Medication Notes
+Review the medications in the patient context. Flag any: (1) potential interactions between listed medications, (2) logged symptoms that may be known side effects of a listed medication, (3) medications that may be reducing the efficacy of another, (4) medications that seem misaligned with listed conditions. Use cautious language — "worth discussing with your prescriber", "some people experience...", "it may be worth asking...". If no medications are listed or no concerns are apparent, note that briefly. Never advise stopping or changing anything.
 ## What's Improving vs Worsening
 ## Questions to Bring to Your Doctor
 
@@ -2911,6 +2957,9 @@ Pull 4-6 most relevant entries from the log. Note date, severity, and quote the 
 ## Relevant Lab Results & Vitals
 If lab results or blood pressure readings are in the patient context, summarize the findings most relevant to this visit. Note any abnormal values and how they correlate with logged symptoms. If no labs are available, omit this section.
 
+## Medication Notes
+Review the medications in the patient context. Flag any potential interactions, symptoms that may be side effects of a listed medication, medications that may reduce the efficacy of another, or medications that seem worth revisiting given the symptom picture and the specialty of this visit. Use cautious language — "worth discussing at this visit", "some patients find...". If no concerns are apparent, note that briefly. Never advise stopping or changing anything.
+
 ## Daily Life Impact
 How symptoms affect real-world functioning — driving, work, sleep, physical tasks. Be specific.
 
@@ -2991,6 +3040,9 @@ Bulleted list of current medications with doses. Note any that are relevant to t
 ## Known Allergies & Sensitivities
 List any known medication allergies, sensitivities, or adverse reactions. If none stated, say "None reported by patient."
 
+## Medication Notes for ER Staff
+Review the current medications list. Flag any: (1) combinations with known interaction risks that ER staff should be aware of before administering additional medications, (2) medications that affect standard ER protocols (e.g. blood thinners, immunosuppressants, stimulants, MAOIs), (3) symptoms that may be side effects of a current medication rather than a new acute issue. Use direct clinical language appropriate for ER staff. If no concerns are apparent, state that briefly.
+
 ## Recent Lab Results
 If lab results are in the patient context above, summarize the most clinically relevant findings here. Note any abnormal values. If no labs are available, omit this section.
 
@@ -3034,46 +3086,6 @@ ${extraContext}` : ""}`;
   }, []);
 
   // Read care team from settings — migrate legacy entries that are missing a type field
-  const careTeam = (() => {
-    try {
-      const s = localStorage.getItem("cc-care-team");
-      if (!s) return [];
-      const members = JSON.parse(s);
-      // Back-fill any entries saved before type was tracked — default to "provider"
-      const migrated = members.map(p => p.type ? p : { ...p, type: "provider" });
-      // Persist the migration silently if anything changed
-      if (migrated.some((p, i) => p.type !== members[i]?.type)) {
-        localStorage.setItem("cc-care-team", JSON.stringify(migrated));
-      }
-      return migrated;
-    } catch { return []; }
-  })();
-  const careTeamStr = careTeam.filter(p => p.name).map(p => {
-    const role = p.type === "caregiver" ? (p.careRole || "Caregiver") : (p.specialty || "");
-    return `${p.name}${role ? " (" + role + ")" : ""}`;
-  }).join(", ");
-
-  // Read family history from settings
-  const familyHistory = (() => {
-    try { const s = localStorage.getItem("cc-family-history"); return s ? JSON.parse(s) : []; } catch { return []; }
-  })();
-  const familyHistoryStr = familyHistory.filter(e => e.member && e.conditions.length > 0).map(e => {
-    const MEMBERS = { mother:"Mother", father:"Father", maternal_grandmother:"Maternal grandmother", maternal_grandfather:"Maternal grandfather", paternal_grandmother:"Paternal grandmother", paternal_grandfather:"Paternal grandfather", sister:"Sister", brother:"Brother", maternal_aunt:"Maternal aunt", maternal_uncle:"Maternal uncle", paternal_aunt:"Paternal aunt", paternal_uncle:"Paternal uncle", daughter:"Daughter", son:"Son" };
-    return `${MEMBERS[e.member] || e.member}: ${e.conditions.join(", ")}${e.notes ? " (" + e.notes + ")" : ""}`;
-  }).join("\n");
-
-  // Read cycle data for AI context
-  const cycleData = (() => { try { return JSON.parse(localStorage.getItem(CYCLE_KEY) || "[]"); } catch { return []; } })();
-  const cycleStr = cycleData.length > 0 ? cycleData.slice(0, 6).map(c => {
-    const start = c.startDate;
-    const end = c.endDate ? ` to ${c.endDate}` : "";
-    const flow = c.flow ? ` | Flow: ${c.flow}` : "";
-    const pain = c.pain ? ` | Pain: ${c.pain}/10` : "";
-    const syms = c.symptoms?.length ? ` | Symptoms: ${c.symptoms.join(", ")}` : "";
-    const notes = c.notes ? ` | Notes: ${c.notes}` : "";
-    return `Period: ${start}${end}${flow}${pain}${syms}${notes}`;
-  }).join("\n") : null;
-
   const saveMedications = (updated) => {
     setMedications(updated);
     try { localStorage.setItem(MED_STORAGE_KEY, JSON.stringify(updated)); } catch {}
