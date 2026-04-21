@@ -2705,20 +2705,20 @@ export default function CareCompassTracker() {
       lines.push(`MENSTRUAL CYCLE DATA (recent):\n${cycleStr}`);
     }
 
-    // Lab results (summaries — name, date, ordered-by, and AI-generated summary if available)
+    // Lab results (summaries — name, date, ordered-by, and AI-generated analysis if available)
     if (includeLabs) {
       try {
         const labs = JSON.parse(localStorage.getItem("care-compass-labs-v1") || "[]");
-        const labsWithSummary = labs.filter(l => l.name && l.aiSummary).slice(0, labLimit);
-        if (labsWithSummary.length) {
-          const labLines = labsWithSummary.map(l => {
-            const dateStr  = l.date ? ` (${l.date})` : "";
-            const ordStr   = l.orderedBy ? ` — ordered by ${l.orderedBy}` : "";
-            // Trim AI summary to first 300 chars to keep prompt lean
-            const summary  = l.aiSummary ? "\n    " + l.aiSummary.slice(0, 300).replace(/\n/g, "\n    ") + (l.aiSummary.length > 300 ? "…" : "") : "";
+        const labsWithAnalysis = labs.filter(l => l.name && l.analysis).slice(0, labLimit);
+        if (labsWithAnalysis.length) {
+          const labLines = labsWithAnalysis.map(l => {
+            const dateStr = l.testDate ? ` (${l.testDate})` : "";
+            const ordStr  = l.orderedBy ? ` — ordered by ${l.orderedBy}` : "";
+            // Trim analysis to first 400 chars to keep prompt lean
+            const summary = l.analysis ? "\n    " + l.analysis.slice(0, 400).replace(/\n/g, "\n    ") + (l.analysis.length > 400 ? "…" : "") : "";
             return `  - ${l.name}${dateStr}${ordStr}:${summary}`;
           });
-          lines.push(`LAB RESULTS (AI-analyzed summaries, most recent ${labsWithSummary.length}):\n${labLines.join("\n")}`);
+          lines.push(`LAB RESULTS (AI-analyzed summaries, most recent ${labsWithAnalysis.length}):\n${labLines.join("\n")}`);
         }
       } catch {}
     }
