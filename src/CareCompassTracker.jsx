@@ -2755,9 +2755,6 @@ WEIGHTING HIERARCHY:
 4. LOWER — Existing diagnoses (treat as one possible explanation; flag if symptoms suggest something additional or misaligned)
 5. LOWEST — Long-standing medications (unlikely to cause new symptoms unless recently changed)
 
-MEDICATION INTERACTION ANALYSIS — always perform this regardless of symptom data:
-Scan all medications in the patient context and assess: (1) known interactions between any two or more listed medications, (2) logged symptoms that are known side effects of a listed medication, (3) medications that may reduce the efficacy of another listed medication, (4) medications that appear misaligned with listed conditions. Flag anything notable in the ## Medication Notes section. Use cautious language — never advise stopping or changing anything. If no medications are listed or no concerns found, note that briefly.
-
 PATIENT CONTEXT (use all sections below to inform your analysis — cross-reference with symptom entries for correlations):
 ${patientContext}
 
@@ -2782,8 +2779,6 @@ Please provide a warm, specific analysis:
 ## Daily Life Impact
 ## Time-Based Correlations Worth Exploring
 ## Potential Triggers
-## Medication Notes
-Review the medications in the patient context. Flag any: (1) potential interactions between listed medications, (2) logged symptoms that may be known side effects of a listed medication, (3) medications that may be reducing the efficacy of another, (4) medications that seem misaligned with listed conditions. Use cautious language — "worth discussing with your prescriber", "some people experience...", "it may be worth asking...". If no medications are listed or no concerns are apparent, note that briefly. Never advise stopping or changing anything.
 ## What's Improving vs Worsening
 ## Questions to Bring to Your Doctor
 
@@ -2916,9 +2911,6 @@ Pull 4-6 most relevant entries from the log. Note date, severity, and quote the 
 ## Relevant Lab Results & Vitals
 If lab results or blood pressure readings are in the patient context, summarize the findings most relevant to this visit. Note any abnormal values and how they correlate with logged symptoms. If no labs are available, omit this section.
 
-## Medication Notes
-Review the medications in the patient context. Flag any potential interactions, symptoms that may be side effects of a listed medication, medications that may reduce the efficacy of another, or medications that seem worth revisiting given the symptom picture and the specialty of this visit. Use cautious language — "worth discussing at this visit", "some patients find...". If no concerns are apparent, note that briefly. Never advise stopping or changing anything.
-
 ## Daily Life Impact
 How symptoms affect real-world functioning — driving, work, sleep, physical tasks. Be specific.
 
@@ -2998,9 +2990,6 @@ Bulleted list of current medications with doses. Note any that are relevant to t
 
 ## Known Allergies & Sensitivities
 List any known medication allergies, sensitivities, or adverse reactions. If none stated, say "None reported by patient."
-
-## Medication Notes for ER Staff
-Review the current medications list. Flag any: (1) combinations with known interaction risks that ER staff should be aware of before administering additional medications, (2) medications that affect standard ER protocols (e.g. blood thinners, immunosuppressants, stimulants, MAOIs), (3) symptoms that may be side effects of a current medication rather than a new acute issue. Use direct clinical language appropriate for ER staff. If no concerns are apparent, state that briefly.
 
 ## Recent Lab Results
 If lab results are in the patient context above, summarize the most clinically relevant findings here. Note any abnormal values. If no labs are available, omit this section.
@@ -3231,8 +3220,6 @@ ${extraContext}` : ""}`;
   ];
 
   const DEFAULT_TAB_ORDER = ["log", "bp", "trends", "insights", "report", "labs", "er", "cycle", "ask"];
-
-  const DEFAULT_TAB_ORDER = ["log", "bp", "trends", "insights", "report", "labs", "er", "cycle"];
   const DEFAULT_HIDDEN = []; // all tabs visible by default; user can hide/reorder
 
   const TAB_ORDER_KEY  = "cc-tab-order";
