@@ -1257,6 +1257,32 @@ export default function CareCompassDashboard() {
     try { return localStorage.getItem("cc-skipped-assessment") === "true" && localStorage.getItem("cc-assessment-done") !== "true"; } catch { return false; }
   });
 
+  // ── Quick Log state ────────────────────────────────────────────────────────
+  const [quickSeverity, setQuickSeverity] = useState(null);
+  const [quickSymptoms, setQuickSymptoms] = useState("");
+  const [quickSaved, setQuickSaved]       = useState(false);
+  const [liveEntries, setLiveEntries]     = useState(() => {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); } catch { return []; }
+  });
+
+  const handleQuickLog = () => {
+    if (!quickSeverity) return;
+    const entry = {
+      id: Date.now(), timestamp: new Date().toISOString(),
+      severity: quickSeverity, symptoms: quickSymptoms.trim(), source: "quick",
+      food: "", medications: "", selectedMedIds: [], activity: "",
+      sleep: null, stress: 5, weather: "", notes: "", photos: [],
+      hoursUpright: null, tasksCompleted: [], energyEnvelope: null,
+    };
+    const updated = [entry, ...liveEntries];
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(updated)); } catch {}
+    setLiveEntries(updated);
+    setQuickSeverity(null);
+    setQuickSymptoms("");
+    setQuickSaved(true);
+    setTimeout(() => setQuickSaved(false), 4000);
+  };
+
   const dismissPostAssessment = () => {
     setShowPostAssessment(false);
     try { localStorage.removeItem("cc-first-assessment-done"); } catch {}
@@ -1444,10 +1470,62 @@ export default function CareCompassDashboard() {
               </h1>
               {isNew && <p style={s.subtitle}>Let's get you set up. It only takes a few minutes.</p>}
             </div>
-            <button onClick={() => window.location.href = "/tracker"} style={s.logEntryBtn}>
-              + Log Entry
-            </button>
           </div>
+
+          {/* ── Quick Log card ── */}
+          {!isNew && (
+            quickSaved ? (
+              <div style={{ background: SAGE_LIGHT, border: `1px solid ${SAGE}`, borderRadius: "1rem", padding: "1.25rem 1.75rem", display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4.5" stroke={SAGE_DARK} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  <p style={{ margin: 0, fontWeight: 700, fontSize: "0.95rem", color: SAGE_DARK }}>Logged</p>
+                </div>
+                {(() => {
+                  const todayStr = new Date().toDateString();
+                  const todayCt = liveEntries.filter(e => new Date(e.timestamp).toDateString() === todayStr).length;
+                  const totalDays = new Set(liveEntries.map(e => new Date(e.timestamp).toDateString())).size;
+                  const recent7 = liveEntries.slice(0, 7);
+                  const avg = recent7.length ? (recent7.reduce((s, e) => s + (e.severity || 0), 0) / recent7.length).toFixed(1) : null;
+                  return <p style={{ margin: 0, fontSize: "0.82rem", color: SAGE_DARK }}>{todayCt} {todayCt === 1 ? "entry" : "entries"} today · {totalDays} {totalDays === 1 ? "day" : "days"} tracked{avg ? ` · avg severity: ${avg}` : ""}</p>;
+                })()}
+              </div>
+            ) : (
+              <div style={{ background: "#fff", border: "1px solid rgba(0,0,0,0.07)", borderRadius: "1rem", padding: "1.5rem 1.75rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
+                  <div>
+                    <p style={{ margin: "0 0 0.15rem", fontWeight: 700, fontSize: "0.95rem", color: INK }}>How are you feeling right now?</p>
+                    <p style={{ margin: 0, fontSize: "0.78rem", color: WARM_GRAY }}>Tap a number to log your severity instantly, or add a note.</p>
+                  </div>
+                  <a href="/tracker" style={{ fontSize: "0.78rem", color: SAGE_DARK, fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" }}>Full log →</a>
+                </div>
+                <div style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap" }}>
+                  {[1,2,3,4,5,6,7,8,9,10].map(n => {
+                    const active = quickSeverity === n;
+                    const col = n >= 7 ? "#c0392b" : n >= 4 ? "#e8a838" : SAGE_DARK;
+                    return (
+                      <button key={n} type="button" onClick={() => setQuickSeverity(active ? null : n)}
+                        style={{ width: 38, height: 38, borderRadius: "50%", border: `1.5px solid ${active ? col : "rgba(0,0,0,0.12)"}`, background: active ? col : "transparent", color: active ? "#fff" : col, fontSize: "0.88rem", fontWeight: active ? 700 : 500, cursor: "pointer", fontFamily: "inherit", transition: "all 0.12s", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        {n}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div style={{ display: "flex", gap: "0.75rem", alignItems: "flex-end", flexWrap: "wrap" }}>
+                  <textarea
+                    value={quickSymptoms}
+                    onChange={e => setQuickSymptoms(e.target.value)}
+                    placeholder="What's happening? (optional)"
+                    rows={2}
+                    style={{ flex: 1, minWidth: 200, padding: "0.6rem 0.875rem", borderRadius: "0.625rem", border: "1.5px solid rgba(0,0,0,0.12)", fontSize: "0.875rem", color: INK, background: OFF_WHITE, outline: "none", fontFamily: "inherit", resize: "vertical", lineHeight: 1.5, boxSizing: "border-box" }}
+                  />
+                  <button type="button" onClick={handleQuickLog} disabled={!quickSeverity}
+                    style={{ background: quickSeverity ? SAGE_DARK : "rgba(0,0,0,0.1)", color: quickSeverity ? "#fff" : WARM_GRAY, border: "none", borderRadius: "100px", padding: "0.65rem 1.5rem", fontSize: "0.875rem", fontWeight: 600, cursor: quickSeverity ? "pointer" : "default", fontFamily: "inherit", transition: "all 0.15s", whiteSpace: "nowrap" }}>
+                    Log it →
+                  </button>
+                </div>
+              </div>
+            )
+          )}
 
           {/* ── Skipped setup nudge — shown first if profile not set up ── */}
           {showSkippedSetup && !isNew && !showPostAssessment && (
@@ -1941,7 +2019,6 @@ const s = {
   eyebrow: { fontSize: "0.75rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: TEAL, margin: "0 0 0.3rem" },
   title: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "clamp(1.6rem, 3vw, 2.2rem)", fontWeight: 700, color: INK, margin: "0 0 0.4rem", letterSpacing: "-0.02em" },
   subtitle: { fontSize: "0.95rem", color: WARM_GRAY, margin: 0, lineHeight: 1.6 },
-  logEntryBtn: { background: SAGE_DARK, color: "#fff", border: "none", padding: "0.8rem 1.75rem", borderRadius: "100px", fontSize: "0.95rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" },
 
   newUserGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1.25rem" },
   newUserCard: { background: "#fff", borderRadius: "1.25rem", border: `1px solid rgba(0,0,0,0.07)`, padding: "2rem", display: "flex", flexDirection: "column", gap: "0.75rem", position: "relative" },
