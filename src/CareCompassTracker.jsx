@@ -2381,6 +2381,7 @@ export default function CareCompassTracker() {
   const [quickSymptoms, setQuickSymptoms] = useState("");
   const [quickSaved, setQuickSaved]       = useState(false);
   const [showQuickNote, setShowQuickNote] = useState(false);
+  const [showMoreFields, setShowMoreFields] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [confirmDeleteLabId, setConfirmDeleteLabId] = useState(null);
   const [showMorningCheckin, setShowMorningCheckin] = useState(false);
@@ -2527,9 +2528,10 @@ export default function CareCompassTracker() {
 
   const isFirstEntryToday = !entries.some(e => new Date(e.timestamp).toDateString() === new Date().toDateString());
 
-  const openNew  = () => { setEditingEntry(null); setForm({ ...blankForm, sleep: isFirstEntryToday ? 7 : null }); setShowForm(true); };
+  const openNew  = () => { setEditingEntry(null); setForm({ ...blankForm, sleep: isFirstEntryToday ? 7 : null }); setShowMoreFields(false); setShowForm(true); };
   const openEdit = (entry) => {
     setEditingEntry(entry);
+    setShowMoreFields(true); // always expand when editing so no data is hidden
     setForm({
       ...blankForm,
       ...entry,
@@ -5061,8 +5063,58 @@ ${extraContext}` : ""}`;
                     rows={4}
                   />
                 </div>
+                {/* ── Recent symptom shortcuts ── */}
+                {(() => {
+                  const cutoff = Date.now() - 14 * 24 * 60 * 60 * 1000;
+                  const recentText = entries
+                    .filter(e => new Date(e.timestamp).getTime() >= cutoff && e.symptoms)
+                    .map(e => e.symptoms)
+                    .join(", ");
+                  if (!recentText.trim()) return null;
+                  // Split on commas, semicolons, line breaks; lowercase; trim; min 3 chars
+                  const counts = {};
+                  recentText.split(/[,;\n]+/).forEach(chunk => {
+                    const word = chunk.trim().toLowerCase().replace(/[^a-z\s-]/g, "").trim();
+                    if (word.length >= 3) counts[word] = (counts[word] || 0) + 1;
+                  });
+                  const chips = Object.entries(counts)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 6)
+                    .map(([w]) => w)
+                    .filter(w => !form.symptoms.toLowerCase().includes(w));
+                  if (!chips.length) return null;
+                  return (
+                    <div style={{ marginTop: "0.5rem" }}>
+                      <p style={{ fontSize: "0.72rem", color: WARM_GRAY, margin: "0 0 0.35rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Recent</p>
+                      <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
+                        {chips.map(chip => (
+                          <button
+                            key={chip}
+                            type="button"
+                            onClick={() => setForm(f => ({ ...f, symptoms: f.symptoms ? `${f.symptoms.trimEnd()}, ${chip}` : chip }))}
+                            style={{ padding: "0.3rem 0.75rem", borderRadius: "100px", border: "1.5px solid rgba(0,0,0,0.12)", background: "transparent", color: WARM_GRAY, fontSize: "0.78rem", cursor: "pointer", fontFamily: "inherit", transition: "all 0.12s" }}
+                          >
+                            + {chip}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
               <div style={s.formGroup}><label style={s.label}>Symptom severity right now</label><SeveritySlider value={form.severity} onChange={v => setForm(f => ({ ...f, severity: v }))}/></div>
+
+              {/* ── More detail toggle ── */}
+              <button
+                type="button"
+                onClick={() => setShowMoreFields(f => !f)}
+                style={{ display: "flex", alignItems: "center", gap: "0.4rem", background: "none", border: "1px solid rgba(0,0,0,0.12)", borderRadius: "100px", padding: "0.45rem 1rem", fontSize: "0.8rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit", fontWeight: 500, alignSelf: "flex-start" }}
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ transition: "transform 0.2s", transform: showMoreFields ? "rotate(180deg)" : "rotate(0deg)" }}><path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                {showMoreFields ? "Hide detail fields" : "Add more detail"}
+              </button>
+
+              {showMoreFields && <>
               <div style={s.formGroup}>
                 <label style={s.label}>Food & Drink</label>
                 <textarea value={form.food} onChange={e => setForm(f => ({ ...f, food: e.target.value }))} placeholder="Have you eaten or had anything to drink?" style={{ ...s.textarea, width: "100%", boxSizing: "border-box" }} rows={2}/>
@@ -5208,6 +5260,7 @@ ${extraContext}` : ""}`;
                   </div>
                 )}
               </div>
+              </>}
             </div>
             <div style={s.modalFooter}><button onClick={() => { setShowForm(false); }} style={s.cancelBtn}>Cancel</button><button onClick={handleSubmit} style={s.saveBtn}>{editingEntry ? "Update Entry →" : "Save Entry →"}</button></div>
           </div>
