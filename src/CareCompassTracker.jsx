@@ -2528,7 +2528,22 @@ export default function CareCompassTracker() {
 
   const isFirstEntryToday = !entries.some(e => new Date(e.timestamp).toDateString() === new Date().toDateString());
 
-  const openNew  = () => { setEditingEntry(null); setForm({ ...blankForm, sleep: isFirstEntryToday ? 7 : null }); setShowMoreFields(false); setShowForm(true); };
+  const openNew = () => {
+    setEditingEntry(null);
+    // ── Smart defaults from most recent entry ────────────────────────────────
+    const last = entries[0] || null;
+    const defaultMedIds  = last?.selectedMedIds?.length ? last.selectedMedIds : [];
+    const defaultWeather = last?.weather ?? "";
+    const hasDefaults    = defaultMedIds.length > 0 || !!defaultWeather;
+    setForm({
+      ...blankForm,
+      sleep:          isFirstEntryToday ? 7 : null,
+      selectedMedIds: defaultMedIds,
+      weather:        defaultWeather,
+    });
+    setShowMoreFields(hasDefaults); // auto-expand so user can see/adjust pre-filled fields
+    setShowForm(true);
+  };
   const openEdit = (entry) => {
     setEditingEntry(entry);
     setShowMoreFields(true);
