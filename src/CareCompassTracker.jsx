@@ -2376,6 +2376,10 @@ export default function CareCompassTracker() {
   const [erPrompt, setErPrompt]         = useState({ chiefComplaint: "", severity: 8, duration: "", relevantHistory: "", allergies: "" });
   const [erAI, setErAI]                 = useState(null);
   const [saved, setSaved]               = useState(false);
+  // ── Quick Log state ────────────────────────────────────────────────────────
+  const [quickSeverity, setQuickSeverity] = useState(null);
+  const [quickSymptoms, setQuickSymptoms] = useState("");
+  const [quickSaved, setQuickSaved]       = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [confirmDeleteLabId, setConfirmDeleteLabId] = useState(null);
   const [showMorningCheckin, setShowMorningCheckin] = useState(false);
@@ -2545,6 +2549,25 @@ export default function CareCompassTracker() {
       energyEnvelope:  entry.energyEnvelope  ?? null,
     });
     setShowForm(true);
+  };
+
+  const handleQuickLog = () => {
+    if (!quickSeverity) return;
+    const entry = {
+      id: Date.now(),
+      timestamp: new Date().toISOString(),
+      severity: quickSeverity,
+      symptoms: quickSymptoms.trim(),
+      source: "quick",
+      food: "", medications: "", selectedMedIds: [], activity: "",
+      sleep: null, stress: 5, weather: "", notes: "", photos: [],
+      hoursUpright: null, tasksCompleted: [], energyEnvelope: null,
+    };
+    saveEntries([entry, ...entries]);
+    setQuickSeverity(null);
+    setQuickSymptoms("");
+    setQuickSaved(true);
+    setTimeout(() => setQuickSaved(false), 4000);
   };
 
   const handlePhotoUpload = (e) => {
@@ -3486,6 +3509,77 @@ ${extraContext}` : ""}`;
                     onClick={() => { localStorage.setItem("cc-log-tip-dismissed", "1"); }}
                     style={{ background: "none", border: "none", color: "#ccc", cursor: "pointer", fontSize: "1rem", padding: "0 0.25rem", flexShrink: 0, lineHeight: 1 }}
                   >×</button>
+                </div>
+              )}
+
+              {/* ── Quick Log card ── */}
+              {quickSaved ? (
+                <div style={{ background: SAGE_LIGHT, border: `1px solid ${SAGE}`, borderRadius: "1rem", padding: "1.25rem 1.5rem", marginBottom: "1rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    <span style={{ color: SAGE_DARK, display: "flex" }}><Icon name="leaf" size={18} /></span>
+                    <p style={{ margin: 0, fontWeight: 700, fontSize: "0.95rem", color: SAGE_DARK }}>Logged ✓</p>
+                  </div>
+                  {(() => {
+                    const totalDays = new Set(entries.map(e => new Date(e.timestamp).toDateString())).size;
+                    const todayStr  = new Date().toDateString();
+                    const todayCt   = entries.filter(e => new Date(e.timestamp).toDateString() === todayStr).length;
+                    const recentAvg = entries.slice(0, 7).length
+                      ? (entries.slice(0, 7).reduce((s, e) => s + (e.severity || 0), 0) / entries.slice(0, 7).length).toFixed(1)
+                      : null;
+                    return (
+                      <p style={{ margin: 0, fontSize: "0.82rem", color: SAGE_DARK, lineHeight: 1.6 }}>
+                        {todayCt} {todayCt === 1 ? "entry" : "entries"} today · {totalDays} {totalDays === 1 ? "day" : "days"} tracked
+                        {recentAvg ? ` · avg severity last 7 entries: ${recentAvg}` : ""}
+                      </p>
+                    );
+                  })()}
+                </div>
+              ) : (
+                <div style={{ background: "#fff", border: "1px solid rgba(0,0,0,0.07)", borderRadius: "1rem", padding: "1.25rem 1.5rem", marginBottom: "1rem" }}>
+                  <p style={{ margin: "0 0 0.75rem", fontWeight: 700, fontSize: "0.9rem", color: INK }}>Quick log</p>
+                  <div style={{ marginBottom: "0.75rem" }}>
+                    <p style={{ margin: "0 0 0.4rem", fontSize: "0.78rem", color: WARM_GRAY, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Severity right now</p>
+                    <div style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap" }}>
+                      {[1,2,3,4,5,6,7,8,9,10].map(n => {
+                        const active = quickSeverity === n;
+                        const col = n >= 7 ? "#c0392b" : n >= 4 ? "#e8a838" : SAGE_DARK;
+                        return (
+                          <button
+                            key={n}
+                            type="button"
+                            onClick={() => setQuickSeverity(active ? null : n)}
+                            style={{ width: 36, height: 36, borderRadius: "50%", border: `1.5px solid ${active ? col : "rgba(0,0,0,0.12)"}`, background: active ? col : "transparent", color: active ? "#fff" : col, fontSize: "0.85rem", fontWeight: active ? 700 : 500, cursor: "pointer", fontFamily: "inherit", transition: "all 0.12s", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                          >
+                            {n}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <textarea
+                    value={quickSymptoms}
+                    onChange={e => setQuickSymptoms(e.target.value)}
+                    placeholder="What's happening right now? (optional)"
+                    rows={2}
+                    style={{ width: "100%", boxSizing: "border-box", padding: "0.6rem 0.75rem", borderRadius: "0.625rem", border: "1.5px solid rgba(0,0,0,0.12)", fontSize: "0.875rem", color: INK, background: OFF_WHITE, outline: "none", fontFamily: "inherit", resize: "vertical", lineHeight: 1.5 }}
+                  />
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "0.75rem", gap: "0.75rem", flexWrap: "wrap" }}>
+                    <button
+                      type="button"
+                      onClick={handleQuickLog}
+                      disabled={!quickSeverity}
+                      style={{ background: quickSeverity ? SAGE_DARK : "rgba(0,0,0,0.1)", color: quickSeverity ? "#fff" : WARM_GRAY, border: "none", borderRadius: "100px", padding: "0.6rem 1.5rem", fontSize: "0.875rem", fontWeight: 600, cursor: quickSeverity ? "pointer" : "default", fontFamily: "inherit", transition: "all 0.15s" }}
+                    >
+                      Log it →
+                    </button>
+                    <button
+                      type="button"
+                      onClick={openNew}
+                      style={{ background: "none", border: "none", color: WARM_GRAY, fontSize: "0.78rem", cursor: "pointer", fontFamily: "inherit", textDecoration: "underline", textDecorationColor: "rgba(0,0,0,0.2)", padding: 0 }}
+                    >
+                      Add more detail
+                    </button>
+                  </div>
                 </div>
               )}
 
