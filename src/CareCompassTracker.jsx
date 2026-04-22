@@ -2531,7 +2531,7 @@ export default function CareCompassTracker() {
   const openNew  = () => { setEditingEntry(null); setForm({ ...blankForm, sleep: isFirstEntryToday ? 7 : null }); setShowMoreFields(false); setShowForm(true); };
   const openEdit = (entry) => {
     setEditingEntry(entry);
-    setShowMoreFields(true); // always expand when editing so no data is hidden
+    setShowMoreFields(true);
     setForm({
       ...blankForm,
       ...entry,
@@ -5071,7 +5071,6 @@ ${extraContext}` : ""}`;
                     .map(e => e.symptoms)
                     .join(", ");
                   if (!recentText.trim()) return null;
-                  // Split on commas, semicolons, line breaks; lowercase; trim; min 3 chars
                   const counts = {};
                   recentText.split(/[,;\n]+/).forEach(chunk => {
                     const word = chunk.trim().toLowerCase().replace(/[^a-z\s-]/g, "").trim();
@@ -5084,7 +5083,7 @@ ${extraContext}` : ""}`;
                     .filter(w => !form.symptoms.toLowerCase().includes(w));
                   if (!chips.length) return null;
                   return (
-                    <div style={{ marginTop: "0.5rem" }}>
+                    <div style={{ marginTop: "0.4rem" }}>
                       <p style={{ fontSize: "0.72rem", color: WARM_GRAY, margin: "0 0 0.35rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Recent</p>
                       <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
                         {chips.map(chip => (
@@ -5101,8 +5100,12 @@ ${extraContext}` : ""}`;
                     </div>
                   );
                 })()}
+                {/* ── Severity — kept in same formGroup to avoid excess gap ── */}
+                <div style={{ marginTop: "0.75rem" }}>
+                  <label style={s.label}>Symptom severity right now</label>
+                  <SeveritySlider value={form.severity} onChange={v => setForm(f => ({ ...f, severity: v }))}/>
+                </div>
               </div>
-              <div style={s.formGroup}><label style={s.label}>Symptom severity right now</label><SeveritySlider value={form.severity} onChange={v => setForm(f => ({ ...f, severity: v }))}/></div>
 
               {/* ── More detail toggle ── */}
               <button
