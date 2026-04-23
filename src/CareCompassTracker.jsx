@@ -2167,6 +2167,161 @@ function CycleTab({ globalEntries }) {
 
 /* ─── End Cycle Tracker Tab ──────────────────────────────────────────────── */
 
+/* ─── CareTeamDashboard — Step A: mode toggle + stat cards + severity chart ── */
+function CareTeamDashboard({ entries, bpReadings = [] }) {
+  // ── Derived stats ──────────────────────────────────────────────────────────
+  const now        = new Date();
+  const ms30       = 30 * 24 * 60 * 60 * 1000;
+  const ms7        = 7  * 24 * 60 * 60 * 1000;
+  const last30     = entries.filter(e => now - new Date(e.timestamp) <= ms30);
+  const last7      = entries.filter(e => now - new Date(e.timestamp) <= ms7);
+  const totalDays  = new Set(entries.map(e => new Date(e.timestamp).toDateString())).size;
+
+  const avg = (arr, field) => {
+    const valid = arr.filter(e => e[field] != null);
+    return valid.length ? (valid.reduce((s, e) => s + e[field], 0) / valid.length) : null;
+  };
+
+  const avgSev30   = avg(last30, "severity");
+  const avgSev7    = avg(last7,  "severity");
+  const flareDays  = new Set(last30.filter(e => e.severity >= 7).map(e => new Date(e.timestamp).toDateString())).size;
+  const avgSleep   = avg(last30, "sleep");
+
+  // Severity trend: daily max over last 30 days
+  const dailyMax = {};
+  [...last30].reverse().forEach(e => {
+    const d = new Date(e.timestamp).toLocaleDateString("en-US", { month: "numeric", day: "numeric" });
+    if (!dailyMax[d] || e.severity > dailyMax[d].val) dailyMax[d] = { val: e.severity, ts: e.timestamp };
+  });
+  const sevPoints = Object.entries(dailyMax).slice(-21); // max 21 days shown
+
+  // SVG chart helpers
+  const W = 560, H = 130, PAD = { t: 12, b: 28, l: 24, r: 12 };
+  const cW = W - PAD.l - PAD.r;
+  const cH = H - PAD.t - PAD.b;
+  const toX = i => PAD.l + (i / Math.max(sevPoints.length - 1, 1)) * cW;
+  const toY = v => PAD.t + cH - ((v / 10) * cH);
+
+  const pathD = sevPoints.map(([, d], i) => `${i === 0 ? "M" : "L"} ${toX(i).toFixed(1)} ${toY(d.val).toFixed(1)}`).join(" ");
+  const areaD = sevPoints.length > 1
+    ? `${pathD} L ${toX(sevPoints.length - 1).toFixed(1)} ${(PAD.t + cH).toFixed(1)} L ${toX(0).toFixed(1)} ${(PAD.t + cH).toFixed(1)} Z`
+    : "";
+
+  // Stat card helper
+  const StatCard = ({ label, value, sub, accent }) => (
+    <div style={{ background: "#fff", border: "1px solid rgba(0,0,0,0.07)", borderRadius: "0.875rem", padding: "1rem 1.25rem", flex: 1, minWidth: 120 }}>
+      <p style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: "0 0 0.35rem" }}>{label}</p>
+      <p style={{ fontSize: "1.6rem", fontWeight: 700, color: accent || INK, margin: "0 0 0.15rem", lineHeight: 1 }}>{value ?? "—"}</p>
+      {sub && <p style={{ fontSize: "0.72rem", color: WARM_GRAY, margin: 0 }}>{sub}</p>}
+    </div>
+  );
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+
+      {/* ── Section label ── */}
+      <div style={{ paddingBottom: "0.75rem", borderBottom: "1px solid rgba(0,0,0,0.07)" }}>
+        <p style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: TEAL, margin: "0 0 0.2rem" }}>Care Team View</p>
+        <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.3rem", fontWeight: 700, color: INK, margin: "0 0 0.25rem" }}>Clinical Summary</h2>
+        <p style={{ fontSize: "0.8rem", color: WARM_GRAY, margin: 0 }}>
+          Based on {entries.length} {entries.length === 1 ? "entry" : "entries"} across {totalDays} {totalDays === 1 ? "day" : "days"} · Last updated {now.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+        </p>
+      </div>
+
+      {/* ── Stat cards row ── */}
+      <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+        <StatCard
+          label="Avg severity (30d)"
+          value={avgSev30 != null ? avgSev30.toFixed(1) : "—"}
+          sub={avgSev7 != null ? `${avgSev7.toFixed(1)} last 7 days` : undefined}
+          accent={avgSev30 >= 7 ? "#c0392b" : avgSev30 >= 4 ? "#e8a838" : SAGE_DARK}
+        />
+        <StatCard
+          label="Flare days (30d)"
+          value={flareDays}
+          sub="severity ≥ 7"
+          accent={flareDays >= 10 ? "#c0392b" : flareDays >= 5 ? "#e8a838" : SAGE_DARK}
+        />
+        <StatCard
+          label="Days tracked"
+          value={totalDays}
+          sub={`${entries.length} total entries`}
+          accent={SAGE_DARK}
+        />
+        {avgSleep != null && (
+          <StatCard
+            label="Avg sleep quality"
+            value={`${avgSleep.toFixed(1)}/10`}
+            sub="30-day average"
+            accent={avgSleep >= 7 ? SAGE_DARK : avgSleep >= 4 ? "#e8a838" : "#c0392b"}
+          />
+        )}
+      </div>
+
+      {/* ── Severity over time chart ── */}
+      <div style={{ background: "#fff", border: "1px solid rgba(0,0,0,0.07)", borderRadius: "0.875rem", padding: "1.25rem" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "0.875rem", flexWrap: "wrap", gap: "0.5rem" }}>
+          <div>
+            <p style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: "0 0 0.15rem" }}>Symptom Severity Over Time</p>
+            <p style={{ fontSize: "0.75rem", color: WARM_GRAY, margin: 0 }}>Daily peak — last {sevPoints.length} days · dots ≥ 7 indicate flares</p>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "1rem", fontSize: "0.7rem", color: WARM_GRAY }}>
+            <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: SAGE_DARK, marginRight: 4 }}/>1–3</span>
+            <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: "#e8a838", marginRight: 4 }}/>4–6</span>
+            <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: "#c0392b", marginRight: 4 }}/>7–10 flare</span>
+          </div>
+        </div>
+        {sevPoints.length < 2 ? (
+          <p style={{ fontSize: "0.82rem", color: WARM_GRAY, textAlign: "center", padding: "2rem 0" }}>Add at least 2 days of entries to see this chart</p>
+        ) : (
+          <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ overflow: "visible", display: "block" }}>
+            <defs>
+              <linearGradient id="ctv-sev-grad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={SAGE} stopOpacity="0.2"/>
+                <stop offset="100%" stopColor={SAGE} stopOpacity="0"/>
+              </linearGradient>
+            </defs>
+            {/* Grid lines */}
+            {[2, 4, 6, 8, 10].map(v => {
+              const y = toY(v);
+              return (
+                <g key={v}>
+                  <line x1={PAD.l} y1={y} x2={W - PAD.r} y2={y} stroke="#e8e4e0" strokeWidth="0.5" strokeDasharray="4 4"/>
+                  <text x={PAD.l - 4} y={y + 3.5} fontSize="9" fill="#bbb" textAnchor="end">{v}</text>
+                  {v === 7 && <line x1={PAD.l} y1={y} x2={W - PAD.r} y2={y} stroke="#c0392b" strokeWidth="0.75" strokeOpacity="0.3" strokeDasharray="6 3"/>}
+                </g>
+              );
+            })}
+            {/* Flare threshold label */}
+            <text x={W - PAD.r} y={toY(7) - 3} fontSize="8" fill="#c0392b" textAnchor="end" opacity="0.6">flare threshold</text>
+            {/* Area fill */}
+            {areaD && <path d={areaD} fill="url(#ctv-sev-grad)"/>}
+            {/* Line */}
+            <path d={pathD} fill="none" stroke={SAGE} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            {/* Dots */}
+            {sevPoints.map(([label, d], i) => {
+              const x = toX(i), y = toY(d.val);
+              const col = severityColor(d.val);
+              const isFlare = d.val >= 7;
+              return (
+                <g key={i}>
+                  {isFlare && <circle cx={x} cy={y} r="7" fill="#c0392b" opacity="0.12"/>}
+                  <circle cx={x} cy={y} r={isFlare ? 5 : 4} fill={col} stroke="#fff" strokeWidth="1.5"/>
+                  {/* Date label — show every 3rd to avoid crowding */}
+                  {i % Math.ceil(sevPoints.length / 7) === 0 && (
+                    <text x={x} y={H - 6} fontSize="8.5" fill="#bbb" textAnchor="middle">{label}</text>
+                  )}
+                </g>
+              );
+            })}
+          </svg>
+        )}
+      </div>
+
+    </div>
+  );
+}
+
 /* ─── ReportPromptView — extracted to avoid IIFE-in-ternary JSX issues ─────── */
 function ReportPromptView({ careTeam, reportPrompt, setReportPrompt, entries, handleGenerateReport, s }) {
   const selectedMember    = careTeam.find(p => p.name === reportPrompt.providerName);
@@ -2368,6 +2523,7 @@ export default function CareCompassTracker() {
   const [apptContext, setApptContext]    = useState(null);
   const [loadingInsights, setLoadingInsights] = useState(false);
   // ── Doctor report state ───────────────────────────────────────────────────
+  const [reportMode, setReportMode]     = useState(() => { try { return localStorage.getItem("cc-report-mode") || "patient"; } catch { return "patient"; } }); // "patient" | "careteam"
   const [reportView, setReportView]     = useState("prompt"); // "prompt" | "generating" | "report"
   const [reportPrompt, setReportPrompt] = useState({ providerName: "", specialty: "", focus: "", symptoms: "", questions: "", saveToTeam: false, otherType: "", otherRole: "", showOther: false });
   const [reportAI, setReportAI]         = useState(null);
@@ -3947,16 +4103,38 @@ ${extraContext}` : ""}`;
             <div style={s.tabContent}>
               {entries.length === 0 ? (
                 <div style={s.emptyState}><p style={s.emptyDesc}>No entries yet. Start logging to generate a care team report.</p></div>
-              ) : reportView === "prompt" ? (
-                <ReportPromptView
-                  careTeam={careTeam}
-                  reportPrompt={reportPrompt}
-                  setReportPrompt={setReportPrompt}
-                  entries={entries}
-                  handleGenerateReport={handleGenerateReport}
-                  s={s}
-                />
-              ) : reportView === "generating" ? (
+              ) : (
+                <>
+                  {/* ── Mode toggle ── */}
+                  <div style={{ display: "flex", background: "rgba(0,0,0,0.04)", borderRadius: "100px", padding: "0.25rem", marginBottom: "1.25rem", width: "fit-content" }} className="no-print">
+                    {[["patient", "Patient View"], ["careteam", "Care Team View"]].map(([mode, label]) => (
+                      <button
+                        key={mode}
+                        onClick={() => { setReportMode(mode); try { localStorage.setItem("cc-report-mode", mode); } catch {} }}
+                        style={{ padding: "0.45rem 1.1rem", borderRadius: "100px", border: "none", background: reportMode === mode ? "#fff" : "transparent", color: reportMode === mode ? INK : WARM_GRAY, fontWeight: reportMode === mode ? 600 : 400, fontSize: "0.82rem", cursor: "pointer", fontFamily: "inherit", boxShadow: reportMode === mode ? "0 1px 4px rgba(0,0,0,0.1)" : "none", transition: "all 0.15s" }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* ── Care Team View ── */}
+                  {reportMode === "careteam" && (
+                    <CareTeamDashboard entries={entries} bpReadings={bpReadings}/>
+                  )}
+
+                  {/* ── Patient View ── */}
+                  {reportMode === "patient" && (
+                    reportView === "prompt" ? (
+                      <ReportPromptView
+                        careTeam={careTeam}
+                        reportPrompt={reportPrompt}
+                        setReportPrompt={setReportPrompt}
+                        entries={entries}
+                        handleGenerateReport={handleGenerateReport}
+                        s={s}
+                      />
+                    ) : reportView === "generating" ? (
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 400, gap: "1.5rem", textAlign: "center" }}>
                   <BotanicalMark size={56}/>
                   <div>
@@ -4127,6 +4305,8 @@ ${extraContext}` : ""}`;
                   </div>
                 </div>
               )}
+                  )}
+                </>
             </div>
           )}
 
