@@ -3090,7 +3090,14 @@ export default function CareCompassTracker() {
     // Merge selected med ids into medications string
     const selectedMedsStr = buildMedString(form.selectedMedIds || []);
     const finalMeds = [selectedMedsStr, form.medications].filter(Boolean).join(", ");
-    const finalForm = { ...form, medications: finalMeds };
+
+    // Auto-derive overall severity from tracked symptoms (max) if any are active
+    const tracked = form.trackedSymptoms || [];
+    const autoSeverity = tracked.length > 0
+      ? Math.max(...tracked.map(ts => ts.severity))
+      : form.severity;
+
+    const finalForm = { ...form, medications: finalMeds, severity: autoSeverity };
 
     // Save unlisted med to settings list if opted in
     if (form.saveUnlistedMed && (form.medications || "").trim()) {
@@ -5660,11 +5667,38 @@ ${extraContext}` : ""}`;
                 );
               })()}
 
-              {/* ── 2. Overall severity ── */}
-              <div style={s.formGroup}>
-                <label style={s.label}>Overall severity right now</label>
-                <SeveritySlider value={form.severity} onChange={v => setForm(f => ({ ...f, severity: v }))}/>
-              </div>
+              {/* ── 2. Overall severity — auto when tracked symptoms active, manual otherwise ── */}
+              {(() => {
+                const tracked = form.trackedSymptoms || [];
+                if (tracked.length > 0) {
+                  const autoSev = Math.max(...tracked.map(ts => ts.severity));
+                  const col = severityColor(autoSev);
+                  return (
+                    <div style={s.formGroup}>
+                      <label style={s.label}>Overall severity</label>
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", background: autoSev >= 7 ? "#fdeaea" : autoSev >= 4 ? "#fef3da" : SAGE_LIGHT, borderRadius: "0.625rem", padding: "0.625rem 0.875rem" }}>
+                        <div style={{ width: 36, height: 36, borderRadius: "50%", background: col, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <span style={{ fontSize: "0.9rem", fontWeight: 700, color: "#fff" }}>{autoSev}</span>
+                        </div>
+                        <div>
+                          <p style={{ margin: 0, fontSize: "0.82rem", fontWeight: 600, color: INK }}>
+                            {autoSev >= 7 ? "Severe" : autoSev >= 4 ? "Moderate" : "Manageable"}
+                          </p>
+                          <p style={{ margin: 0, fontSize: "0.72rem", color: WARM_GRAY }}>
+                            Auto-calculated from your highest symptom · {tracked.map(ts => `${ts.label} ${ts.severity}`).join(", ")}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+                return (
+                  <div style={s.formGroup}>
+                    <label style={s.label}>Overall severity right now</label>
+                    <SeveritySlider value={form.severity} onChange={v => setForm(f => ({ ...f, severity: v }))}/>
+                  </div>
+                );
+              })()}
 
               {/* ── 3. More detail toggle ── */}
               <button
