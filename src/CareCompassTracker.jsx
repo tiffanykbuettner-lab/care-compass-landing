@@ -2857,7 +2857,6 @@ export default function CareCompassTracker() {
   const [quickSymptoms, setQuickSymptoms] = useState("");
   const [quickSaved, setQuickSaved]       = useState(false);
   const [showQuickNote, setShowQuickNote] = useState(false);
-  const [showMoreFields, setShowMoreFields] = useState(false);
   const [showAllSymptoms, setShowAllSymptoms] = useState(false);
   const [logTipDismissed, setLogTipDismissed] = useState(() => !!localStorage.getItem("cc-log-tip-dismissed"));
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
@@ -3008,18 +3007,15 @@ export default function CareCompassTracker() {
 
   const openNew = () => {
     setEditingEntry(null);
-    // ── Smart defaults from most recent entry ────────────────────────────────
     const last = entries[0] || null;
     const defaultMedIds  = last?.selectedMedIds?.length ? last.selectedMedIds : [];
     const defaultWeather = last?.weather ?? "";
-    const hasDefaults    = defaultMedIds.length > 0 || !!defaultWeather;
     setForm({
       ...blankForm,
       sleep:          isFirstEntryToday ? 7 : null,
       selectedMedIds: defaultMedIds,
       weather:        defaultWeather,
     });
-    setShowMoreFields(hasDefaults);
     setShowAllSymptoms(false);
     setShowForm(true);
   };
@@ -5724,17 +5720,8 @@ ${extraContext}` : ""}`;
                 );
               })()}
 
-              {/* ── 3. More detail toggle ── */}
-              <button
-                type="button"
-                onClick={() => setShowMoreFields(f => !f)}
-                style={{ display: "flex", alignItems: "center", gap: "0.4rem", background: "none", border: "1px solid rgba(0,0,0,0.12)", borderRadius: "100px", padding: "0.45rem 1rem", fontSize: "0.8rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit", fontWeight: 500, alignSelf: "flex-start" }}
-              >
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ transition: "transform 0.2s", transform: showMoreFields ? "rotate(180deg)" : "rotate(0deg)" }}><path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                {showMoreFields ? "Hide detail" : "Add more detail"}
-              </button>
-
-              {showMoreFields && <>
+              {/* ── Detail fields — always visible, all optional ── */}
+              <>
               {/* ── Symptom description + recent shortcuts ── */}
               <div style={s.formGroup}>
                 <label style={s.label}>Describe your symptoms <span style={s.optional}>(optional)</span></label>
@@ -5887,7 +5874,7 @@ ${extraContext}` : ""}`;
                 </div>
                 <p style={{ fontSize: "0.72rem", color: WARM_GRAY, margin: "0.35rem 0 0" }}>How much of your energy capacity did today's activity use?</p>
               </div>
-              </>}
+              </>
               <div style={s.formGroup}>
                 <label style={s.label}>Stress level <span style={s.sevValue}>{form.stress}/10</span></label>
                 <input type="range" min="1" max="10" step="1" value={form.stress} onChange={e => setForm(f => ({ ...f, stress: Number(e.target.value) }))} style={{ width: "100%", accentColor: SAGE_DARK }}/>

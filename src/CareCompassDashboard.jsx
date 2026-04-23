@@ -1258,20 +1258,49 @@ export default function CareCompassDashboard() {
   });
 
   // ── Quick Log state ────────────────────────────────────────────────────────
+  const DASH_DEFAULT_SYMS = [
+    { id: "fatigue",    label: "Fatigue" },
+    { id: "brain-fog",  label: "Brain fog" },
+    { id: "pain-head",  label: "Head pain" },
+    { id: "dizziness",  label: "Dizziness" },
+    { id: "nausea",     label: "Nausea" },
+    { id: "pain-joint", label: "Joint pain" },
+  ];
   const [showLogPanel, setShowLogPanel]   = useState(false);
-  const [quickSeverity, setQuickSeverity] = useState(null);
-  const [quickSymptoms, setQuickSymptoms] = useState("");
+  const [quickTracked, setQuickTracked]   = useState([]); // [{id, label, severity}]
   const [quickSaved, setQuickSaved]       = useState(false);
-  const [showQuickNote, setShowQuickNote] = useState(false);
   const [liveEntries, setLiveEntries]     = useState(() => {
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); } catch { return []; }
   });
 
+  // Load user's custom tracked symptom list if present, else use defaults
+  const dashSymptoms = (() => {
+    try {
+      const stored = localStorage.getItem("care-compass-tracked-symptoms-v1");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        // Show top 6 by frequency from liveEntries, or first 6 from list
+        const freqMap = {};
+        liveEntries.forEach(e => (e.trackedSymptoms || []).forEach(ts => {
+          freqMap[ts.id] = (freqMap[ts.id] || 0) + 1;
+        }));
+        const hasHistory = Object.keys(freqMap).length > 0;
+        if (hasHistory) {
+          const topIds = Object.entries(freqMap).sort((a,b) => b[1]-a[1]).slice(0,6).map(([id]) => id);
+          return parsed.filter(s => topIds.includes(s.id));
+        }
+        return parsed.slice(0, 6);
+      }
+    } catch {}
+    return DASH_DEFAULT_SYMS;
+  })();
+
   const handleQuickLog = () => {
-    if (!quickSeverity) return;
+    if (!quickTracked.length) return;
+    const autoSev = Math.max(...quickTracked.map(ts => ts.severity));
     const entry = {
       id: Date.now(), timestamp: new Date().toISOString(),
-      severity: quickSeverity, symptoms: quickSymptoms.trim(), source: "quick",
+      severity: autoSev, trackedSymptoms: quickTracked, symptoms: "", source: "quick",
       food: "", medications: "", selectedMedIds: [], activity: "",
       sleep: null, stress: 5, weather: "", notes: "", photos: [],
       hoursUpright: null, tasksCompleted: [], energyEnvelope: null,
@@ -1279,9 +1308,7 @@ export default function CareCompassDashboard() {
     const updated = [entry, ...liveEntries];
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(updated)); } catch {}
     setLiveEntries(updated);
-    setQuickSeverity(null);
-    setQuickSymptoms("");
-    setShowQuickNote(false);
+    setQuickTracked([]);
     setQuickSaved(true);
     setShowLogPanel(false);
     setTimeout(() => setQuickSaved(false), 4000);
@@ -1498,45 +1525,54 @@ export default function CareCompassDashboard() {
           {/* ── Inline Quick Log panel ── */}
           {!isNew && showLogPanel && (
             <div style={{ background: "#fff", border: "1px solid rgba(0,0,0,0.07)", borderRadius: "1rem", padding: "1.25rem 1.5rem", display: "flex", flexDirection: "column", gap: "0.875rem" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
-                <p style={{ margin: 0, fontSize: "0.82rem", fontWeight: 600, color: WARM_GRAY, textTransform: "uppercase", letterSpacing: "0.05em" }}>Severity right now</p>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <p style={{ margin: 0, fontSize: "0.78rem", fontWeight: 600, color: WARM_GRAY }}>What's bothering you? <span style={{ fontWeight: 400, fontSize: "0.72rem" }}>Tap to add · slide to rate</span></p>
                 <a href="/tracker" style={{ fontSize: "0.75rem", color: SAGE_DARK, fontWeight: 600, textDecoration: "none" }}>Full log →</a>
               </div>
-              <div style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap" }}>
-                {[1,2,3,4,5,6,7,8,9,10].map(n => {
-                  const active = quickSeverity === n;
-                  const col = n >= 7 ? "#c0392b" : n >= 4 ? "#e8a838" : SAGE_DARK;
+              {/* Chips */}
+              <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
+                {dashSymptoms.map(sym => {
+                  const active = quickTracked.find(ts => ts.id === sym.id);
                   return (
-                    <button key={n} type="button"
-                      onClick={() => { setQuickSeverity(active ? null : n); if (!active) setShowQuickNote(true); }}
-                      style={{ width: 40, height: 40, borderRadius: "50%", border: `1.5px solid ${active ? col : "rgba(0,0,0,0.12)"}`, background: active ? col : "transparent", color: active ? "#fff" : col, fontSize: "0.9rem", fontWeight: active ? 700 : 500, cursor: "pointer", fontFamily: "inherit", transition: "all 0.12s", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      {n}
+                    <button key={sym.id} type="button"
+                      onClick={() => setQuickTracked(prev => {
+                        const exists = prev.find(ts => ts.id === sym.id);
+                        return exists ? prev.filter(ts => ts.id !== sym.id) : [...prev, { id: sym.id, label: sym.label, severity: 5 }];
+                      })}
+                      style={{ padding: "0.4rem 0.875rem", borderRadius: "100px", border: `1.5px solid ${active ? SAGE_DARK : "rgba(0,0,0,0.12)"}`, background: active ? SAGE_DARK : "transparent", color: active ? "#fff" : INK, fontSize: "0.82rem", fontWeight: active ? 600 : 400, cursor: "pointer", fontFamily: "inherit", transition: "all 0.12s", display: "flex", alignItems: "center", gap: "0.3rem" }}>
+                      {sym.label}{active ? ` · ${active.severity}` : ""}
                     </button>
                   );
                 })}
               </div>
-              {showQuickNote && (
-                <textarea
-                  value={quickSymptoms}
-                  onChange={e => setQuickSymptoms(e.target.value)}
-                  placeholder="What's happening? (optional)"
-                  rows={2}
-                  autoFocus
-                  style={{ width: "100%", boxSizing: "border-box", padding: "0.65rem 0.875rem", borderRadius: "0.625rem", border: "1.5px solid rgba(0,0,0,0.12)", fontSize: "0.875rem", color: INK, background: OFF_WHITE, outline: "none", fontFamily: "inherit", resize: "none", lineHeight: 1.5 }}
-                />
+              {/* Active sliders */}
+              {quickTracked.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", background: SAGE_LIGHT, borderRadius: "0.625rem", padding: "0.625rem 0.875rem" }}>
+                  {quickTracked.map(ts => (
+                    <div key={ts.id} style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
+                      <span style={{ fontSize: "0.78rem", fontWeight: 600, color: SAGE_DARK, minWidth: 110 }}>{ts.label}</span>
+                      <input type="range" min="1" max="10" step="1" value={ts.severity}
+                        onChange={e => setQuickTracked(prev => prev.map(s => s.id === ts.id ? { ...s, severity: Number(e.target.value) } : s))}
+                        style={{ flex: 1, accentColor: ts.severity >= 7 ? "#c0392b" : ts.severity >= 4 ? "#e8a838" : SAGE_DARK }}
+                      />
+                      <span style={{ fontSize: "0.78rem", fontWeight: 700, color: ts.severity >= 7 ? "#c0392b" : ts.severity >= 4 ? "#e8a838" : SAGE_DARK, minWidth: 28, textAlign: "right" }}>{ts.severity}</span>
+                    </div>
+                  ))}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "0.25rem" }}>
+                    <span style={{ fontSize: "0.72rem", color: WARM_GRAY }}>Overall severity: <strong style={{ color: (() => { const s = Math.max(...quickTracked.map(t=>t.severity)); return s>=7?"#c0392b":s>=4?"#e8a838":SAGE_DARK; })() }}>{Math.max(...quickTracked.map(t=>t.severity))}/10</strong></span>
+                    <button type="button" onClick={handleQuickLog}
+                      style={{ background: SAGE_DARK, color: "#fff", border: "none", borderRadius: "100px", padding: "0.5rem 1.25rem", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+                      Log it →
+                    </button>
+                  </div>
+                </div>
               )}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem" }}>
-                <button type="button" onClick={handleQuickLog} disabled={!quickSeverity}
-                  style={{ background: quickSeverity ? SAGE_DARK : "rgba(0,0,0,0.1)", color: quickSeverity ? "#fff" : WARM_GRAY, border: "none", borderRadius: "100px", padding: "0.65rem 1.75rem", fontSize: "0.875rem", fontWeight: 600, cursor: quickSeverity ? "pointer" : "default", fontFamily: "inherit", transition: "all 0.15s" }}>
+              {!quickTracked.length && (
+                <button type="button" onClick={handleQuickLog} disabled
+                  style={{ background: "rgba(0,0,0,0.08)", color: WARM_GRAY, border: "none", borderRadius: "100px", padding: "0.65rem 1.75rem", fontSize: "0.875rem", fontWeight: 600, cursor: "default", fontFamily: "inherit", alignSelf: "flex-start" }}>
                   Log it →
                 </button>
-                {!showQuickNote && quickSeverity && (
-                  <button type="button" onClick={() => setShowQuickNote(true)}
-                    style={{ background: "none", border: "none", color: WARM_GRAY, fontSize: "0.78rem", cursor: "pointer", fontFamily: "inherit", textDecoration: "underline", textDecorationColor: "rgba(0,0,0,0.2)", padding: 0 }}>
-                    Add a note
-                  </button>
-                )}
-              </div>
+              )}
             </div>
           )}
 
