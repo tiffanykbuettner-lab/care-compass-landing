@@ -3021,7 +3021,6 @@ export default function CareCompassTracker() {
   };
   const openEdit = (entry) => {
     setEditingEntry(entry);
-    setShowMoreFields(true);
     setForm({
       ...blankForm,
       ...entry,
