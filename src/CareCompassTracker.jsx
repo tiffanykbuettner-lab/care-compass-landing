@@ -2406,41 +2406,60 @@ function CareTeamDashboard({ entries, bpReadings = [] }) {
         const flareDayEntries = last30.filter(e => e.severity >= 7);
         if (flareDayEntries.length === 0) return null;
 
-        // Aggregate tracked symptoms across all flare entries
-        const trackedCounts = {};
+        // Unified composition: merge tracked symptoms + keyword fallback from free text
+        // Use a shared map keyed by label so both sources contribute to the same bars
+        const FLARE_KEYWORD_MAP = {
+          "fatigue": "Fatigue", "tired": "Fatigue", "exhausted": "Fatigue",
+          "headache": "Headache", "migraine": "Headache", "head pain": "Head pain",
+          "nausea": "Nausea", "vomiting": "Nausea",
+          "dizziness": "Dizziness", "dizzy": "Dizziness",
+          "brain fog": "Brain fog", "fog": "Brain fog",
+          "palpitation": "Heart palpitations", "heart racing": "Heart palpitations",
+          "shoulder": "Shoulder pain", "neck": "Neck pain", "back pain": "Back pain",
+          "joint": "Joint pain", "knee": "Joint pain", "hip": "Joint pain",
+          "numbness": "Numbness / tingling", "tingling": "Numbness / tingling",
+          "anxiety": "Anxiety", "chest pain": "Chest pain",
+          "abdominal": "Abdominal pain", "bloating": "Bloating",
+          "pain": "Pain", // generic fallback
+        };
+        const unified = {};
+        const addUnified = (label, sev) => {
+          const k = label.toLowerCase();
+          if (!unified[k]) unified[k] = { label, count: 0, totalSev: 0, source: "tracked" };
+          unified[k].count++;
+          unified[k].totalSev += sev;
+        };
+
         flareDayEntries.forEach(e => {
-          (e.trackedSymptoms || []).forEach(ts => {
-            if (!trackedCounts[ts.id]) trackedCounts[ts.id] = { label: ts.label, count: 0, totalSev: 0 };
-            trackedCounts[ts.id].count++;
-            trackedCounts[ts.id].totalSev += ts.severity;
-          });
+          if (e.trackedSymptoms && e.trackedSymptoms.length > 0) {
+            // Use structured data — most accurate
+            e.trackedSymptoms.forEach(ts => addUnified(ts.label, ts.severity));
+          } else if (e.symptoms) {
+            // Keyword parse free text — fallback for older entries
+            const text = e.symptoms.toLowerCase();
+            let matched = false;
+            Object.entries(FLARE_KEYWORD_MAP).forEach(([kw, label]) => {
+              if (text.includes(kw)) { addUnified(label, e.severity); matched = true; }
+            });
+            // If no keyword matched, add a generic "Unspecified symptoms" entry
+            if (!matched) addUnified("Unspecified symptoms", e.severity);
+          }
         });
 
-        // Keyword fallback for entries without tracked symptoms
-        const keywordCounts = {};
-        flareDayEntries.filter(e => !e.trackedSymptoms?.length && e.symptoms).forEach(e => {
-          ["fatigue","pain","nausea","dizziness","brain fog","palpitation","headache","anxiety","numbness"].forEach(kw => {
-            if (e.symptoms.toLowerCase().includes(kw)) keywordCounts[kw] = (keywordCounts[kw] || 0) + 1;
-          });
-        });
+        const compositionList = Object.entries(unified)
+          .sort((a,b) => b[1].count - a[1].count || b[1].totalSev - a[1].totalSev)
+          .slice(0, 8);
 
-        const trackedList = Object.entries(trackedCounts)
-          .sort((a,b) => b[1].count - a[1].count).slice(0, 8);
-        const keywordList = Object.entries(keywordCounts)
-          .sort((a,b) => b[1] - a[1]).slice(0, 6);
-
-        const hasData = trackedList.length > 0 || keywordList.length > 0;
-        if (!hasData) return null;
-
-        const maxCount = Math.max(...trackedList.map(([,v]) => v.count), ...keywordList.map(([,v]) => v));
+        if (compositionList.length === 0) return null;
+        const maxCount = Math.max(...compositionList.map(([,v]) => v.count));
 
         return (
           <div style={{ background: "#fff", border: "1px solid rgba(0,0,0,0.07)", borderRadius: "0.875rem", padding: "1.25rem" }}>
             <p style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: "0 0 0.15rem" }}>Flare Day Composition</p>
             <p style={{ fontSize: "0.75rem", color: WARM_GRAY, margin: "0 0 0.875rem" }}>What drove severity ≥ 7 across {flareDayEntries.length} flare {flareDayEntries.length === 1 ? "entry" : "entries"} in the last 30 days</p>
             <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-              {trackedList.map(([id, d]) => (
-                <div key={id}>
+              {compositionList.map(([key, d]) => (
+                <div key={key}>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", marginBottom: "0.2rem" }}>
                     <span style={{ fontWeight: 600, color: INK }}>{d.label}</span>
                     <span style={{ color: WARM_GRAY }}>{d.count}× · avg {(d.totalSev/d.count).toFixed(1)}/10</span>
@@ -2450,22 +2469,6 @@ function CareTeamDashboard({ entries, bpReadings = [] }) {
                   </div>
                 </div>
               ))}
-              {keywordList.length > 0 && trackedList.length === 0 && (
-                <>
-                  <p style={{ fontSize: "0.68rem", color: WARM_GRAY, fontStyle: "italic", margin: "0.25rem 0" }}>From free-text entries — use tracked symptoms for more detail</p>
-                  {keywordList.map(([kw, count]) => (
-                    <div key={kw}>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", marginBottom: "0.2rem" }}>
-                        <span style={{ fontWeight: 600, color: INK }}>{kw.charAt(0).toUpperCase()+kw.slice(1)}</span>
-                        <span style={{ color: WARM_GRAY }}>{count}×</span>
-                      </div>
-                      <div style={{ height: 8, background: "rgba(0,0,0,0.06)", borderRadius: 4 }}>
-                        <div style={{ height: "100%", width: `${Math.round((count/maxCount)*100)}%`, background: "#e8a838", borderRadius: 4 }}/>
-                      </div>
-                    </div>
-                  ))}
-                </>
-              )}
             </div>
           </div>
         );
