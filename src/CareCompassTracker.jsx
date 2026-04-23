@@ -4304,12 +4304,12 @@ ${extraContext}` : ""}`;
                     <InsightChat reportType="doctor" reportText={reportAI || ""} onRerun={handleGenerateReport} />
                   </div>
                 </div>
-              )}
+              )
                   )}
-                </>
-            </div>
+              </>
+            )}
+          </div>
           )}
-
 
           {view === "er" && (
             <div style={s.tabContent}>
