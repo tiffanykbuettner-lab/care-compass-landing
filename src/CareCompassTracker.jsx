@@ -5721,7 +5721,6 @@ ${extraContext}` : ""}`;
               })()}
 
               {/* ── Detail fields — always visible, all optional ── */}
-              <>
               {/* ── Symptom description + recent shortcuts ── */}
               <div style={s.formGroup}>
                 <label style={s.label}>Describe your symptoms <span style={s.optional}>(optional)</span></label>
@@ -5874,7 +5873,6 @@ ${extraContext}` : ""}`;
                 </div>
                 <p style={{ fontSize: "0.72rem", color: WARM_GRAY, margin: "0.35rem 0 0" }}>How much of your energy capacity did today's activity use?</p>
               </div>
-              </>
               <div style={s.formGroup}>
                 <label style={s.label}>Stress level <span style={s.sevValue}>{form.stress}/10</span></label>
                 <input type="range" min="1" max="10" step="1" value={form.stress} onChange={e => setForm(f => ({ ...f, stress: Number(e.target.value) }))} style={{ width: "100%", accentColor: SAGE_DARK }}/>
