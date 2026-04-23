@@ -2382,6 +2382,7 @@ export default function CareCompassTracker() {
   const [quickSaved, setQuickSaved]       = useState(false);
   const [showQuickNote, setShowQuickNote] = useState(false);
   const [showMoreFields, setShowMoreFields] = useState(false);
+  const [logTipDismissed, setLogTipDismissed] = useState(() => !!localStorage.getItem("cc-log-tip-dismissed"));
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [confirmDeleteLabId, setConfirmDeleteLabId] = useState(null);
   const [showMorningCheckin, setShowMorningCheckin] = useState(false);
@@ -3515,7 +3516,7 @@ ${extraContext}` : ""}`;
               {checkinSaved && <div style={{ ...s.savedBanner, background: TEAL_LIGHT, color: TEAL }}>{checkinSaved}</div>}
 
               {/* ── Logging philosophy tip — shown until dismissed ── */}
-              {!localStorage.getItem("cc-log-tip-dismissed") && (
+              {!logTipDismissed && (
                 <div style={{ background: "#fff", border: "1px solid rgba(0,0,0,0.07)", borderRadius: "0.875rem", padding: "0.875rem 1rem 0.875rem 1.25rem", marginBottom: "0.75rem", display: "flex", alignItems: "flex-start", gap: "0.75rem" }}>
                   <span style={{ color:"#7a9e87", display:"flex", alignItems:"center" }}><Icon name="tip" size={16} /></span>
                   <div style={{ flex: 1 }}>
@@ -3525,7 +3526,7 @@ ${extraContext}` : ""}`;
                     </p>
                   </div>
                   <button
-                    onClick={() => { localStorage.setItem("cc-log-tip-dismissed", "1"); }}
+                    onClick={() => { localStorage.setItem("cc-log-tip-dismissed", "1"); setLogTipDismissed(true); }}
                     style={{ background: "none", border: "none", color: "#ccc", cursor: "pointer", fontSize: "1rem", padding: "0 0.25rem", flexShrink: 0, lineHeight: 1 }}
                   >×</button>
                 </div>
