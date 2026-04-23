@@ -1022,19 +1022,29 @@ function TrendsTab({ entries, dateFilter, allEntries }) {
   const label = dateFilter === "today" ? "today" : dateFilter === "week" ? "past 7 days" : dateFilter === "month" ? "past 30 days" : "all time";
 
   const symptomCounts = {};
+
+  // Helper: add a symptom occurrence to counts
+  const addSymptomOccurrence = (label, entry) => {
+    const key = label.toLowerCase();
+    if (!symptomCounts[key]) symptomCounts[key] = { label, days: new Set(), entries: [], totalSeverity: 0 };
+    symptomCounts[key].days.add(new Date(entry.timestamp).toDateString());
+    symptomCounts[key].entries.push(entry);
+    symptomCounts[key].totalSeverity += entry.severity;
+  };
+
   entries.forEach(e => {
-    if (!e.symptoms) return;
-    const words = e.symptoms.toLowerCase();
-    ["headache","migraine","pain","fatigue","nausea","dizziness","brain fog","palpitation","anxiety","insomnia","bloating","reflux","rash","swelling","stiffness","cramp","shortness of breath","numbness","tingling","joint","muscle","depression","diarrhea","constipation","vomiting","fever","cough"].forEach(kw => {
-      if (words.includes(kw)) {
-        if (!symptomCounts[kw]) symptomCounts[kw] = { days: new Set(), entries: [], totalSeverity: 0 };
-        symptomCounts[kw].days.add(new Date(e.timestamp).toDateString());
-        symptomCounts[kw].entries.push(e);
-        symptomCounts[kw].totalSeverity += e.severity;
-      }
-    });
+    // Primary: use structured tracked symptoms if present
+    if (e.trackedSymptoms && e.trackedSymptoms.length > 0) {
+      e.trackedSymptoms.forEach(ts => addSymptomOccurrence(ts.label, e));
+    } else if (e.symptoms) {
+      // Fallback: keyword parse for older entries without tracked symptoms
+      const words = e.symptoms.toLowerCase();
+      ["headache","migraine","pain","fatigue","nausea","dizziness","brain fog","palpitation","anxiety","insomnia","bloating","reflux","rash","swelling","stiffness","cramp","shortness of breath","numbness","tingling","joint","muscle","depression","diarrhea","constipation","vomiting","fever","cough"].forEach(kw => {
+        if (words.includes(kw)) addSymptomOccurrence(kw.charAt(0).toUpperCase() + kw.slice(1), e);
+      });
+    }
   });
-  const topSymptoms = Object.entries(symptomCounts).map(([kw, data]) => ({ keyword: kw, dayCount: data.days.size, entryCount: data.entries.length, avgSeverity: (data.totalSeverity / data.entries.length).toFixed(1) })).sort((a, b) => b.dayCount - a.dayCount).slice(0, 8);
+  const topSymptoms = Object.entries(symptomCounts).map(([key, data]) => ({ keyword: data.label || key, dayCount: data.days.size, entryCount: data.entries.length, avgSeverity: (data.totalSeverity / data.entries.length).toFixed(1) })).sort((a, b) => b.dayCount - a.dayCount).slice(0, 8);
   const avgSev = entries.length ? (entries.reduce((sum, e) => sum + e.severity, 0) / entries.length).toFixed(1) : "—";
   const daysLogged = new Set(entries.map(e => new Date(e.timestamp).toDateString())).size;
 
@@ -1198,7 +1208,12 @@ function LabResultsTab({ entries }) {
     const conditionsStr = (profile.conditions || []).join(", ");
     const familyStr = family.filter(e => e.member && e.conditions && e.conditions.length).map(e => e.member + ": " + e.conditions.join(", ")).join("; ");
     const symptomSummary = recentEntries.length
-      ? "Recent symptom log summary (" + recentEntries.length + " entries): " + recentEntries.slice(0, 5).map(e => "[Severity " + e.severity + "/10] " + (e.symptoms || "no symptoms noted")).join(" | ")
+      ? "Recent symptom log summary (" + recentEntries.length + " entries): " + recentEntries.slice(0, 5).map(e => {
+          const tracked = (e.trackedSymptoms || []).map(ts => ts.label + " " + ts.severity + "/10").join(", ");
+          const freeText = e.symptoms || "";
+          const symDesc = tracked || freeText || "no symptoms noted";
+          return "[Severity " + e.severity + "/10] " + symDesc;
+        }).join(" | ")
       : "";
     return { medsStr, conditionsStr, familyStr, symptomSummary };
   };
@@ -2386,6 +2401,139 @@ function CareTeamDashboard({ entries, bpReadings = [] }) {
         );
       })()}
 
+      {/* ── Flare Composition — what drove severity on bad days ── */}
+      {(() => {
+        const flareDayEntries = last30.filter(e => e.severity >= 7);
+        if (flareDayEntries.length === 0) return null;
+
+        // Aggregate tracked symptoms across all flare entries
+        const trackedCounts = {};
+        flareDayEntries.forEach(e => {
+          (e.trackedSymptoms || []).forEach(ts => {
+            if (!trackedCounts[ts.id]) trackedCounts[ts.id] = { label: ts.label, count: 0, totalSev: 0 };
+            trackedCounts[ts.id].count++;
+            trackedCounts[ts.id].totalSev += ts.severity;
+          });
+        });
+
+        // Keyword fallback for entries without tracked symptoms
+        const keywordCounts = {};
+        flareDayEntries.filter(e => !e.trackedSymptoms?.length && e.symptoms).forEach(e => {
+          ["fatigue","pain","nausea","dizziness","brain fog","palpitation","headache","anxiety","numbness"].forEach(kw => {
+            if (e.symptoms.toLowerCase().includes(kw)) keywordCounts[kw] = (keywordCounts[kw] || 0) + 1;
+          });
+        });
+
+        const trackedList = Object.entries(trackedCounts)
+          .sort((a,b) => b[1].count - a[1].count).slice(0, 8);
+        const keywordList = Object.entries(keywordCounts)
+          .sort((a,b) => b[1] - a[1]).slice(0, 6);
+
+        const hasData = trackedList.length > 0 || keywordList.length > 0;
+        if (!hasData) return null;
+
+        const maxCount = Math.max(...trackedList.map(([,v]) => v.count), ...keywordList.map(([,v]) => v));
+
+        return (
+          <div style={{ background: "#fff", border: "1px solid rgba(0,0,0,0.07)", borderRadius: "0.875rem", padding: "1.25rem" }}>
+            <p style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: "0 0 0.15rem" }}>Flare Day Composition</p>
+            <p style={{ fontSize: "0.75rem", color: WARM_GRAY, margin: "0 0 0.875rem" }}>What drove severity ≥ 7 across {flareDayEntries.length} flare {flareDayEntries.length === 1 ? "entry" : "entries"} in the last 30 days</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+              {trackedList.map(([id, d]) => (
+                <div key={id}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", marginBottom: "0.2rem" }}>
+                    <span style={{ fontWeight: 600, color: INK }}>{d.label}</span>
+                    <span style={{ color: WARM_GRAY }}>{d.count}× · avg {(d.totalSev/d.count).toFixed(1)}/10</span>
+                  </div>
+                  <div style={{ height: 8, background: "rgba(0,0,0,0.06)", borderRadius: 4 }}>
+                    <div style={{ height: "100%", width: `${Math.round((d.count/maxCount)*100)}%`, background: d.totalSev/d.count >= 7 ? "#c0392b" : d.totalSev/d.count >= 4 ? "#e8a838" : SAGE_DARK, borderRadius: 4 }}/>
+                  </div>
+                </div>
+              ))}
+              {keywordList.length > 0 && trackedList.length === 0 && (
+                <>
+                  <p style={{ fontSize: "0.68rem", color: WARM_GRAY, fontStyle: "italic", margin: "0.25rem 0" }}>From free-text entries — use tracked symptoms for more detail</p>
+                  {keywordList.map(([kw, count]) => (
+                    <div key={kw}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", marginBottom: "0.2rem" }}>
+                        <span style={{ fontWeight: 600, color: INK }}>{kw.charAt(0).toUpperCase()+kw.slice(1)}</span>
+                        <span style={{ color: WARM_GRAY }}>{count}×</span>
+                      </div>
+                      <div style={{ height: 8, background: "rgba(0,0,0,0.06)", borderRadius: 4 }}>
+                        <div style={{ height: "100%", width: `${Math.round((count/maxCount)*100)}%`, background: "#e8a838", borderRadius: 4 }}/>
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Per-Symptom Trend Lines ── */}
+      {(() => {
+        // Collect per-symptom daily max severity over last 30 days
+        const symDays = {};
+        last30.forEach(e => {
+          const d = new Date(e.timestamp).toLocaleDateString("en-US", { month: "numeric", day: "numeric" });
+          (e.trackedSymptoms || []).forEach(ts => {
+            if (!symDays[ts.id]) symDays[ts.id] = { label: ts.label, days: {} };
+            if (!symDays[ts.id].days[d] || ts.severity > symDays[ts.id].days[d]) symDays[ts.id].days[d] = ts.severity;
+          });
+        });
+        const symList = Object.entries(symDays).filter(([,v]) => Object.keys(v.days).length >= 3);
+        if (symList.length === 0) return null;
+
+        // Get all unique dates sorted
+        const allDates = [...new Set(last30.map(e => new Date(e.timestamp).toLocaleDateString("en-US", { month: "numeric", day: "numeric" })))].reverse();
+        const TW = 560, TH = 110, TP = { t: 8, b: 24, l: 24, r: 8 };
+        const tCW = TW - TP.l - TP.r, tCH = TH - TP.t - TP.b;
+        const tX = i => TP.l + (i / Math.max(allDates.length - 1, 1)) * tCW;
+        const tY = v => TP.t + tCH - ((v / 10) * tCH);
+
+        const COLORS = ["#4a7058","#4a9fa5","#c0392b","#e8a838","#8b7ab8","#c0567a"];
+
+        return (
+          <div style={{ background: "#fff", border: "1px solid rgba(0,0,0,0.07)", borderRadius: "0.875rem", padding: "1.25rem" }}>
+            <p style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: "0 0 0.15rem" }}>Per-Symptom Severity Trends</p>
+            <p style={{ fontSize: "0.75rem", color: WARM_GRAY, margin: "0 0 0.875rem" }}>Daily peak per tracked symptom — last 30 days</p>
+            <svg width="100%" viewBox={`0 0 ${TW} ${TH}`} style={{ overflow: "visible", display: "block" }}>
+              {[2,4,6,8,10].map(v => (
+                <g key={v}>
+                  <line x1={TP.l} y1={tY(v)} x2={TW-TP.r} y2={tY(v)} stroke="#e8e4e0" strokeWidth="0.5" strokeDasharray="3 3"/>
+                  <text x={TP.l-4} y={tY(v)+3} fontSize="8" fill="#bbb" textAnchor="end">{v}</text>
+                </g>
+              ))}
+              {symList.slice(0,6).map(([id, sym], si) => {
+                const color = COLORS[si % COLORS.length];
+                const points = allDates.map((d, i) => sym.days[d] != null ? { x: tX(i), y: tY(sym.days[d]), v: sym.days[d] } : null).filter(Boolean);
+                if (points.length < 2) return null;
+                const path = points.map((p, pi) => `${pi === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
+                return (
+                  <g key={id}>
+                    <path d={path} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" strokeOpacity="0.8"/>
+                    {points.map((p, pi) => <circle key={pi} cx={p.x} cy={p.y} r="3" fill={color} stroke="#fff" strokeWidth="1"/>)}
+                  </g>
+                );
+              })}
+              {allDates.map((d, i) => i % Math.ceil(allDates.length / 6) === 0 && (
+                <text key={d} x={tX(i)} y={TH-4} fontSize="8" fill="#bbb" textAnchor="middle">{d}</text>
+              ))}
+            </svg>
+            {/* Legend */}
+            <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", marginTop: "0.5rem" }}>
+              {symList.slice(0,6).map(([id, sym], si) => (
+                <div key={id} style={{ display: "flex", alignItems: "center", gap: "0.3rem", fontSize: "0.7rem", color: WARM_GRAY }}>
+                  <span style={{ display: "inline-block", width: 16, height: 2.5, background: COLORS[si % COLORS.length], borderRadius: 2 }}/>
+                  {sym.label}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ── Sleep × Next-Day Severity ── */}
       {(() => {
         const byDay = {};
@@ -2460,6 +2608,7 @@ function CareTeamDashboard({ entries, bpReadings = [] }) {
           if (!dayAvg[k]) dayAvg[k] = { sevs: [], symptoms: [], sleep: null, stress: null };
           dayAvg[k].sevs.push(e.severity);
           if (e.symptoms) dayAvg[k].symptoms.push(e.symptoms);
+          if (e.trackedSymptoms && e.trackedSymptoms.length) dayAvg[k].trackedSymptoms = [...(dayAvg[k].trackedSymptoms || []), ...e.trackedSymptoms];
           if (e.sleep != null && dayAvg[k].sleep == null) dayAvg[k].sleep = e.sleep;
           if (e.stress != null) dayAvg[k].stress = e.stress;
         });
@@ -2489,8 +2638,17 @@ function CareTeamDashboard({ entries, bpReadings = [] }) {
                 <p style={{ fontSize: "1.4rem", fontWeight: 700, color: "#e8a838", margin: 0, lineHeight: 1 }}>{day.stress}/10</p>
               </div>}
             </div>
-            {day.symptoms.length > 0 && (
+            {day.symptoms.length > 0 && !day.trackedSymptoms?.length && (
               <p style={{ fontSize: "0.74rem", color: WARM_GRAY, margin: 0, lineHeight: 1.5, fontStyle: "italic" }}>"{day.symptoms[0].slice(0, 80)}{day.symptoms[0].length > 80 ? "…" : ""}"</p>
+            )}
+            {day.trackedSymptoms && day.trackedSymptoms.length > 0 && (
+              <div style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap", marginTop: "0.25rem" }}>
+                {[...new Map(day.trackedSymptoms.map(ts => [ts.id, ts])).values()].slice(0,4).map(ts => (
+                  <span key={ts.id} style={{ fontSize: "0.68rem", background: "rgba(0,0,0,0.06)", borderRadius: "100px", padding: "0.15rem 0.5rem", color: INK }}>
+                    {ts.label} {ts.severity}/10
+                  </span>
+                ))}
+              </div>
             )}
           </div>
         );
@@ -3418,9 +3576,13 @@ Please also include a ## Cycle & Symptom Patterns section. Cross-reference the c
       const allFood = [...new Set(sorted.flatMap(e => e.food ? [e.food] : []))].join(", ");
       const sleepEntry = sorted.find(e => e.sleep != null);
       const dayHeader = `${day}:${sleepEntry ? ` Sleep: ${sleepEntry.sleep}/10` : ""}${allMeds ? ` | Medications: ${allMeds}` : ""}${allFood ? ` | Food: ${allFood}` : ""}`;
-      const entryLines = sorted.map(e =>
-        `  ${new Date(e.timestamp).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})}: Severity ${e.severity}/10${e.symptoms?` — ${e.symptoms}`:""}${e.stress?` | Stress: ${e.stress}/10`:""}${e.activity?` | Activity: ${e.activity}`:""}${e.notes?` | Notes: ${e.notes}`:""}`
-      ).join("\n");
+      const entryLines = sorted.map(e => {
+        const tracked = (e.trackedSymptoms || []).map(ts => `${ts.label} ${ts.severity}/10`).join(", ");
+        const symPart = tracked
+          ? ` — Tracked: ${tracked}${e.symptoms ? ` | Notes: ${e.symptoms}` : ""}`
+          : e.symptoms ? ` — ${e.symptoms}` : "";
+        return `  ${new Date(e.timestamp).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})}: Severity ${e.severity}/10${symPart}${e.stress?` | Stress: ${e.stress}/10`:""}${e.activity?` | Activity: ${e.activity}`:""}${e.notes?` | Notes: ${e.notes}`:""}`;
+      }).join("\n");
       return `${dayHeader}\n${entryLines}`;
     }).join("\n\n");
     const patientContext = buildPatientContext();
