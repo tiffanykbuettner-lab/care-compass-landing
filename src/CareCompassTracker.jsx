@@ -3548,24 +3548,24 @@ ${extraContext}` : ""}`;
                 </div>
               ) : (
                 <div style={{ background: "#fff", border: "1px solid rgba(0,0,0,0.07)", borderRadius: "1rem", padding: "0.875rem 1.25rem", marginBottom: "0.75rem" }}>
-                  {/* Row: label + bubbles + log button */}
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.625rem", flexWrap: "wrap" }}>
-                    <p style={{ margin: 0, fontSize: "0.8rem", fontWeight: 600, color: WARM_GRAY, whiteSpace: "nowrap" }}>Quick log:</p>
-                    <div style={{ display: "flex", gap: "0.25rem", flexWrap: "wrap", flex: 1 }}>
+                  {/* Row: label + bubbles + log button — single line, scrollable on tiny screens */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+                    <p style={{ margin: 0, fontSize: "0.78rem", fontWeight: 600, color: WARM_GRAY, whiteSpace: "nowrap", flexShrink: 0 }}>Quick log:</p>
+                    <div style={{ display: "flex", gap: "0.2rem", flexShrink: 0 }}>
                       {[1,2,3,4,5,6,7,8,9,10].map(n => {
                         const active = quickSeverity === n;
                         const col = n >= 7 ? "#c0392b" : n >= 4 ? "#e8a838" : SAGE_DARK;
                         return (
                           <button key={n} type="button"
                             onClick={() => { setQuickSeverity(active ? null : n); if (!active) setShowQuickNote(true); }}
-                            style={{ width: 32, height: 32, borderRadius: "50%", border: `1.5px solid ${active ? col : "rgba(0,0,0,0.12)"}`, background: active ? col : "transparent", color: active ? "#fff" : col, fontSize: "0.8rem", fontWeight: active ? 700 : 500, cursor: "pointer", fontFamily: "inherit", transition: "all 0.12s", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            style={{ width: 26, height: 26, borderRadius: "50%", border: `1.5px solid ${active ? col : "rgba(0,0,0,0.12)"}`, background: active ? col : "transparent", color: active ? "#fff" : col, fontSize: "0.72rem", fontWeight: active ? 700 : 500, cursor: "pointer", fontFamily: "inherit", transition: "all 0.12s", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                             {n}
                           </button>
                         );
                       })}
                     </div>
                     <button type="button" onClick={handleQuickLog} disabled={!quickSeverity}
-                      style={{ background: quickSeverity ? SAGE_DARK : "rgba(0,0,0,0.1)", color: quickSeverity ? "#fff" : WARM_GRAY, border: "none", borderRadius: "100px", padding: "0.45rem 1rem", fontSize: "0.8rem", fontWeight: 600, cursor: quickSeverity ? "pointer" : "default", fontFamily: "inherit", transition: "all 0.15s", whiteSpace: "nowrap", flexShrink: 0 }}>
+                      style={{ background: quickSeverity ? SAGE_DARK : "rgba(0,0,0,0.1)", color: quickSeverity ? "#fff" : WARM_GRAY, border: "none", borderRadius: "100px", padding: "0.4rem 0.875rem", fontSize: "0.78rem", fontWeight: 600, cursor: quickSeverity ? "pointer" : "default", fontFamily: "inherit", transition: "all 0.15s", whiteSpace: "nowrap", flexShrink: 0 }}>
                       Log →
                     </button>
                   </div>
