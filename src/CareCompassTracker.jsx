@@ -4101,6 +4101,7 @@ ${extraContext}` : ""}`;
                       </>
                     );
                   })()}
+                </div>
               )}
 
               {entries.length === 0 ? (
