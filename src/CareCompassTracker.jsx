@@ -4087,7 +4087,21 @@ ${extraContext}` : ""}`;
                             ))}
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "0.2rem" }}>
                               <span style={{ fontSize: "0.7rem", color: WARM_GRAY }}>Overall severity: <strong style={{ color: severityColor(autoSev) }}>{autoSev}/10</strong></span>
-                              <button type="button" onClick={openNew}
+                              <button type="button" onClick={() => {
+                                // Carry quick log selections into the full form
+                                const last = entries[0] || null;
+                                setEditingEntry(null);
+                                setForm({
+                                  ...blankForm,
+                                  sleep:           isFirstEntryToday ? 7 : null,
+                                  selectedMedIds:  last?.selectedMedIds?.length ? last.selectedMedIds : [],
+                                  weather:         last?.weather ?? "",
+                                  trackedSymptoms: [...quickTracked],
+                                });
+                                setShowAllSymptoms(false);
+                                setQuickTracked([]);
+                                setShowForm(true);
+                              }}
                                 style={{ background: "none", border: "none", color: WARM_GRAY, fontSize: "0.7rem", cursor: "pointer", fontFamily: "inherit", textDecoration: "underline", padding: 0 }}>
                                 Add more detail
                               </button>
