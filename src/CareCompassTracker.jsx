@@ -2318,6 +2318,294 @@ function CareTeamDashboard({ entries, bpReadings = [] }) {
         )}
       </div>
 
+      {/* ── Flare Pattern Map ── */}
+      {(() => {
+        const days30 = Array.from({ length: 30 }, (_, i) => {
+          const d = new Date(now); d.setDate(d.getDate() - (29 - i)); return d;
+        });
+        const dayMap = {};
+        last30.forEach(e => {
+          const k = new Date(e.timestamp).toDateString();
+          if (!dayMap[k] || e.severity > dayMap[k]) dayMap[k] = e.severity;
+        });
+        return (
+          <div style={{ background: "#fff", border: "1px solid rgba(0,0,0,0.07)", borderRadius: "0.875rem", padding: "1.25rem" }}>
+            <p style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: "0 0 0.15rem" }}>Flare Pattern — Last 30 Days</p>
+            <p style={{ fontSize: "0.75rem", color: WARM_GRAY, margin: "0 0 0.875rem" }}>Each cell = daily peak severity · red = flare (≥7)</p>
+            <div style={{ display: "flex", gap: "0.25rem", flexWrap: "wrap" }}>
+              {days30.map((d, i) => {
+                const sev = dayMap[d.toDateString()];
+                const bg  = sev == null ? "#f0ece8" : sev >= 7 ? "#c0392b" : sev >= 4 ? "#e8a838" : SAGE_DARK;
+                const isToday = d.toDateString() === now.toDateString();
+                return (
+                  <div key={i} title={`${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}${sev != null ? ` · ${sev}/10` : " · no entry"}`}
+                    style={{ width: 22, height: 22, borderRadius: "0.25rem", background: bg, opacity: sev == null ? 0.25 : 1, border: isToday ? `2px solid ${INK}` : "2px solid transparent", boxSizing: "border-box" }}
+                  />
+                );
+              })}
+            </div>
+            <div style={{ display: "flex", gap: "1rem", marginTop: "0.625rem", fontSize: "0.7rem", color: WARM_GRAY }}>
+              <span><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: SAGE_DARK, marginRight: 4, verticalAlign: "middle" }}/>1–3</span>
+              <span><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: "#e8a838", marginRight: 4, verticalAlign: "middle" }}/>4–6</span>
+              <span><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: "#c0392b", marginRight: 4, verticalAlign: "middle" }}/>7–10 flare</span>
+              <span><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: "#f0ece8", opacity: 0.4, marginRight: 4, verticalAlign: "middle" }}/>no entry</span>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Sleep × Next-Day Severity ── */}
+      {(() => {
+        const byDay = {};
+        [...entries].reverse().forEach(e => {
+          const k = new Date(e.timestamp).toDateString();
+          if (!byDay[k]) byDay[k] = { sleep: null, sev: null };
+          if (e.sleep != null && byDay[k].sleep == null) byDay[k].sleep = e.sleep;
+          if (e.severity > (byDay[k].sev || 0)) byDay[k].sev = e.severity;
+        });
+        const sortedDays = Object.keys(byDay).sort((a, b) => new Date(a) - new Date(b));
+        const pairs = sortedDays.slice(0, -1).map((day, i) => {
+          const nextDay = sortedDays[i + 1];
+          const sleep = byDay[day].sleep;
+          const nextSev = byDay[nextDay]?.sev;
+          return sleep != null && nextSev != null ? { sleep, nextSev } : null;
+        }).filter(Boolean);
+        if (pairs.length < 3) return null;
+
+        const SW = 300, SH = 120, SP = { t: 10, b: 24, l: 28, r: 10 };
+        const sCW = SW - SP.l - SP.r, sCH = SH - SP.t - SP.b;
+        const sX = v => SP.l + ((v - 1) / 9) * sCW;
+        const sY = v => SP.t + sCH - ((v - 1) / 9) * sCH;
+        const avgSleepP = pairs.reduce((s, p) => s + p.sleep, 0) / pairs.length;
+        const avgSevP   = pairs.reduce((s, p) => s + p.nextSev, 0) / pairs.length;
+        const corr = pairs.reduce((s, p) => s + (p.sleep - avgSleepP) * (p.nextSev - avgSevP), 0);
+        const corrLabel = corr < -2 ? "Better sleep correlates with lower next-day severity" : corr > 2 ? "Unusual pattern — more sleep associated with higher next-day severity" : "No strong correlation detected yet";
+
+        return (
+          <div style={{ background: "#fff", border: "1px solid rgba(0,0,0,0.07)", borderRadius: "0.875rem", padding: "1.25rem" }}>
+            <p style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: "0 0 0.15rem" }}>Sleep Quality → Next-Day Severity</p>
+            <p style={{ fontSize: "0.75rem", color: WARM_GRAY, margin: "0 0 0.875rem" }}>Each dot = one night's sleep vs following day's peak severity · {pairs.length} data points</p>
+            <div style={{ display: "flex", gap: "1.5rem", alignItems: "flex-start", flexWrap: "wrap" }}>
+              <svg width={SW} height={SH} viewBox={`0 0 ${SW} ${SH}`} style={{ overflow: "visible", flexShrink: 0 }}>
+                {[2,4,6,8,10].map(v => (
+                  <g key={v}>
+                    <line x1={SP.l} y1={sY(v)} x2={SW-SP.r} y2={sY(v)} stroke="#e8e4e0" strokeWidth="0.5" strokeDasharray="3 3"/>
+                    <text x={SP.l-4} y={sY(v)+3} fontSize="8" fill="#bbb" textAnchor="end">{v}</text>
+                    <line x1={sX(v)} y1={SP.t} x2={sX(v)} y2={SP.t+sCH} stroke="#e8e4e0" strokeWidth="0.5" strokeDasharray="3 3"/>
+                    <text x={sX(v)} y={SH-4} fontSize="8" fill="#bbb" textAnchor="middle">{v}</text>
+                  </g>
+                ))}
+                <text x={SP.l} y={SH} fontSize="7.5" fill="#bbb">sleep →</text>
+                <text x={SP.l-6} y={SP.t+sCH/2} fontSize="7.5" fill="#bbb" textAnchor="middle" transform={`rotate(-90, ${SP.l-6}, ${SP.t+sCH/2})`}>severity</text>
+                {pairs.map((p, i) => (
+                  <circle key={i} cx={sX(p.sleep)} cy={sY(p.nextSev)} r="4" fill={severityColor(p.nextSev)} stroke="#fff" strokeWidth="1" opacity="0.85"/>
+                ))}
+              </svg>
+              <div style={{ flex: 1, minWidth: 140 }}>
+                <p style={{ fontSize: "0.78rem", fontWeight: 600, color: INK, margin: "0 0 0.35rem" }}>Pattern</p>
+                <p style={{ fontSize: "0.8rem", color: WARM_GRAY, margin: "0 0 0.875rem", lineHeight: 1.5 }}>{corrLabel}</p>
+                <div style={{ display: "flex", gap: "1rem" }}>
+                  <div>
+                    <p style={{ fontSize: "0.65rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: WARM_GRAY, margin: "0 0 0.1rem" }}>Avg sleep</p>
+                    <p style={{ fontSize: "1.1rem", fontWeight: 700, color: TEAL, margin: 0 }}>{avgSleepP.toFixed(1)}/10</p>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: "0.65rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: WARM_GRAY, margin: "0 0 0.1rem" }}>Avg next-day sev</p>
+                    <p style={{ fontSize: "1.1rem", fontWeight: 700, color: severityColor(Math.round(avgSevP)), margin: 0 }}>{avgSevP.toFixed(1)}/10</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Good Day / Bad Day Snapshot ── */}
+      {(() => {
+        const dayAvg = {};
+        [...entries].reverse().forEach(e => {
+          const k = new Date(e.timestamp).toDateString();
+          if (!dayAvg[k]) dayAvg[k] = { sevs: [], symptoms: [], sleep: null, stress: null };
+          dayAvg[k].sevs.push(e.severity);
+          if (e.symptoms) dayAvg[k].symptoms.push(e.symptoms);
+          if (e.sleep != null && dayAvg[k].sleep == null) dayAvg[k].sleep = e.sleep;
+          if (e.stress != null) dayAvg[k].stress = e.stress;
+        });
+        const daySummaries = Object.entries(dayAvg)
+          .map(([k, v]) => ({ date: k, avg: v.sevs.reduce((a, b) => a + b, 0) / v.sevs.length, ...v }))
+          .filter(d => d.sevs.length > 0);
+        if (daySummaries.length < 2) return null;
+
+        const best  = daySummaries.reduce((a, b) => a.avg < b.avg ? a : b);
+        const worst = daySummaries.reduce((a, b) => a.avg > b.avg ? a : b);
+
+        const DayCard = ({ label, day, accent, bg }) => (
+          <div style={{ flex: 1, minWidth: 160, background: bg, borderRadius: "0.75rem", padding: "1rem 1.1rem" }}>
+            <p style={{ fontSize: "0.68rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: accent, margin: "0 0 0.2rem" }}>{label}</p>
+            <p style={{ fontSize: "0.8rem", fontWeight: 600, color: INK, margin: "0 0 0.5rem" }}>{new Date(day.date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}</p>
+            <div style={{ display: "flex", gap: "0.75rem", marginBottom: "0.5rem", flexWrap: "wrap" }}>
+              <div>
+                <p style={{ fontSize: "0.65rem", color: WARM_GRAY, margin: "0 0 0.1rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>Avg severity</p>
+                <p style={{ fontSize: "1.4rem", fontWeight: 700, color: accent, margin: 0, lineHeight: 1 }}>{day.avg.toFixed(1)}</p>
+              </div>
+              {day.sleep != null && <div>
+                <p style={{ fontSize: "0.65rem", color: WARM_GRAY, margin: "0 0 0.1rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>Sleep</p>
+                <p style={{ fontSize: "1.4rem", fontWeight: 700, color: TEAL, margin: 0, lineHeight: 1 }}>{day.sleep}/10</p>
+              </div>}
+              {day.stress != null && <div>
+                <p style={{ fontSize: "0.65rem", color: WARM_GRAY, margin: "0 0 0.1rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>Stress</p>
+                <p style={{ fontSize: "1.4rem", fontWeight: 700, color: "#e8a838", margin: 0, lineHeight: 1 }}>{day.stress}/10</p>
+              </div>}
+            </div>
+            {day.symptoms.length > 0 && (
+              <p style={{ fontSize: "0.74rem", color: WARM_GRAY, margin: 0, lineHeight: 1.5, fontStyle: "italic" }}>"{day.symptoms[0].slice(0, 80)}{day.symptoms[0].length > 80 ? "…" : ""}"</p>
+            )}
+          </div>
+        );
+
+        return (
+          <div style={{ background: "#fff", border: "1px solid rgba(0,0,0,0.07)", borderRadius: "0.875rem", padding: "1.25rem" }}>
+            <p style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: "0 0 0.875rem" }}>Best Day vs Worst Day</p>
+            <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+              <DayCard label="Best day" day={best}  accent={SAGE_DARK} bg={SAGE_LIGHT}/>
+              <DayCard label="Worst day" day={worst} accent="#c0392b"  bg="#fdeaea"/>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Functional Impact ── */}
+      {(() => {
+        const withFn = entries.filter(e => e.hoursUpright || (e.tasksCompleted && e.tasksCompleted.length > 0) || e.energyEnvelope);
+        if (withFn.length < 2) return null;
+        const uprightCounts = { "< 2h": 0, "2–4h": 0, "4–8h": 0, "8+h": 0 };
+        withFn.forEach(e => { if (e.hoursUpright && uprightCounts[e.hoursUpright] != null) uprightCounts[e.hoursUpright]++; });
+        const uprightTotal = Object.values(uprightCounts).reduce((a, b) => a + b, 0);
+        const energyCounts = { Low: 0, Medium: 0, High: 0 };
+        withFn.forEach(e => { if (e.energyEnvelope && energyCounts[e.energyEnvelope] != null) energyCounts[e.energyEnvelope]++; });
+        const energyTotal = Object.values(energyCounts).reduce((a, b) => a + b, 0);
+        const taskCounts = {};
+        withFn.forEach(e => (e.tasksCompleted || []).forEach(t => { taskCounts[t] = (taskCounts[t] || 0) + 1; }));
+        const topTasks = Object.entries(taskCounts).sort((a, b) => b[1] - a[1]).slice(0, 4);
+
+        const BarRow = ({ label, count, total, color }) => {
+          const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+          return (
+            <div style={{ marginBottom: "0.4rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.72rem", color: WARM_GRAY, marginBottom: "0.2rem" }}>
+                <span>{label}</span><span>{pct}%</span>
+              </div>
+              <div style={{ height: 7, background: "rgba(0,0,0,0.06)", borderRadius: 4 }}>
+                <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 4 }}/>
+              </div>
+            </div>
+          );
+        };
+
+        return (
+          <div style={{ background: "#fff", border: "1px solid rgba(0,0,0,0.07)", borderRadius: "0.875rem", padding: "1.25rem" }}>
+            <p style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: "0 0 0.875rem" }}>Functional Impact · {withFn.length} evening logs</p>
+            <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap" }}>
+              {uprightTotal > 0 && (
+                <div style={{ flex: 1, minWidth: 150 }}>
+                  <p style={{ fontSize: "0.75rem", fontWeight: 600, color: INK, margin: "0 0 0.5rem" }}>Hours upright</p>
+                  {Object.entries(uprightCounts).map(([label, count]) => (
+                    <BarRow key={label} label={label} count={count} total={uprightTotal} color={SAGE}/>
+                  ))}
+                </div>
+              )}
+              {energyTotal > 0 && (
+                <div style={{ flex: 1, minWidth: 150 }}>
+                  <p style={{ fontSize: "0.75rem", fontWeight: 600, color: INK, margin: "0 0 0.5rem" }}>Energy envelope</p>
+                  {[["Low", SAGE_DARK], ["Medium", "#e8a838"], ["High", "#c0392b"]].map(([level, color]) => (
+                    <BarRow key={level} label={level} count={energyCounts[level]} total={energyTotal} color={color}/>
+                  ))}
+                </div>
+              )}
+              {topTasks.length > 0 && (
+                <div style={{ flex: 1, minWidth: 150 }}>
+                  <p style={{ fontSize: "0.75rem", fontWeight: 600, color: INK, margin: "0 0 0.5rem" }}>Tasks managed</p>
+                  {topTasks.map(([task, count]) => (
+                    <BarRow key={task} label={task} count={count} total={withFn.length} color={TEAL}/>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Blood Pressure Trends ── */}
+      {(() => {
+        const last30bp = [...bpReadings]
+          .filter(r => now - new Date(r.timestamp) <= ms30)
+          .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+          .slice(-20);
+        if (last30bp.length < 2) return (
+          <div style={{ background: "#fff", border: "1px solid rgba(0,0,0,0.07)", borderRadius: "0.875rem", padding: "1.25rem" }}>
+            <p style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: "0 0 0.35rem" }}>Blood Pressure Trends</p>
+            <p style={{ fontSize: "0.82rem", color: WARM_GRAY, fontStyle: "italic" }}>No readings in the last 30 days. Log readings in the Blood Pressure tab to see trends here.</p>
+          </div>
+        );
+        const BW = 520, BH = 120, BP2 = { t: 10, b: 24, l: 32, r: 10 };
+        const bCW = BW - BP2.l - BP2.r, bCH = BH - BP2.t - BP2.b;
+        const allVals = last30bp.flatMap(r => [r.systolic, r.diastolic]);
+        const bMax = Math.max(...allVals, 160), bMin = Math.min(...allVals, 60);
+        const bY = v => BP2.t + bCH - ((v - bMin) / Math.max(bMax - bMin, 1)) * bCH;
+        const bX = i => BP2.l + (i / Math.max(last30bp.length - 1, 1)) * bCW;
+        const sysPath = last30bp.map((r, i) => `${i === 0 ? "M" : "L"} ${bX(i).toFixed(1)} ${bY(r.systolic).toFixed(1)}`).join(" ");
+        const diaPath = last30bp.map((r, i) => `${i === 0 ? "M" : "L"} ${bX(i).toFixed(1)} ${bY(r.diastolic).toFixed(1)}`).join(" ");
+        const avgSys = Math.round(last30bp.reduce((s, r) => s + r.systolic, 0) / last30bp.length);
+        const avgDia = Math.round(last30bp.reduce((s, r) => s + r.diastolic, 0) / last30bp.length);
+        return (
+          <div style={{ background: "#fff", border: "1px solid rgba(0,0,0,0.07)", borderRadius: "0.875rem", padding: "1.25rem" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.875rem", flexWrap: "wrap", gap: "0.5rem" }}>
+              <div>
+                <p style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: "0 0 0.15rem" }}>Blood Pressure Trends</p>
+                <p style={{ fontSize: "0.75rem", color: WARM_GRAY, margin: 0 }}>Last {last30bp.length} readings · 30-day window</p>
+              </div>
+              <div style={{ display: "flex", gap: "1rem" }}>
+                <div style={{ textAlign: "right" }}>
+                  <p style={{ fontSize: "0.65rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: WARM_GRAY, margin: "0 0 0.1rem" }}>Avg systolic</p>
+                  <p style={{ fontSize: "1.1rem", fontWeight: 700, color: "#c0392b", margin: 0 }}>{avgSys}</p>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <p style={{ fontSize: "0.65rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: WARM_GRAY, margin: "0 0 0.1rem" }}>Avg diastolic</p>
+                  <p style={{ fontSize: "1.1rem", fontWeight: 700, color: "#e8a838", margin: 0 }}>{avgDia}</p>
+                </div>
+              </div>
+            </div>
+            <svg width="100%" viewBox={`0 0 ${BW} ${BH}`} style={{ overflow: "visible", display: "block" }}>
+              <rect x={BP2.l} y={bY(120)} width={bCW} height={Math.abs(bY(90) - bY(120))} fill={SAGE_LIGHT} opacity="0.5"/>
+              {[80, 100, 120, 140, 160].filter(v => v >= bMin - 10 && v <= bMax + 10).map(v => (
+                <g key={v}>
+                  <line x1={BP2.l} y1={bY(v)} x2={BW-BP2.r} y2={bY(v)} stroke="#e8e4e0" strokeWidth="0.5" strokeDasharray="3 3"/>
+                  <text x={BP2.l-4} y={bY(v)+3} fontSize="8" fill="#bbb" textAnchor="end">{v}</text>
+                </g>
+              ))}
+              <path d={sysPath} fill="none" stroke="#c0392b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d={diaPath} fill="none" stroke="#e8a838" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="5 3"/>
+              {last30bp.map((r, i) => (
+                <g key={i}>
+                  <circle cx={bX(i)} cy={bY(r.systolic)}  r="3.5" fill="#c0392b" stroke="#fff" strokeWidth="1"/>
+                  <circle cx={bX(i)} cy={bY(r.diastolic)} r="3.5" fill="#e8a838" stroke="#fff" strokeWidth="1"/>
+                  {i % Math.ceil(last30bp.length / 5) === 0 && (
+                    <text x={bX(i)} y={BH-4} fontSize="8" fill="#bbb" textAnchor="middle">
+                      {new Date(r.timestamp).toLocaleDateString("en-US", { month: "numeric", day: "numeric" })}
+                    </text>
+                  )}
+                </g>
+              ))}
+            </svg>
+            <div style={{ display: "flex", gap: "1rem", marginTop: "0.5rem", fontSize: "0.7rem", color: WARM_GRAY }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ display: "inline-block", width: 20, height: 2, background: "#c0392b" }}/>Systolic</span>
+              <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ display: "inline-block", width: 20, height: 2, background: "#e8a838" }}/>Diastolic</span>
+              <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ display: "inline-block", width: 10, height: 10, background: SAGE_LIGHT }}/>Normal range</span>
+            </div>
+          </div>
+        );
+      })()}
+
     </div>
   );
 }
