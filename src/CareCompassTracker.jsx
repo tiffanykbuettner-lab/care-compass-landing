@@ -337,6 +337,37 @@ const MED_STORAGE_KEY = "care-compass-medications-v1";
 const CHECKIN_KEY = "care-compass-checkins-v1";
 const LABS_KEY    = "care-compass-labs-v1";
 const CYCLE_KEY   = "care-compass-cycle-v1";
+const TRACKED_SYM_KEY = "care-compass-tracked-symptoms-v1";
+
+const DEFAULT_TRACKED_SYMPTOMS = [
+  // Systemic
+  { id: "fatigue",       label: "Fatigue",              category: "Systemic" },
+  { id: "brain-fog",     label: "Brain fog",            category: "Systemic" },
+  { id: "malaise",       label: "Malaise",              category: "Systemic" },
+  // Pain
+  { id: "pain-head",     label: "Head pain",            category: "Pain" },
+  { id: "pain-neck",     label: "Neck pain",            category: "Pain" },
+  { id: "pain-shoulder", label: "Shoulder pain",        category: "Pain" },
+  { id: "pain-back",     label: "Back pain",            category: "Pain" },
+  { id: "pain-joint",    label: "Joint pain",           category: "Pain" },
+  { id: "pain-chest",    label: "Chest pain",           category: "Pain" },
+  // Neurological
+  { id: "dizziness",     label: "Dizziness",            category: "Neurological" },
+  { id: "numbness",      label: "Numbness / tingling",  category: "Neurological" },
+  { id: "light-sound",   label: "Light / sound sensitivity", category: "Neurological" },
+  { id: "vision",        label: "Vision changes",       category: "Neurological" },
+  // Autonomic
+  { id: "palpitations",  label: "Heart palpitations",   category: "Autonomic" },
+  { id: "sob",           label: "Shortness of breath",  category: "Autonomic" },
+  { id: "temp-dysreg",   label: "Temperature dysregulation", category: "Autonomic" },
+  // GI
+  { id: "nausea",        label: "Nausea",               category: "GI" },
+  { id: "bloating",      label: "Bloating",             category: "GI" },
+  { id: "abdominal",     label: "Abdominal pain",       category: "GI" },
+  // Mood
+  { id: "anxiety",       label: "Anxiety",              category: "Mood" },
+  { id: "low-mood",      label: "Low mood",             category: "Mood" },
+];
 const ROSE        = "#c0567a";
 const ROSE_LIGHT  = "#fdeef4";
 const LAVENDER    = "#8b7ab8";
@@ -2856,7 +2887,7 @@ export default function CareCompassTracker() {
   const [editTime, setEditTime]           = useState("08:00");
   const [editLabel, setEditLabel]         = useState("");
 
-  const blankForm = { symptoms: "", severity: 5, food: "", medications: "", selectedMedIds: [], saveUnlistedMed: false, activity: "", sleep: null, stress: 5, weather: "", notes: "", photos: [], hoursUpright: null, tasksCompleted: [], energyEnvelope: null };
+  const blankForm = { symptoms: "", severity: 5, food: "", medications: "", selectedMedIds: [], saveUnlistedMed: false, activity: "", sleep: null, stress: 5, weather: "", notes: "", photos: [], hoursUpright: null, tasksCompleted: [], energyEnvelope: null, trackedSymptoms: [] };
   const [form, setForm] = useState(blankForm);
 
   useEffect(() => { try { const stored = localStorage.getItem(STORAGE_KEY); if (stored) setEntries(JSON.parse(stored)); } catch {} }, []);
@@ -3010,6 +3041,7 @@ export default function CareCompassTracker() {
       hoursUpright:    entry.hoursUpright    ?? null,
       tasksCompleted:  entry.tasksCompleted  || [],
       energyEnvelope:  entry.energyEnvelope  ?? null,
+      trackedSymptoms: entry.trackedSymptoms || [],
     });
     setShowForm(true);
   };
@@ -3565,6 +3597,12 @@ ${extraContext}` : ""}`;
     setErView("report");
   };
   const [medications, setMedications]     = useState([]);
+  const [userTrackedSymptoms, setUserTrackedSymptoms] = useState(() => {
+    try {
+      const stored = localStorage.getItem(TRACKED_SYM_KEY);
+      return stored ? JSON.parse(stored) : DEFAULT_TRACKED_SYMPTOMS;
+    } catch { return DEFAULT_TRACKED_SYMPTOMS; }
+  });
   const [showMedForm, setShowMedForm]     = useState(false);
   const [editingMed, setEditingMed]       = useState(null);
   const [medSaved, setMedSaved]           = useState(false);
@@ -5602,6 +5640,80 @@ ${extraContext}` : ""}`;
               </button>
 
               {showMoreFields && <>
+              {/* ── Tracked symptoms ── */}
+              {userTrackedSymptoms.length > 0 && (
+                <div style={s.formGroup}>
+                  <label style={s.label}>Track specific symptoms <span style={s.optional}>(tap to log, slide to rate severity)</span></label>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                    {/* Group by category */}
+                    {Object.entries(
+                      userTrackedSymptoms.reduce((acc, sym) => {
+                        if (!acc[sym.category]) acc[sym.category] = [];
+                        acc[sym.category].push(sym);
+                        return acc;
+                      }, {})
+                    ).map(([cat, syms]) => (
+                      <div key={cat}>
+                        <p style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: WARM_GRAY, margin: "0 0 0.35rem" }}>{cat}</p>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+                          {syms.map(sym => {
+                            const active = (form.trackedSymptoms || []).find(ts => ts.id === sym.id);
+                            return (
+                              <div key={sym.id} style={{ borderRadius: "0.625rem", border: `1.5px solid ${active ? SAGE_DARK : "rgba(0,0,0,0.1)"}`, background: active ? SAGE_LIGHT : "transparent", overflow: "hidden" }}>
+                                <button
+                                  type="button"
+                                  onClick={() => setForm(f => {
+                                    const current = f.trackedSymptoms || [];
+                                    const exists  = current.find(ts => ts.id === sym.id);
+                                    return {
+                                      ...f,
+                                      trackedSymptoms: exists
+                                        ? current.filter(ts => ts.id !== sym.id)
+                                        : [...current, { id: sym.id, label: sym.label, severity: 5 }]
+                                    };
+                                  })}
+                                  style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.45rem 0.75rem", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}
+                                >
+                                  <span style={{ fontSize: "0.82rem", fontWeight: active ? 600 : 400, color: active ? SAGE_DARK : INK }}>{sym.label}</span>
+                                  {active && <span style={{ fontSize: "0.72rem", fontWeight: 700, color: severityColor(active.severity), minWidth: 36, textAlign: "right" }}>{active.severity}/10</span>}
+                                </button>
+                                {active && (
+                                  <div style={{ padding: "0 0.75rem 0.6rem", display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                                    <input
+                                      type="range" min="1" max="10" step="1"
+                                      value={active.severity}
+                                      onChange={e => setForm(f => ({
+                                        ...f,
+                                        trackedSymptoms: (f.trackedSymptoms || []).map(ts =>
+                                          ts.id === sym.id ? { ...ts, severity: Number(e.target.value) } : ts
+                                        )
+                                      }))}
+                                      style={{ flex: 1, accentColor: severityColor(active.severity) }}
+                                    />
+                                    <div style={{ display: "flex", gap: "0.2rem" }}>
+                                      {["Mild","Mod","Severe"].map((lbl, i) => {
+                                        const val = i === 0 ? 3 : i === 1 ? 6 : 9;
+                                        return (
+                                          <button key={lbl} type="button"
+                                            onClick={() => setForm(f => ({ ...f, trackedSymptoms: (f.trackedSymptoms||[]).map(ts => ts.id === sym.id ? { ...ts, severity: val } : ts) }))}
+                                            style={{ fontSize: "0.62rem", padding: "0.15rem 0.4rem", borderRadius: "100px", border: `1px solid ${active.severity <= 4 && i===0 ? SAGE_DARK : active.severity <= 7 && i===1 ? "#e8a838" : active.severity > 7 && i===2 ? "#c0392b" : "rgba(0,0,0,0.12)"}`, background: (active.severity <= 4 && i===0) || (active.severity > 4 && active.severity <= 7 && i===1) || (active.severity > 7 && i===2) ? (i===0 ? SAGE_LIGHT : i===1 ? "#fef3da" : "#fdeaea") : "transparent", color: i===0 ? SAGE_DARK : i===1 ? "#8a5a00" : "#c0392b", cursor: "pointer", fontFamily: "inherit", fontWeight: 500 }}>
+                                            {lbl}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div style={s.formGroup}>
                 <label style={s.label}>Food & Drink</label>
                 <textarea value={form.food} onChange={e => setForm(f => ({ ...f, food: e.target.value }))} placeholder="Have you eaten or had anything to drink?" style={{ ...s.textarea, width: "100%", boxSizing: "border-box" }} rows={2}/>
