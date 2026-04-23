@@ -2857,6 +2857,7 @@ export default function CareCompassTracker() {
   const [quickSaved, setQuickSaved]       = useState(false);
   const [showQuickNote, setShowQuickNote] = useState(false);
   const [showMoreFields, setShowMoreFields] = useState(false);
+  const [showAllSymptoms, setShowAllSymptoms] = useState(false);
   const [logTipDismissed, setLogTipDismissed] = useState(() => !!localStorage.getItem("cc-log-tip-dismissed"));
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [confirmDeleteLabId, setConfirmDeleteLabId] = useState(null);
@@ -3017,7 +3018,8 @@ export default function CareCompassTracker() {
       selectedMedIds: defaultMedIds,
       weather:        defaultWeather,
     });
-    setShowMoreFields(hasDefaults); // auto-expand so user can see/adjust pre-filled fields
+    setShowMoreFields(hasDefaults);
+    setShowAllSymptoms(false);
     setShowForm(true);
   };
   const openEdit = (entry) => {
@@ -5643,74 +5645,86 @@ ${extraContext}` : ""}`;
               {/* ── Tracked symptoms ── */}
               {userTrackedSymptoms.length > 0 && (
                 <div style={s.formGroup}>
-                  <label style={s.label}>Track specific symptoms <span style={s.optional}>(tap to log, slide to rate severity)</span></label>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                    {/* Group by category */}
-                    {Object.entries(
-                      userTrackedSymptoms.reduce((acc, sym) => {
-                        if (!acc[sym.category]) acc[sym.category] = [];
-                        acc[sym.category].push(sym);
-                        return acc;
-                      }, {})
-                    ).map(([cat, syms]) => (
-                      <div key={cat}>
-                        <p style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: WARM_GRAY, margin: "0 0 0.35rem" }}>{cat}</p>
-                        <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
-                          {syms.map(sym => {
-                            const active = (form.trackedSymptoms || []).find(ts => ts.id === sym.id);
-                            return (
-                              <div key={sym.id} style={{ borderRadius: "0.625rem", border: `1.5px solid ${active ? SAGE_DARK : "rgba(0,0,0,0.1)"}`, background: active ? SAGE_LIGHT : "transparent", overflow: "hidden" }}>
-                                <button
-                                  type="button"
-                                  onClick={() => setForm(f => {
-                                    const current = f.trackedSymptoms || [];
-                                    const exists  = current.find(ts => ts.id === sym.id);
-                                    return {
-                                      ...f,
-                                      trackedSymptoms: exists
-                                        ? current.filter(ts => ts.id !== sym.id)
-                                        : [...current, { id: sym.id, label: sym.label, severity: 5 }]
-                                    };
-                                  })}
-                                  style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.45rem 0.75rem", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}
-                                >
-                                  <span style={{ fontSize: "0.82rem", fontWeight: active ? 600 : 400, color: active ? SAGE_DARK : INK }}>{sym.label}</span>
-                                  {active && <span style={{ fontSize: "0.72rem", fontWeight: 700, color: severityColor(active.severity), minWidth: 36, textAlign: "right" }}>{active.severity}/10</span>}
-                                </button>
-                                {active && (
-                                  <div style={{ padding: "0 0.75rem 0.6rem", display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                                    <input
-                                      type="range" min="1" max="10" step="1"
-                                      value={active.severity}
-                                      onChange={e => setForm(f => ({
-                                        ...f,
-                                        trackedSymptoms: (f.trackedSymptoms || []).map(ts =>
-                                          ts.id === sym.id ? { ...ts, severity: Number(e.target.value) } : ts
-                                        )
-                                      }))}
-                                      style={{ flex: 1, accentColor: severityColor(active.severity) }}
-                                    />
-                                    <div style={{ display: "flex", gap: "0.2rem" }}>
-                                      {["Mild","Mod","Severe"].map((lbl, i) => {
-                                        const val = i === 0 ? 3 : i === 1 ? 6 : 9;
-                                        return (
-                                          <button key={lbl} type="button"
-                                            onClick={() => setForm(f => ({ ...f, trackedSymptoms: (f.trackedSymptoms||[]).map(ts => ts.id === sym.id ? { ...ts, severity: val } : ts) }))}
-                                            style={{ fontSize: "0.62rem", padding: "0.15rem 0.4rem", borderRadius: "100px", border: `1px solid ${active.severity <= 4 && i===0 ? SAGE_DARK : active.severity <= 7 && i===1 ? "#e8a838" : active.severity > 7 && i===2 ? "#c0392b" : "rgba(0,0,0,0.12)"}`, background: (active.severity <= 4 && i===0) || (active.severity > 4 && active.severity <= 7 && i===1) || (active.severity > 7 && i===2) ? (i===0 ? SAGE_LIGHT : i===1 ? "#fef3da" : "#fdeaea") : "transparent", color: i===0 ? SAGE_DARK : i===1 ? "#8a5a00" : "#c0392b", cursor: "pointer", fontFamily: "inherit", fontWeight: 500 }}>
-                                            {lbl}
-                                          </button>
-                                        );
-                                      })}
+                  <label style={s.label}>Track specific symptoms <span style={s.optional}>(tap to add, slide to rate)</span></label>
+                  {(() => {
+                    // Top symptoms: user's most frequently logged, or sensible defaults for new users
+                    const freqMap = {};
+                    entries.forEach(e => (e.trackedSymptoms || []).forEach(ts => {
+                      freqMap[ts.id] = (freqMap[ts.id] || 0) + 1;
+                    }));
+                    const hasHistory = Object.keys(freqMap).length > 0;
+                    const topIds = hasHistory
+                      ? Object.entries(freqMap).sort((a,b) => b[1]-a[1]).slice(0,6).map(([id]) => id)
+                      : ["fatigue","brain-fog","pain-head","dizziness","nausea","pain-joint"];
+                    const topSymptoms    = userTrackedSymptoms.filter(s => topIds.includes(s.id));
+                    const remainingSyms  = userTrackedSymptoms.filter(s => !topIds.includes(s.id));
+                    const activeSymptoms = form.trackedSymptoms || [];
+
+                    const SymChip = ({ sym }) => {
+                      const active = activeSymptoms.find(ts => ts.id === sym.id);
+                      return (
+                        <button type="button"
+                          onClick={() => setForm(f => {
+                            const cur = f.trackedSymptoms || [];
+                            const exists = cur.find(ts => ts.id === sym.id);
+                            return { ...f, trackedSymptoms: exists ? cur.filter(ts => ts.id !== sym.id) : [...cur, { id: sym.id, label: sym.label, severity: 5 }] };
+                          })}
+                          style={{ padding: "0.35rem 0.75rem", borderRadius: "100px", border: `1.5px solid ${active ? SAGE_DARK : "rgba(0,0,0,0.12)"}`, background: active ? SAGE_DARK : "transparent", color: active ? "#fff" : INK, fontSize: "0.78rem", fontWeight: active ? 600 : 400, cursor: "pointer", fontFamily: "inherit", transition: "all 0.12s", display: "flex", alignItems: "center", gap: "0.3rem" }}>
+                          {sym.label}
+                          {active && <span style={{ fontSize: "0.7rem", opacity: 0.85 }}>· {active.severity}/10</span>}
+                        </button>
+                      );
+                    };
+
+                    return (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                        {/* Top chips */}
+                        <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
+                          {topSymptoms.map(sym => <SymChip key={sym.id} sym={sym}/>)}
+                        </div>
+
+                        {/* Active sliders */}
+                        {activeSymptoms.length > 0 && (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", background: SAGE_LIGHT, borderRadius: "0.625rem", padding: "0.625rem 0.875rem" }}>
+                            {activeSymptoms.map(ts => (
+                              <div key={ts.id} style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
+                                <span style={{ fontSize: "0.75rem", fontWeight: 600, color: SAGE_DARK, minWidth: 110 }}>{ts.label}</span>
+                                <input type="range" min="1" max="10" step="1" value={ts.severity}
+                                  onChange={e => setForm(f => ({ ...f, trackedSymptoms: (f.trackedSymptoms||[]).map(s => s.id === ts.id ? { ...s, severity: Number(e.target.value) } : s) }))}
+                                  style={{ flex: 1, accentColor: severityColor(ts.severity) }}
+                                />
+                                <span style={{ fontSize: "0.75rem", fontWeight: 700, color: severityColor(ts.severity), minWidth: 28, textAlign: "right" }}>{ts.severity}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Expand to full list */}
+                        {remainingSyms.length > 0 && (
+                          <div>
+                            <button type="button" onClick={() => setShowAllSymptoms(v => !v)}
+                              style={{ background: "none", border: "none", color: WARM_GRAY, fontSize: "0.75rem", cursor: "pointer", fontFamily: "inherit", textDecoration: "underline", textDecorationColor: "rgba(0,0,0,0.2)", padding: 0 }}>
+                              {showAllSymptoms ? "Show fewer symptoms" : `+ ${remainingSyms.length} more symptoms`}
+                            </button>
+                            {showAllSymptoms && (
+                              <div style={{ marginTop: "0.625rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                                {Object.entries(
+                                  remainingSyms.reduce((acc, sym) => { if (!acc[sym.category]) acc[sym.category] = []; acc[sym.category].push(sym); return acc; }, {})
+                                ).map(([cat, syms]) => (
+                                  <div key={cat}>
+                                    <p style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: WARM_GRAY, margin: "0 0 0.3rem" }}>{cat}</p>
+                                    <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
+                                      {syms.map(sym => <SymChip key={sym.id} sym={sym}/>)}
                                     </div>
                                   </div>
-                                )}
+                                ))}
                               </div>
-                            );
-                          })}
-                        </div>
+                            )}
+                          </div>
+                        )}
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })()}
                 </div>
               )}
 
