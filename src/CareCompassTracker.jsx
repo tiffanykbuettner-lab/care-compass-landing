@@ -5576,15 +5576,117 @@ ${extraContext}` : ""}`;
           <div style={s.modal} onClick={e => e.stopPropagation()}>
             <div style={s.modalHeader}><h2 style={s.modalTitle}>{editingEntry ? "Edit entry" : "Log an entry"}</h2><button onClick={() => { setShowForm(false); }} style={s.modalClose}><Icon name="close" size={16} /></button></div>
             <div style={s.modalBody}>
+
+              {/* ── 1. Tracked symptom chips (primary) ── */}
+              {userTrackedSymptoms.length > 0 && (() => {
+                const freqMap = {};
+                entries.forEach(e => (e.trackedSymptoms || []).forEach(ts => {
+                  freqMap[ts.id] = (freqMap[ts.id] || 0) + 1;
+                }));
+                const hasHistory = Object.keys(freqMap).length > 0;
+                const topIds = hasHistory
+                  ? Object.entries(freqMap).sort((a,b) => b[1]-a[1]).slice(0,6).map(([id]) => id)
+                  : ["fatigue","brain-fog","pain-head","dizziness","nausea","pain-joint"];
+                const topSymptoms   = userTrackedSymptoms.filter(s => topIds.includes(s.id));
+                const remainingSyms = userTrackedSymptoms.filter(s => !topIds.includes(s.id));
+                const activeSymptoms = form.trackedSymptoms || [];
+
+                const SymChip = ({ sym }) => {
+                  const active = activeSymptoms.find(ts => ts.id === sym.id);
+                  return (
+                    <button type="button"
+                      onClick={() => setForm(f => {
+                        const cur = f.trackedSymptoms || [];
+                        const exists = cur.find(ts => ts.id === sym.id);
+                        return { ...f, trackedSymptoms: exists ? cur.filter(ts => ts.id !== sym.id) : [...cur, { id: sym.id, label: sym.label, severity: 5 }] };
+                      })}
+                      style={{ padding: "0.35rem 0.75rem", borderRadius: "100px", border: `1.5px solid ${active ? SAGE_DARK : "rgba(0,0,0,0.12)"}`, background: active ? SAGE_DARK : "transparent", color: active ? "#fff" : INK, fontSize: "0.78rem", fontWeight: active ? 600 : 400, cursor: "pointer", fontFamily: "inherit", transition: "all 0.12s", display: "flex", alignItems: "center", gap: "0.3rem" }}>
+                      {sym.label}
+                      {active && <span style={{ fontSize: "0.7rem", opacity: 0.85 }}>· {active.severity}/10</span>}
+                    </button>
+                  );
+                };
+
+                return (
+                  <div style={s.formGroup}>
+                    <label style={s.label}>What's bothering you? <span style={s.optional}>(tap to add, slide to rate)</span></label>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                      {/* Top chips row */}
+                      <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
+                        {topSymptoms.map(sym => <SymChip key={sym.id} sym={sym}/>)}
+                      </div>
+
+                      {/* Expand to full list */}
+                      {remainingSyms.length > 0 && (
+                        <div>
+                          <button type="button" onClick={() => setShowAllSymptoms(v => !v)}
+                            style={{ background: "none", border: "none", color: WARM_GRAY, fontSize: "0.75rem", cursor: "pointer", fontFamily: "inherit", textDecoration: "underline", textDecorationColor: "rgba(0,0,0,0.2)", padding: 0 }}>
+                            {showAllSymptoms ? "Show fewer" : `+ ${remainingSyms.length} more symptoms`}
+                          </button>
+                          {showAllSymptoms && (
+                            <div style={{ marginTop: "0.625rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                              {Object.entries(
+                                remainingSyms.reduce((acc, sym) => { if (!acc[sym.category]) acc[sym.category] = []; acc[sym.category].push(sym); return acc; }, {})
+                              ).map(([cat, syms]) => (
+                                <div key={cat}>
+                                  <p style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: WARM_GRAY, margin: "0 0 0.3rem" }}>{cat}</p>
+                                  <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
+                                    {syms.map(sym => <SymChip key={sym.id} sym={sym}/>)}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Active sliders — always below all chips */}
+                      {activeSymptoms.length > 0 && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", background: SAGE_LIGHT, borderRadius: "0.625rem", padding: "0.625rem 0.875rem" }}>
+                          {activeSymptoms.map(ts => (
+                            <div key={ts.id} style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
+                              <span style={{ fontSize: "0.75rem", fontWeight: 600, color: SAGE_DARK, minWidth: 110 }}>{ts.label}</span>
+                              <input type="range" min="1" max="10" step="1" value={ts.severity}
+                                onChange={e => setForm(f => ({ ...f, trackedSymptoms: (f.trackedSymptoms||[]).map(s => s.id === ts.id ? { ...s, severity: Number(e.target.value) } : s) }))}
+                                style={{ flex: 1, accentColor: severityColor(ts.severity) }}
+                              />
+                              <span style={{ fontSize: "0.75rem", fontWeight: 700, color: severityColor(ts.severity), minWidth: 28, textAlign: "right" }}>{ts.severity}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* ── 2. Overall severity ── */}
               <div style={s.formGroup}>
-                <label style={s.label}>What symptoms are you experiencing?</label>
+                <label style={s.label}>Overall severity right now</label>
+                <SeveritySlider value={form.severity} onChange={v => setForm(f => ({ ...f, severity: v }))}/>
+              </div>
+
+              {/* ── 3. More detail toggle ── */}
+              <button
+                type="button"
+                onClick={() => setShowMoreFields(f => !f)}
+                style={{ display: "flex", alignItems: "center", gap: "0.4rem", background: "none", border: "1px solid rgba(0,0,0,0.12)", borderRadius: "100px", padding: "0.45rem 1rem", fontSize: "0.8rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit", fontWeight: 500, alignSelf: "flex-start" }}
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ transition: "transform 0.2s", transform: showMoreFields ? "rotate(180deg)" : "rotate(0deg)" }}><path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                {showMoreFields ? "Hide detail" : "Add more detail"}
+              </button>
+
+              {showMoreFields && <>
+              {/* ── Symptom description + recent shortcuts ── */}
+              <div style={s.formGroup}>
+                <label style={s.label}>Describe your symptoms <span style={s.optional}>(optional)</span></label>
                 <div style={{ position: "relative" }}>
                   <textarea
                     value={form.symptoms}
                     onChange={e => setForm(f => ({ ...f, symptoms: e.target.value }))}
-                    placeholder="The more detail the better — where exactly (e.g. behind right eye, left hip), what it feels like (throbbing, stabbing, dull ache), what triggered or worsened it."
+                    placeholder="Where exactly, what it feels like, what triggered or worsened it…"
                     style={{ ...s.textarea, width: "100%", boxSizing: "border-box" }}
-                    rows={4}
+                    rows={3}
                   />
                 </div>
                 {/* ── Recent symptom shortcuts ── */}
@@ -5592,31 +5694,24 @@ ${extraContext}` : ""}`;
                   const cutoff = Date.now() - 14 * 24 * 60 * 60 * 1000;
                   const recentText = entries
                     .filter(e => new Date(e.timestamp).getTime() >= cutoff && e.symptoms)
-                    .map(e => e.symptoms)
-                    .join(", ");
+                    .map(e => e.symptoms).join(", ");
                   if (!recentText.trim()) return null;
                   const counts = {};
                   recentText.split(/[,;\n]+/).forEach(chunk => {
                     const word = chunk.trim().toLowerCase().replace(/[^a-z\s-]/g, "").trim();
                     if (word.length >= 3) counts[word] = (counts[word] || 0) + 1;
                   });
-                  const chips = Object.entries(counts)
-                    .sort((a, b) => b[1] - a[1])
-                    .slice(0, 6)
-                    .map(([w]) => w)
-                    .filter(w => !form.symptoms.toLowerCase().includes(w));
+                  const chips = Object.entries(counts).sort((a,b) => b[1]-a[1]).slice(0,6)
+                    .map(([w]) => w).filter(w => !form.symptoms.toLowerCase().includes(w));
                   if (!chips.length) return null;
                   return (
                     <div style={{ marginTop: "0.4rem" }}>
-                      <p style={{ fontSize: "0.72rem", color: WARM_GRAY, margin: "0 0 0.35rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Recent</p>
+                      <p style={{ fontSize: "0.72rem", color: WARM_GRAY, margin: "0 0 0.35rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Recent phrases</p>
                       <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
                         {chips.map(chip => (
-                          <button
-                            key={chip}
-                            type="button"
+                          <button key={chip} type="button"
                             onClick={() => setForm(f => ({ ...f, symptoms: f.symptoms ? `${f.symptoms.trimEnd()}, ${chip}` : chip }))}
-                            style={{ padding: "0.3rem 0.75rem", borderRadius: "100px", border: "1.5px solid rgba(0,0,0,0.12)", background: "transparent", color: WARM_GRAY, fontSize: "0.78rem", cursor: "pointer", fontFamily: "inherit", transition: "all 0.12s" }}
-                          >
+                            style={{ padding: "0.3rem 0.75rem", borderRadius: "100px", border: "1.5px solid rgba(0,0,0,0.12)", background: "transparent", color: WARM_GRAY, fontSize: "0.78rem", cursor: "pointer", fontFamily: "inherit", transition: "all 0.12s" }}>
                             + {chip}
                           </button>
                         ))}
@@ -5624,109 +5719,7 @@ ${extraContext}` : ""}`;
                     </div>
                   );
                 })()}
-                {/* ── Severity — kept in same formGroup to avoid excess gap ── */}
-                <div style={{ marginTop: "0.75rem" }}>
-                  <label style={s.label}>Symptom severity right now</label>
-                  <SeveritySlider value={form.severity} onChange={v => setForm(f => ({ ...f, severity: v }))}/>
-                </div>
               </div>
-
-              {/* ── More detail toggle ── */}
-              <button
-                type="button"
-                onClick={() => setShowMoreFields(f => !f)}
-                style={{ display: "flex", alignItems: "center", gap: "0.4rem", background: "none", border: "1px solid rgba(0,0,0,0.12)", borderRadius: "100px", padding: "0.45rem 1rem", fontSize: "0.8rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit", fontWeight: 500, alignSelf: "flex-start" }}
-              >
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ transition: "transform 0.2s", transform: showMoreFields ? "rotate(180deg)" : "rotate(0deg)" }}><path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                {showMoreFields ? "Hide detail fields" : "Add more detail"}
-              </button>
-
-              {showMoreFields && <>
-              {/* ── Tracked symptoms ── */}
-              {userTrackedSymptoms.length > 0 && (
-                <div style={s.formGroup}>
-                  <label style={s.label}>Track specific symptoms <span style={s.optional}>(tap to add, slide to rate)</span></label>
-                  {(() => {
-                    // Top symptoms: user's most frequently logged, or sensible defaults for new users
-                    const freqMap = {};
-                    entries.forEach(e => (e.trackedSymptoms || []).forEach(ts => {
-                      freqMap[ts.id] = (freqMap[ts.id] || 0) + 1;
-                    }));
-                    const hasHistory = Object.keys(freqMap).length > 0;
-                    const topIds = hasHistory
-                      ? Object.entries(freqMap).sort((a,b) => b[1]-a[1]).slice(0,6).map(([id]) => id)
-                      : ["fatigue","brain-fog","pain-head","dizziness","nausea","pain-joint"];
-                    const topSymptoms    = userTrackedSymptoms.filter(s => topIds.includes(s.id));
-                    const remainingSyms  = userTrackedSymptoms.filter(s => !topIds.includes(s.id));
-                    const activeSymptoms = form.trackedSymptoms || [];
-
-                    const SymChip = ({ sym }) => {
-                      const active = activeSymptoms.find(ts => ts.id === sym.id);
-                      return (
-                        <button type="button"
-                          onClick={() => setForm(f => {
-                            const cur = f.trackedSymptoms || [];
-                            const exists = cur.find(ts => ts.id === sym.id);
-                            return { ...f, trackedSymptoms: exists ? cur.filter(ts => ts.id !== sym.id) : [...cur, { id: sym.id, label: sym.label, severity: 5 }] };
-                          })}
-                          style={{ padding: "0.35rem 0.75rem", borderRadius: "100px", border: `1.5px solid ${active ? SAGE_DARK : "rgba(0,0,0,0.12)"}`, background: active ? SAGE_DARK : "transparent", color: active ? "#fff" : INK, fontSize: "0.78rem", fontWeight: active ? 600 : 400, cursor: "pointer", fontFamily: "inherit", transition: "all 0.12s", display: "flex", alignItems: "center", gap: "0.3rem" }}>
-                          {sym.label}
-                          {active && <span style={{ fontSize: "0.7rem", opacity: 0.85 }}>· {active.severity}/10</span>}
-                        </button>
-                      );
-                    };
-
-                    return (
-                      <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                        {/* Top chips */}
-                        <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
-                          {topSymptoms.map(sym => <SymChip key={sym.id} sym={sym}/>)}
-                        </div>
-
-                        {/* Active sliders */}
-                        {activeSymptoms.length > 0 && (
-                          <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", background: SAGE_LIGHT, borderRadius: "0.625rem", padding: "0.625rem 0.875rem" }}>
-                            {activeSymptoms.map(ts => (
-                              <div key={ts.id} style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
-                                <span style={{ fontSize: "0.75rem", fontWeight: 600, color: SAGE_DARK, minWidth: 110 }}>{ts.label}</span>
-                                <input type="range" min="1" max="10" step="1" value={ts.severity}
-                                  onChange={e => setForm(f => ({ ...f, trackedSymptoms: (f.trackedSymptoms||[]).map(s => s.id === ts.id ? { ...s, severity: Number(e.target.value) } : s) }))}
-                                  style={{ flex: 1, accentColor: severityColor(ts.severity) }}
-                                />
-                                <span style={{ fontSize: "0.75rem", fontWeight: 700, color: severityColor(ts.severity), minWidth: 28, textAlign: "right" }}>{ts.severity}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Expand to full list */}
-                        {remainingSyms.length > 0 && (
-                          <div>
-                            <button type="button" onClick={() => setShowAllSymptoms(v => !v)}
-                              style={{ background: "none", border: "none", color: WARM_GRAY, fontSize: "0.75rem", cursor: "pointer", fontFamily: "inherit", textDecoration: "underline", textDecorationColor: "rgba(0,0,0,0.2)", padding: 0 }}>
-                              {showAllSymptoms ? "Show fewer symptoms" : `+ ${remainingSyms.length} more symptoms`}
-                            </button>
-                            {showAllSymptoms && (
-                              <div style={{ marginTop: "0.625rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                                {Object.entries(
-                                  remainingSyms.reduce((acc, sym) => { if (!acc[sym.category]) acc[sym.category] = []; acc[sym.category].push(sym); return acc; }, {})
-                                ).map(([cat, syms]) => (
-                                  <div key={cat}>
-                                    <p style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: WARM_GRAY, margin: "0 0 0.3rem" }}>{cat}</p>
-                                    <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
-                                      {syms.map(sym => <SymChip key={sym.id} sym={sym}/>)}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
-                </div>
-              )}
 
               <div style={s.formGroup}>
                 <label style={s.label}>Food & Drink</label>
