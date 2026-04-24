@@ -235,12 +235,12 @@ const NAV_ITEMS = [
     icon: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="4" cy="5" r="2" stroke="currentColor" strokeWidth="1.3"/><circle cx="12" cy="5" r="2" stroke="currentColor" strokeWidth="1.3"/><circle cx="8" cy="13" r="2" stroke="currentColor" strokeWidth="1.3"/><path d="M4 7v2c0 1 1 2 4 2s4-1 4-2V7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
   },
   {
-    id: "medications", label: "Medications",
-    icon: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="6" y="1" width="4" height="14" rx="1" stroke="currentColor" strokeWidth="1.4"/><rect x="1" y="6" width="14" height="4" rx="1" stroke="currentColor" strokeWidth="1.4"/></svg>,
-  },
-  {
     id: "symptoms", label: "My Symptoms",
     icon: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="6" r="3.5" stroke="currentColor" strokeWidth="1.4"/><path d="M3 14c0-2.8 2.2-5 5-5s5 2.2 5 5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M8 4v4M6 6h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
+  },
+  {
+    id: "medications", label: "Medications",
+    icon: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="6" y="1" width="4" height="14" rx="1" stroke="currentColor" strokeWidth="1.4"/><rect x="1" y="6" width="14" height="4" rx="1" stroke="currentColor" strokeWidth="1.4"/></svg>,
   },
 ];
 
@@ -2877,7 +2877,7 @@ export default function CareCompassSettings() {
           const panelIds = NAV_ITEMS.map(n => n.id);
           const currentIdx = panelIds.indexOf(activePanel);
           const nextPanel = panelIds.find((id, i) => i > currentIdx);
-          const isLast = activePanel === "symptoms";
+          const isLast = activePanel === "medications";
           const isSaveable = SAVEABLE_PANELS.has(activePanel);
           // Family and medications have their own save buttons inside the panel
           // Security, connected, subscription have no user-editable dirty state
