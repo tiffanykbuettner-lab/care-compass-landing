@@ -1013,8 +1013,9 @@ function SearchableSelect({ value, onChange, options, placeholder = "Select...",
   );
 }
 
-function TrendsTab({ entries, dateFilter, allEntries }) {
+function TrendsTab({ entries, dateFilter, allEntries, userTrackedSymptoms }) {
   const [symptomSearch, setSymptomSearch] = React.useState("");
+  const [activeSymFilter, setActiveSymFilter] = React.useState(null); // null = all
 
   if (entries.length < 2) return <div style={s.emptyState}><p style={s.emptyDesc}>Add more entries to see symptom trends and frequency reports.</p></div>;
 
@@ -2550,64 +2551,166 @@ Respond ONLY with valid JSON, no markdown:
         );
       })()}
 
-      {/* ── Per-Symptom Trend Lines ── */}
+      {/* ── Per-Symptom Breakdown ── */}
       {(() => {
-        // Collect per-symptom daily max severity over last 30 days
+        // Build per-symptom data: daily max severity + total occurrences + avg severity
         const symDays = {};
         last30.forEach(e => {
           const d = new Date(e.timestamp).toLocaleDateString("en-US", { month: "numeric", day: "numeric" });
           (e.trackedSymptoms || []).forEach(ts => {
-            if (!symDays[ts.id]) symDays[ts.id] = { label: ts.label, days: {} };
+            if (!symDays[ts.id]) symDays[ts.id] = { id: ts.id, label: ts.label, days: {}, count: 0, totalSev: 0 };
             if (!symDays[ts.id].days[d] || ts.severity > symDays[ts.id].days[d]) symDays[ts.id].days[d] = ts.severity;
+            symDays[ts.id].count++;
+            symDays[ts.id].totalSev += ts.severity;
           });
         });
-        const symList = Object.entries(symDays).filter(([,v]) => Object.keys(v.days).length >= 3);
-        if (symList.length === 0) return null;
 
-        // Get all unique dates sorted
-        const allDates = [...new Set(last30.map(e => new Date(e.timestamp).toLocaleDateString("en-US", { month: "numeric", day: "numeric" })))].reverse();
-        const TW = 560, TH = 110, TP = { t: 8, b: 24, l: 24, r: 8 };
+        // Merge with userTrackedSymptoms so configured-but-not-yet-logged symptoms appear
+        const configuredSymptoms = userTrackedSymptoms || [];
+        configuredSymptoms.forEach(sym => {
+          if (!symDays[sym.id]) symDays[sym.id] = { id: sym.id, label: sym.label, days: {}, count: 0, totalSev: 0 };
+        });
+
+        const symList = Object.entries(symDays)
+          .map(([id, v]) => ({ id, ...v, dayCount: Object.keys(v.days).length, avgSev: v.count ? v.totalSev / v.count : 0 }))
+          .sort((a, b) => b.dayCount - a.dayCount || b.count - a.count);
+
+        const hasAnyData = symList.some(s => s.count > 0);
+
+        if (!hasAnyData && configuredSymptoms.length === 0) return null;
+
+        // Filter: if activeSymFilter set, show detail for that symptom; else show overview
+        const COLORS = ["#4a7058","#4a9fa5","#c0392b","#e8a838","#8b7ab8","#c0567a","#c0567a","#4a9fa5"];
+        const allDates = [...new Set(last30.map(e => new Date(e.timestamp).toLocaleDateString("en-US", { month: "numeric", day: "numeric" })))].sort((a,b) => {
+          const [am,ad] = a.split("/").map(Number), [bm,bd] = b.split("/").map(Number);
+          return am !== bm ? am - bm : ad - bd;
+        });
+
+        const TW = 560, TH = 120, TP = { t: 10, b: 28, l: 26, r: 8 };
         const tCW = TW - TP.l - TP.r, tCH = TH - TP.t - TP.b;
         const tX = i => TP.l + (i / Math.max(allDates.length - 1, 1)) * tCW;
         const tY = v => TP.t + tCH - ((v / 10) * tCH);
 
-        const COLORS = ["#4a7058","#4a9fa5","#c0392b","#e8a838","#8b7ab8","#c0567a"];
+        // Which symptoms to show in chart: filtered or top-6 by dayCount
+        const chartSymptoms = activeSymFilter
+          ? symList.filter(s => s.id === activeSymFilter)
+          : symList.filter(s => s.dayCount >= 2).slice(0, 6);
 
         return (
-          <div style={{ background: "#fff", border: "1px solid rgba(0,0,0,0.07)", borderRadius: "0.875rem", padding: "1.25rem" }}>
-            <p style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: "0 0 0.15rem" }}>Per-Symptom Severity Trends</p>
-            <p style={{ fontSize: "0.75rem", color: WARM_GRAY, margin: "0 0 0.875rem" }}>Daily peak per tracked symptom — last 30 days</p>
-            <svg width="100%" viewBox={`0 0 ${TW} ${TH}`} style={{ overflow: "visible", display: "block" }}>
-              {[2,4,6,8,10].map(v => (
-                <g key={v}>
-                  <line x1={TP.l} y1={tY(v)} x2={TW-TP.r} y2={tY(v)} stroke="#e8e4e0" strokeWidth="0.5" strokeDasharray="3 3"/>
-                  <text x={TP.l-4} y={tY(v)+3} fontSize="8" fill="#bbb" textAnchor="end">{v}</text>
-                </g>
-              ))}
-              {symList.slice(0,6).map(([id, sym], si) => {
-                const color = COLORS[si % COLORS.length];
-                const points = allDates.map((d, i) => sym.days[d] != null ? { x: tX(i), y: tY(sym.days[d]), v: sym.days[d] } : null).filter(Boolean);
-                if (points.length < 2) return null;
-                const path = points.map((p, pi) => `${pi === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
-                return (
-                  <g key={id}>
-                    <path d={path} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" strokeOpacity="0.8"/>
-                    {points.map((p, pi) => <circle key={pi} cx={p.x} cy={p.y} r="3" fill={color} stroke="#fff" strokeWidth="1"/>)}
-                  </g>
-                );
-              })}
-              {allDates.map((d, i) => i % Math.ceil(allDates.length / 6) === 0 && (
-                <text key={d} x={tX(i)} y={TH-4} fontSize="8" fill="#bbb" textAnchor="middle">{d}</text>
-              ))}
-            </svg>
-            {/* Legend */}
-            <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", marginTop: "0.5rem" }}>
-              {symList.slice(0,6).map(([id, sym], si) => (
-                <div key={id} style={{ display: "flex", alignItems: "center", gap: "0.3rem", fontSize: "0.7rem", color: WARM_GRAY }}>
-                  <span style={{ display: "inline-block", width: 16, height: 2.5, background: COLORS[si % COLORS.length], borderRadius: 2 }}/>
+          <div style={{ background: "#fff", border: "1px solid rgba(0,0,0,0.07)", borderRadius: "0.875rem", overflow: "hidden" }}>
+            {/* Header */}
+            <div style={{ padding: "1.25rem 1.25rem 0.75rem", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
+              <p style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: "0 0 0.15rem" }}>Per-Symptom Severity Trends</p>
+              <p style={{ fontSize: "0.75rem", color: WARM_GRAY, margin: 0 }}>Daily peak severity per tracked symptom — last 30 days</p>
+            </div>
+
+            {/* Symptom filter pills */}
+            <div style={{ padding: "0.625rem 1.25rem", borderBottom: "1px solid rgba(0,0,0,0.05)", display: "flex", gap: "0.375rem", flexWrap: "wrap", alignItems: "center" }}>
+              <button
+                onClick={() => setActiveSymFilter(null)}
+                style={{ fontSize: "0.7rem", fontWeight: 600, padding: "0.25rem 0.625rem", borderRadius: 999, border: `1.5px solid ${activeSymFilter === null ? SAGE_DARK : "rgba(0,0,0,0.12)"}`, background: activeSymFilter === null ? SAGE_DARK : "transparent", color: activeSymFilter === null ? "#fff" : WARM_GRAY, cursor: "pointer", transition: "all 0.15s" }}
+              >All</button>
+              {symList.filter(s => s.dayCount >= 1).slice(0, 10).map((sym, si) => (
+                <button
+                  key={sym.id}
+                  onClick={() => setActiveSymFilter(activeSymFilter === sym.id ? null : sym.id)}
+                  style={{ fontSize: "0.7rem", fontWeight: 500, padding: "0.25rem 0.625rem", borderRadius: 999, border: `1.5px solid ${activeSymFilter === sym.id ? COLORS[si % COLORS.length] : "rgba(0,0,0,0.1)"}`, background: activeSymFilter === sym.id ? COLORS[si % COLORS.length] : "transparent", color: activeSymFilter === sym.id ? "#fff" : WARM_GRAY, cursor: "pointer", transition: "all 0.15s", display: "flex", alignItems: "center", gap: "0.3rem" }}
+                >
+                  <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: COLORS[si % COLORS.length] }}/>
                   {sym.label}
-                </div>
+                  <span style={{ fontWeight: 700, opacity: 0.7 }}>{sym.dayCount}d</span>
+                </button>
               ))}
+            </div>
+
+            <div style={{ padding: "1rem 1.25rem" }}>
+              {/* Chart — show when there's data for the selected filter */}
+              {chartSymptoms.length > 0 && chartSymptoms.some(s => s.dayCount >= 2) ? (
+                <>
+                  <svg width="100%" viewBox={`0 0 ${TW} ${TH}`} style={{ overflow: "visible", display: "block", marginBottom: "0.5rem" }}>
+                    {/* Grid lines */}
+                    {[2,4,6,8,10].map(v => (
+                      <g key={v}>
+                        <line x1={TP.l} y1={tY(v)} x2={TW-TP.r} y2={tY(v)} stroke="#ece8e4" strokeWidth="0.6" strokeDasharray="3 3"/>
+                        <text x={TP.l-4} y={tY(v)+3} fontSize="8" fill="#c5bfb8" textAnchor="end">{v}</text>
+                      </g>
+                    ))}
+                    {/* Symptom lines */}
+                    {chartSymptoms.map((sym, si) => {
+                      const color = activeSymFilter ? SAGE_DARK : COLORS[si % COLORS.length];
+                      const points = allDates.map((d, i) => sym.days[d] != null ? { x: tX(i), y: tY(sym.days[d]), v: sym.days[d] } : null).filter(Boolean);
+                      if (points.length < 2) return null;
+                      const path = points.map((p, pi) => `${pi === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
+                      return (
+                        <g key={sym.id}>
+                          <path d={path} fill="none" stroke={color} strokeWidth={activeSymFilter ? 2 : 1.5} strokeLinecap="round" strokeLinejoin="round" strokeOpacity="0.85"/>
+                          {points.map((p, pi) => (
+                            <circle key={pi} cx={p.x} cy={p.y} r={activeSymFilter ? 4 : 3} fill={color} stroke="#fff" strokeWidth="1.5">
+                              <title>{sym.label}: {p.v}/10</title>
+                            </circle>
+                          ))}
+                        </g>
+                      );
+                    })}
+                    {/* X-axis date labels */}
+                    {allDates.map((d, i) => i % Math.ceil(allDates.length / 7) === 0 && (
+                      <text key={d} x={tX(i)} y={TH - 6} fontSize="8" fill="#c0bab4" textAnchor="middle">{d}</text>
+                    ))}
+                  </svg>
+
+                  {/* Legend / stat pills for selected symptoms */}
+                  <div style={{ display: "flex", gap: "0.625rem", flexWrap: "wrap" }}>
+                    {chartSymptoms.filter(s => s.dayCount >= 2).map((sym, si) => (
+                      <div key={sym.id} style={{ display: "flex", alignItems: "center", gap: "0.4rem", background: SAGE_LIGHT, borderRadius: "0.5rem", padding: "0.3rem 0.625rem" }}>
+                        <span style={{ display: "inline-block", width: 14, height: 3, background: activeSymFilter ? SAGE_DARK : COLORS[si % COLORS.length], borderRadius: 2 }}/>
+                        <span style={{ fontSize: "0.7rem", color: SAGE_DARK, fontWeight: 600 }}>{sym.label}</span>
+                        <span style={{ fontSize: "0.68rem", color: WARM_GRAY }}>{sym.dayCount}d · avg {sym.avgSev.toFixed(1)}/10</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p style={{ fontSize: "0.78rem", color: WARM_GRAY, fontStyle: "italic", textAlign: "center", padding: "1rem 0", margin: 0 }}>
+                  {activeSymFilter
+                    ? "Not enough data yet for this symptom — log it on at least 2 days to see a trend line."
+                    : "Log tracked symptoms across multiple days to see trend lines here."}
+                </p>
+              )}
+
+              {/* Breakdown table: all configured symptoms with their 30-day stats */}
+              {symList.length > 0 && (
+                <div style={{ marginTop: "1rem", borderTop: "1px solid rgba(0,0,0,0.06)", paddingTop: "0.875rem" }}>
+                  <p style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: WARM_GRAY, margin: "0 0 0.625rem" }}>All Tracked Symptoms — 30-day snapshot</p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
+                    {symList.slice(0, activeSymFilter ? symList.length : 12).map((sym, si) => {
+                      const hasData = sym.dayCount > 0;
+                      const pct = hasData ? (sym.dayCount / 30) * 100 : 0;
+                      const barColor = sym.avgSev >= 7 ? "#c0392b" : sym.avgSev >= 4 ? "#e8a838" : SAGE_DARK;
+                      const isSelected = activeSymFilter === sym.id;
+                      return (
+                        <div
+                          key={sym.id}
+                          onClick={() => setActiveSymFilter(isSelected ? null : sym.id)}
+                          style={{ display: "flex", alignItems: "center", gap: "0.625rem", padding: "0.4rem 0.5rem", borderRadius: "0.5rem", cursor: "pointer", background: isSelected ? SAGE_LIGHT : "transparent", transition: "background 0.15s" }}
+                        >
+                          <span style={{ fontSize: "0.75rem", color: INK, fontWeight: isSelected ? 700 : 400, minWidth: 130, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{sym.label}</span>
+                          <div style={{ flex: 1, height: 6, background: "rgba(0,0,0,0.06)", borderRadius: 3, overflow: "hidden" }}>
+                            <div style={{ height: "100%", width: `${pct}%`, background: hasData ? barColor : "transparent", borderRadius: 3, transition: "width 0.3s" }}/>
+                          </div>
+                          {hasData ? (
+                            <span style={{ fontSize: "0.68rem", color: WARM_GRAY, whiteSpace: "nowrap", minWidth: 90, textAlign: "right" }}>{sym.dayCount}d · avg {sym.avgSev.toFixed(1)}/10</span>
+                          ) : (
+                            <span style={{ fontSize: "0.68rem", color: "#c5bfb8", fontStyle: "italic", minWidth: 90, textAlign: "right" }}>not logged yet</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {!activeSymFilter && symList.length > 12 && (
+                    <p style={{ fontSize: "0.7rem", color: WARM_GRAY, margin: "0.5rem 0 0", textAlign: "center" }}>Tap a pill above to focus on a single symptom</p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         );
@@ -4543,7 +4646,7 @@ ${extraContext}` : ""}`;
                   ))}
                 </div>
               </div>
-              <TrendsTab entries={filteredEntries} dateFilter={dateFilter} allEntries={entries}/>
+              <TrendsTab entries={filteredEntries} dateFilter={dateFilter} allEntries={entries} userTrackedSymptoms={userTrackedSymptoms}/>
             </div>
           )}
 

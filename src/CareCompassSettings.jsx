@@ -238,6 +238,10 @@ const NAV_ITEMS = [
     id: "medications", label: "Medications",
     icon: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="6" y="1" width="4" height="14" rx="1" stroke="currentColor" strokeWidth="1.4"/><rect x="1" y="6" width="14" height="4" rx="1" stroke="currentColor" strokeWidth="1.4"/></svg>,
   },
+  {
+    id: "symptoms", label: "My Symptoms",
+    icon: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="6" r="3.5" stroke="currentColor" strokeWidth="1.4"/><path d="M3 14c0-2.8 2.2-5 5-5s5 2.2 5 5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M8 4v4M6 6h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
+  },
 ];
 
 
@@ -2373,10 +2377,290 @@ function Toast({ visible }) {
   );
 }
 
+/* ─── Symptoms Panel ─────────────────────────────────────────────────────── */
+const TRACKED_SYM_KEY = "care-compass-tracked-symptoms-v1";
+
+const DEFAULT_TRACKED_SYMPTOMS = [
+  { id: "fatigue",       label: "Fatigue",                    category: "Systemic" },
+  { id: "brain-fog",     label: "Brain fog",                  category: "Systemic" },
+  { id: "malaise",       label: "Malaise",                    category: "Systemic" },
+  { id: "pain-head",     label: "Head pain",                  category: "Pain" },
+  { id: "pain-neck",     label: "Neck pain",                  category: "Pain" },
+  { id: "pain-shoulder", label: "Shoulder pain",              category: "Pain" },
+  { id: "pain-back",     label: "Back pain",                  category: "Pain" },
+  { id: "pain-joint",    label: "Joint pain",                 category: "Pain" },
+  { id: "pain-chest",    label: "Chest pain",                 category: "Pain" },
+  { id: "dizziness",     label: "Dizziness",                  category: "Neurological" },
+  { id: "numbness",      label: "Numbness / tingling",        category: "Neurological" },
+  { id: "light-sound",   label: "Light / sound sensitivity",  category: "Neurological" },
+  { id: "vision",        label: "Vision changes",             category: "Neurological" },
+  { id: "palpitations",  label: "Heart palpitations",         category: "Autonomic" },
+  { id: "sob",           label: "Shortness of breath",        category: "Autonomic" },
+  { id: "temp-dysreg",   label: "Temperature dysregulation",  category: "Autonomic" },
+  { id: "nausea",        label: "Nausea",                     category: "GI" },
+  { id: "bloating",      label: "Bloating",                   category: "GI" },
+  { id: "abdominal",     label: "Abdominal pain",             category: "GI" },
+  { id: "anxiety",       label: "Anxiety",                    category: "Mood" },
+  { id: "low-mood",      label: "Low mood",                   category: "Mood" },
+];
+
+const SYMPTOM_SUGGESTIONS = [
+  { id: "insomnia",      label: "Insomnia",                   category: "Systemic" },
+  { id: "fatigue-pem",   label: "Post-exertional malaise",    category: "Systemic" },
+  { id: "pain-muscle",   label: "Muscle pain",                category: "Pain" },
+  { id: "pain-nerve",    label: "Nerve pain",                 category: "Pain" },
+  { id: "tinnitus",      label: "Tinnitus",                   category: "Neurological" },
+  { id: "migraine",      label: "Migraine",                   category: "Neurological" },
+  { id: "syncope",       label: "Fainting / syncope",         category: "Autonomic" },
+  { id: "hr-elevation",  label: "Elevated heart rate",        category: "Autonomic" },
+  { id: "nausea-vom",    label: "Nausea / vomiting",          category: "GI" },
+  { id: "reflux",        label: "Acid reflux",                category: "GI" },
+  { id: "ibs",           label: "IBS flare",                  category: "GI" },
+  { id: "rash",          label: "Rash / hives",               category: "Skin" },
+  { id: "flushing",      label: "Flushing",                   category: "Skin" },
+  { id: "swelling",      label: "Swelling / edema",           category: "Skin" },
+  { id: "depression",    label: "Depression",                 category: "Mood" },
+  { id: "irritability",  label: "Irritability",               category: "Mood" },
+  { id: "urinary",       label: "Urinary urgency",            category: "Other" },
+  { id: "breathless",    label: "Exertional breathlessness",  category: "Other" },
+];
+
+const CATEGORY_ORDER = ["Systemic","Pain","Neurological","Autonomic","GI","Skin","Mood","Other","Custom"];
+
+function SymptomsPanel({ markDirty }) {
+  const [tracked, setTracked] = React.useState(() => {
+    try {
+      const stored = localStorage.getItem(TRACKED_SYM_KEY);
+      return stored ? JSON.parse(stored) : DEFAULT_TRACKED_SYMPTOMS;
+    } catch { return DEFAULT_TRACKED_SYMPTOMS; }
+  });
+  const [customLabel, setCustomLabel] = React.useState("");
+  const [customCategory, setCustomCategory] = React.useState("Custom");
+  const [showCustomForm, setShowCustomForm] = React.useState(false);
+  const [dragId, setDragId] = React.useState(null);
+  const [dragOverId, setDragOverId] = React.useState(null);
+  const [savedFlash, setSavedFlash] = React.useState(false);
+
+  const saveTracked = (updated) => {
+    setTracked(updated);
+    try { localStorage.setItem(TRACKED_SYM_KEY, JSON.stringify(updated)); } catch {}
+    markDirty && markDirty();
+    setSavedFlash(true);
+    setTimeout(() => setSavedFlash(false), 2000);
+  };
+
+  const removeSymptom = (id) => saveTracked(tracked.filter(s => s.id !== id));
+
+  const addSuggestion = (sym) => {
+    if (tracked.find(s => s.id === sym.id)) return;
+    saveTracked([...tracked, sym]);
+  };
+
+  const addCustom = () => {
+    const label = customLabel.trim();
+    if (!label) return;
+    const id = "custom-" + label.toLowerCase().replace(/\s+/g, "-") + "-" + Date.now();
+    saveTracked([...tracked, { id, label, category: customCategory }]);
+    setCustomLabel("");
+    setShowCustomForm(false);
+  };
+
+  const resetToDefaults = () => {
+    if (!window.confirm("Reset to the default symptom list? Your customizations will be removed.")) return;
+    saveTracked(DEFAULT_TRACKED_SYMPTOMS);
+  };
+
+  // Drag-to-reorder handlers
+  const onDragStart = (id) => setDragId(id);
+  const onDragOver = (e, id) => { e.preventDefault(); setDragOverId(id); };
+  const onDrop = (targetId) => {
+    if (!dragId || dragId === targetId) { setDragId(null); setDragOverId(null); return; }
+    const from = tracked.findIndex(s => s.id === dragId);
+    const to   = tracked.findIndex(s => s.id === targetId);
+    if (from === -1 || to === -1) { setDragId(null); setDragOverId(null); return; }
+    const next = [...tracked];
+    next.splice(to, 0, next.splice(from, 1)[0]);
+    saveTracked(next);
+    setDragId(null); setDragOverId(null);
+  };
+  const onDragEnd = () => { setDragId(null); setDragOverId(null); };
+
+  // Group tracked symptoms by category
+  const byCategory = {};
+  tracked.forEach(s => {
+    const cat = s.category || "Other";
+    if (!byCategory[cat]) byCategory[cat] = [];
+    byCategory[cat].push(s);
+  });
+  const categories = CATEGORY_ORDER.filter(c => byCategory[c]);
+
+  // Suggestions not yet in tracked list
+  const available = SYMPTOM_SUGGESTIONS.filter(s => !tracked.find(t => t.id === s.id));
+  const availableByCategory = {};
+  available.forEach(s => {
+    const cat = s.category || "Other";
+    if (!availableByCategory[cat]) availableByCategory[cat] = [];
+    availableByCategory[cat].push(s);
+  });
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      {/* Header card */}
+      <SectionCard>
+        <SectionHeader
+          icon={<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="6" r="3.5" stroke={SAGE_DARK} strokeWidth="1.4"/><path d="M3 14c0-2.8 2.2-5 5-5s5 2.2 5 5" stroke={SAGE_DARK} strokeWidth="1.4" strokeLinecap="round"/><path d="M8 4v4M6 6h4" stroke={SAGE_DARK} strokeWidth="1.3" strokeLinecap="round"/></svg>}
+          title="My tracked symptoms"
+          desc="Choose which symptoms appear in your daily log quick-select and Trends tab. Drag to reorder."
+        />
+        <div style={{ padding: "8px 24px 16px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 13, color: WARM_GRAY, fontFamily: "sans-serif" }}>
+            {tracked.length} symptom{tracked.length !== 1 ? "s" : ""} tracked
+          </span>
+          {savedFlash && (
+            <span style={{ fontSize: 12, color: SAGE_DARK, fontWeight: 600, fontFamily: "sans-serif" }}>✓ Saved</span>
+          )}
+          <button
+            onClick={resetToDefaults}
+            style={{ marginLeft: "auto", fontSize: 12, color: WARM_GRAY, background: "none", border: "none", cursor: "pointer", textDecoration: "underline", fontFamily: "sans-serif" }}
+          >Reset to defaults</button>
+        </div>
+      </SectionCard>
+
+      {/* Current tracked list grouped by category */}
+      <SectionCard>
+        <SectionHeader
+          icon={<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 5h10M3 8h7M3 11h5" stroke={SAGE_DARK} strokeWidth="1.4" strokeLinecap="round"/></svg>}
+          title="Your symptom list"
+          desc="Drag rows to reorder. Tap × to remove."
+        />
+        <div style={{ padding: "8px 0 16px" }}>
+          {categories.map(cat => (
+            <div key={cat}>
+              <div style={{ padding: "6px 24px 4px", fontSize: 11, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: WARM_GRAY, fontFamily: "sans-serif" }}>{cat}</div>
+              {byCategory[cat].map((sym, i) => (
+                <div
+                  key={sym.id}
+                  draggable
+                  onDragStart={() => onDragStart(sym.id)}
+                  onDragOver={(e) => onDragOver(e, sym.id)}
+                  onDrop={() => onDrop(sym.id)}
+                  onDragEnd={onDragEnd}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 10,
+                    padding: "8px 24px",
+                    background: dragOverId === sym.id ? SAGE_LIGHT : dragId === sym.id ? "#f8f8f6" : "transparent",
+                    borderTop: dragOverId === sym.id ? `2px solid ${SAGE}` : "2px solid transparent",
+                    cursor: "grab", transition: "background 0.12s",
+                    userSelect: "none",
+                  }}
+                >
+                  {/* Drag handle */}
+                  <svg width="12" height="14" viewBox="0 0 12 14" fill="none" style={{ opacity: 0.3, flexShrink: 0 }}>
+                    <circle cx="4" cy="3" r="1.2" fill={INK}/><circle cx="8" cy="3" r="1.2" fill={INK}/>
+                    <circle cx="4" cy="7" r="1.2" fill={INK}/><circle cx="8" cy="7" r="1.2" fill={INK}/>
+                    <circle cx="4" cy="11" r="1.2" fill={INK}/><circle cx="8" cy="11" r="1.2" fill={INK}/>
+                  </svg>
+                  <span style={{ flex: 1, fontSize: 14, color: INK, fontFamily: "sans-serif" }}>{sym.label}</span>
+                  <button
+                    onClick={() => removeSymptom(sym.id)}
+                    style={{ background: "none", border: "none", cursor: "pointer", color: "#c0bab4", fontSize: 16, lineHeight: 1, padding: "0 2px", fontFamily: "sans-serif" }}
+                    title="Remove"
+                  >×</button>
+                </div>
+              ))}
+            </div>
+          ))}
+          {tracked.length === 0 && (
+            <div style={{ padding: "24px", textAlign: "center", color: WARM_GRAY, fontSize: 13, fontFamily: "sans-serif" }}>
+              No symptoms tracked yet — add some below.
+            </div>
+          )}
+        </div>
+      </SectionCard>
+
+      {/* Add from suggestions */}
+      {available.length > 0 && (
+        <SectionCard>
+          <SectionHeader
+            icon={<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke={SAGE_DARK} strokeWidth="1.4"/><path d="M8 5v6M5 8h6" stroke={SAGE_DARK} strokeWidth="1.4" strokeLinecap="round"/></svg>}
+            title="Add more symptoms"
+            desc="Common chronic illness symptoms — tap to add to your list."
+          />
+          <div style={{ padding: "8px 24px 16px" }}>
+            {CATEGORY_ORDER.filter(c => availableByCategory[c]).map(cat => (
+              <div key={cat} style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: WARM_GRAY, marginBottom: 6, fontFamily: "sans-serif" }}>{cat}</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {availableByCategory[cat].map(sym => (
+                    <button
+                      key={sym.id}
+                      onClick={() => addSuggestion(sym)}
+                      style={{
+                        fontSize: 13, padding: "5px 12px", borderRadius: 999,
+                        border: `1.5px solid ${SAGE}`, background: "transparent",
+                        color: SAGE_DARK, cursor: "pointer", fontFamily: "sans-serif",
+                        transition: "all 0.12s",
+                      }}
+                      onMouseEnter={e => { e.target.style.background = SAGE_LIGHT; }}
+                      onMouseLeave={e => { e.target.style.background = "transparent"; }}
+                    >+ {sym.label}</button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </SectionCard>
+      )}
+
+      {/* Custom symptom form */}
+      <SectionCard>
+        <SectionHeader
+          icon={<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 14l2-5L12 1l3 3L7 12l-5 2z" stroke={SAGE_DARK} strokeWidth="1.3" strokeLinejoin="round"/><path d="M10 3l3 3" stroke={SAGE_DARK} strokeWidth="1.3"/></svg>}
+          title="Add a custom symptom"
+          desc="Not on the list? Enter your own."
+        />
+        <div style={{ padding: "8px 24px 16px" }}>
+          {!showCustomForm ? (
+            <button
+              onClick={() => setShowCustomForm(true)}
+              style={{ fontSize: 13, padding: "7px 16px", borderRadius: 8, border: `1.5px solid ${SAGE}`, background: "transparent", color: SAGE_DARK, cursor: "pointer", fontFamily: "sans-serif" }}
+            >+ Add custom symptom</button>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <input
+                value={customLabel}
+                onChange={e => setCustomLabel(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && addCustom()}
+                placeholder="Symptom name (e.g. jaw pain, dysautonomia flare)"
+                autoFocus
+                style={{ padding: "8px 12px", borderRadius: 8, border: `1.5px solid ${SAGE}`, fontSize: 14, color: INK, fontFamily: "sans-serif", outline: "none", background: OFF_WHITE }}
+              />
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <span style={{ fontSize: 13, color: WARM_GRAY, fontFamily: "sans-serif" }}>Category:</span>
+                <select
+                  value={customCategory}
+                  onChange={e => setCustomCategory(e.target.value)}
+                  style={{ padding: "5px 10px", borderRadius: 8, border: `1.5px solid ${BORDER}`, fontSize: 13, color: INK, fontFamily: "sans-serif", background: OFF_WHITE, outline: "none" }}
+                >
+                  {CATEGORY_ORDER.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <OutlineBtn hoverColor={SAGE_DARK} hoverBorder={SAGE_DARK} onClick={addCustom}>Add symptom</OutlineBtn>
+                <button onClick={() => { setShowCustomForm(false); setCustomLabel(""); }} style={{ fontSize: 13, color: WARM_GRAY, background: "none", border: "none", cursor: "pointer", fontFamily: "sans-serif" }}>Cancel</button>
+              </div>
+            </div>
+          )}
+        </div>
+      </SectionCard>
+    </div>
+  );
+}
+
 /* ─── Main component ─────────────────────────────────────────────────────── */
-const SAVEABLE_PANELS = new Set(["profile", "notifications", "privacy"]);
+const SAVEABLE_PANELS = new Set(["profile", "notifications", "privacy", "symptoms"]);
 // All panels that should show the sticky next bar (saveable + next-only)
-const ALL_NAV_PANELS = new Set(["profile", "notifications", "security", "privacy", "connected", "subscription", "family", "medications"]);
+const ALL_NAV_PANELS = new Set(["profile", "notifications", "security", "privacy", "connected", "subscription", "family", "medications", "symptoms"]);
 
 export default function CareCompassSettings() {
   // Setup mode — triggered from /account?setup=true (new user flow)
@@ -2585,6 +2869,7 @@ export default function CareCompassSettings() {
           {activePanel === "subscription"  && <SubscriptionPanel />}
           {activePanel === "medications"  && <MedicationsPanel onComplete={() => { const nc = new Set(completedPanels); nc.add("medications"); setCompletedPanels(nc); try { localStorage.setItem("cc-completed-panels", JSON.stringify([...nc])); } catch {}; setTimeout(() => setShowAssessmentPrompt(true), 400); }}/>}
           {activePanel === "family"       && <FamilyHistoryPanel onComplete={() => { const nc = new Set(completedPanels); nc.add("family"); setCompletedPanels(nc); try { localStorage.setItem("cc-completed-panels", JSON.stringify([...nc])); } catch {}; }}/>}
+          {activePanel === "symptoms"     && <SymptomsPanel markDirty={markDirty} />}
         </div>
 
         {/* ── Sticky save bar — travels with user on mobile ── */}
@@ -2592,7 +2877,7 @@ export default function CareCompassSettings() {
           const panelIds = NAV_ITEMS.map(n => n.id);
           const currentIdx = panelIds.indexOf(activePanel);
           const nextPanel = panelIds.find((id, i) => i > currentIdx);
-          const isLast = activePanel === "medications";
+          const isLast = activePanel === "symptoms";
           const isSaveable = SAVEABLE_PANELS.has(activePanel);
           // Family and medications have their own save buttons inside the panel
           // Security, connected, subscription have no user-editable dirty state
