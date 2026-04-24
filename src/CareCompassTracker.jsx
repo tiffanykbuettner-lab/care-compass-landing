@@ -2555,16 +2555,81 @@ Respond ONLY with valid JSON, no markdown:
       {(() => {
         const COLORS = ["#4a7058","#4a9fa5","#c0392b","#e8a838","#8b7ab8","#c0567a"];
 
+        // Keyword → { id, label } map so free-text matches merge with tracked-pill data
+        const FREETEXT_KW = {
+          "fatigue": { id: "fatigue", label: "Fatigue" },
+          "tired": { id: "fatigue", label: "Fatigue" },
+          "exhausted": { id: "fatigue", label: "Fatigue" },
+          "brain fog": { id: "brain-fog", label: "Brain fog" },
+          "fog": { id: "brain-fog", label: "Brain fog" },
+          "malaise": { id: "malaise", label: "Malaise" },
+          "headache": { id: "pain-head", label: "Head pain" },
+          "migraine": { id: "pain-head", label: "Head pain" },
+          "head pain": { id: "pain-head", label: "Head pain" },
+          "neck pain": { id: "pain-neck", label: "Neck pain" },
+          "neck": { id: "pain-neck", label: "Neck pain" },
+          "shoulder pain": { id: "pain-shoulder", label: "Shoulder pain" },
+          "shoulder": { id: "pain-shoulder", label: "Shoulder pain" },
+          "back pain": { id: "pain-back", label: "Back pain" },
+          "joint pain": { id: "pain-joint", label: "Joint pain" },
+          "joint": { id: "pain-joint", label: "Joint pain" },
+          "chest pain": { id: "pain-chest", label: "Chest pain" },
+          "dizziness": { id: "dizziness", label: "Dizziness" },
+          "dizzy": { id: "dizziness", label: "Dizziness" },
+          "lightheaded": { id: "dizziness", label: "Dizziness" },
+          "numbness": { id: "numbness", label: "Numbness / tingling" },
+          "tingling": { id: "numbness", label: "Numbness / tingling" },
+          "light sensitivity": { id: "light-sound", label: "Light / sound sensitivity" },
+          "sound sensitivity": { id: "light-sound", label: "Light / sound sensitivity" },
+          "vision": { id: "vision", label: "Vision changes" },
+          "palpitation": { id: "palpitations", label: "Heart palpitations" },
+          "heart racing": { id: "palpitations", label: "Heart palpitations" },
+          "racing heart": { id: "palpitations", label: "Heart palpitations" },
+          "shortness of breath": { id: "sob", label: "Shortness of breath" },
+          "short of breath": { id: "sob", label: "Shortness of breath" },
+          "temperature": { id: "temp-dysreg", label: "Temperature dysregulation" },
+          "nausea": { id: "nausea", label: "Nausea" },
+          "nauseous": { id: "nausea", label: "Nausea" },
+          "vomiting": { id: "nausea", label: "Nausea" },
+          "bloating": { id: "bloating", label: "Bloating" },
+          "bloated": { id: "bloating", label: "Bloating" },
+          "abdominal pain": { id: "abdominal", label: "Abdominal pain" },
+          "abdominal": { id: "abdominal", label: "Abdominal pain" },
+          "stomach pain": { id: "abdominal", label: "Abdominal pain" },
+          "anxiety": { id: "anxiety", label: "Anxiety" },
+          "anxious": { id: "anxiety", label: "Anxiety" },
+          "low mood": { id: "low-mood", label: "Low mood" },
+          "depressed": { id: "low-mood", label: "Low mood" },
+          "depression": { id: "low-mood", label: "Low mood" },
+        };
+
         // Build per-symptom data across ALL entries (bucket by calendar date)
+        // Primary: structured tracked symptom pills
+        // Fallback: keyword-parse free-text symptoms field for entries without pills
         const symDaysAll = {};
+        const addToSymDays = (map, id, label, d, sev) => {
+          if (!map[id]) map[id] = { label, days: {}, count: 0, totalSev: 0 };
+          if (!map[id].days[d] || sev > map[id].days[d]) map[id].days[d] = sev;
+          map[id].count++;
+          map[id].totalSev += sev;
+        };
         entries.forEach(e => {
           const d = new Date(e.timestamp).toLocaleDateString("en-US", { month: "numeric", day: "numeric", year: "numeric" });
-          (e.trackedSymptoms || []).forEach(ts => {
-            if (!symDaysAll[ts.id]) symDaysAll[ts.id] = { label: ts.label, days: {}, count: 0, totalSev: 0 };
-            if (!symDaysAll[ts.id].days[d] || ts.severity > symDaysAll[ts.id].days[d]) symDaysAll[ts.id].days[d] = ts.severity;
-            symDaysAll[ts.id].count++;
-            symDaysAll[ts.id].totalSev += ts.severity;
-          });
+          if (e.trackedSymptoms && e.trackedSymptoms.length > 0) {
+            // Structured data — use per-symptom severity directly
+            e.trackedSymptoms.forEach(ts => addToSymDays(symDaysAll, ts.id, ts.label, d, ts.severity));
+          } else if (e.symptoms) {
+            // Free-text fallback — keyword match, use entry's overall severity
+            const text = e.symptoms.toLowerCase();
+            const matched = new Set();
+            // Check multi-word phrases first to avoid "back pain" matching "pain" alone
+            Object.entries(FREETEXT_KW).sort((a,b) => b[0].length - a[0].length).forEach(([kw, sym]) => {
+              if (!matched.has(sym.id) && text.includes(kw)) {
+                addToSymDays(symDaysAll, sym.id, sym.label, d, e.severity);
+                matched.add(sym.id);
+              }
+            });
+          }
         });
 
         // Top symptoms by occurrence across all time
