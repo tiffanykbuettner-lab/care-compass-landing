@@ -2216,6 +2216,11 @@ function CycleTab({ globalEntries }) {
 
 /* ─── CareTeamDashboard — Step A: mode toggle + stat cards + severity chart ── */
 function CareTeamDashboard({ entries, bpReadings = [] }) {
+  // ── AI Key Takeaways state ─────────────────────────────────────────────────
+  const [takeaways, setTakeaways]         = useState(null);   // array of {insight, category}
+  const [takeawaysLoading, setTakeawaysLoading] = useState(false);
+  const [takeawaysError, setTakeawaysError]     = useState(null);
+
   // ── Derived stats ──────────────────────────────────────────────────────────
   const now        = new Date();
   const ms30       = 30 * 24 * 60 * 60 * 1000;
@@ -2255,6 +2260,77 @@ function CareTeamDashboard({ entries, bpReadings = [] }) {
     : "";
 
   // Stat card helper
+  // ── AI Key Takeaways generator ─────────────────────────────────────────────
+  const generateTakeaways = async () => {
+    setTakeawaysLoading(true);
+    setTakeawaysError(null);
+    const avgSev30val = avgSev30 != null ? avgSev30.toFixed(1) : "N/A";
+    const avgSev7val  = avgSev7  != null ? avgSev7.toFixed(1)  : "N/A";
+    const avgSleepVal = avgSleep != null ? avgSleep.toFixed(1) : "N/A";
+    const flare30     = new Set(last30.filter(e => e.severity >= 7).map(e => new Date(e.timestamp).toDateString())).size;
+    const symFreq = {};
+    entries.forEach(e => (e.trackedSymptoms || []).forEach(ts => {
+      if (!symFreq[ts.id]) symFreq[ts.id] = { label: ts.label, count: 0, totalSev: 0 };
+      symFreq[ts.id].count++; symFreq[ts.id].totalSev += ts.severity;
+    }));
+    const topSyms = Object.values(symFreq).sort((a,b) => b.count-a.count).slice(0,6)
+      .map(s => `${s.label} (${s.count}x, avg ${(s.totalSev/s.count).toFixed(1)}/10)`).join(", ");
+    const byDay2 = {};
+    [...entries].reverse().forEach(e => {
+      const k = new Date(e.timestamp).toDateString();
+      if (!byDay2[k]) byDay2[k] = { sleep: null, sev: null };
+      if (e.sleep != null && byDay2[k].sleep == null) byDay2[k].sleep = e.sleep;
+      if (e.severity > (byDay2[k].sev || 0)) byDay2[k].sev = e.severity;
+    });
+    const sdKeys = Object.keys(byDay2).sort((a,b) => new Date(a)-new Date(b));
+    const sPairs = sdKeys.slice(0,-1).map((d,i) => {
+      const nx = sdKeys[i+1];
+      return byDay2[d].sleep != null && byDay2[nx]?.sev != null ? { sleep: byDay2[d].sleep, sev: byDay2[nx].sev } : null;
+    }).filter(Boolean);
+    const sleepCorr = sPairs.length >= 3 ? (() => {
+      const aS = sPairs.reduce((s,p)=>s+p.sleep,0)/sPairs.length;
+      const aV = sPairs.reduce((s,p)=>s+p.sev,0)/sPairs.length;
+      const c  = sPairs.reduce((s,p)=>s+(p.sleep-aS)*(p.sev-aV),0);
+      return c<-2?"better sleep correlates with lower next-day severity":c>2?"unusual: more sleep correlated with higher next-day severity":"no strong sleep-severity correlation";
+    })() : "insufficient data";
+    const fnEntries = entries.filter(e => e.hoursUpright || e.energyEnvelope || e.tasksCompleted?.length);
+    const energyDist = fnEntries.reduce((acc,e) => { if (e.energyEnvelope) acc[e.energyEnvelope]=(acc[e.energyEnvelope]||0)+1; return acc; }, {});
+    const last30bp = bpReadings.filter(r => now - new Date(r.timestamp) <= ms30);
+    const bpSummary = last30bp.length >= 2
+      ? `avg systolic ${Math.round(last30bp.reduce((s,r)=>s+r.systolic,0)/last30bp.length)}, avg diastolic ${Math.round(last30bp.reduce((s,r)=>s+r.diastolic,0)/last30bp.length)} (${last30bp.length} readings)`
+      : "no readings";
+    const dataBlock = [
+      `Period: ${totalDays} days tracked, ${entries.length} entries`,
+      `Avg severity 30d: ${avgSev30val}/10 | 7d: ${avgSev7val}/10`,
+      `Flare days (≥7) last 30d: ${flare30}`,
+      `Avg sleep quality 30d: ${avgSleepVal}/10`,
+      `Sleep pattern: ${sleepCorr}`,
+      topSyms ? `Top symptoms: ${topSyms}` : "No structured symptom data yet",
+      Object.keys(energyDist).length ? `Energy envelope: ${Object.entries(energyDist).map(([k,v])=>`${k} ${v}x`).join(", ")}` : "",
+      `Blood pressure: ${bpSummary}`,
+    ].filter(Boolean).join("\n");
+    const prompt = `You are a clinical health data analyst reviewing a chronic illness patient's self-tracked data. Generate exactly 4-6 key takeaways a healthcare provider would find useful in a short appointment.
+
+${dataBlock}
+
+Rules: Each takeaway is one specific sentence grounded in the numbers. Include quantitative details. Focus on patterns, trends, correlations, and functional impact. Flag anything warranting clinical attention. Use cautious language: "data suggests", "pattern observed". Do NOT diagnose or recommend treatments.
+
+Respond ONLY with valid JSON, no markdown:
+[{"insight":"...","category":"pattern|trend|correlation|alert|functional"},...]`;
+    try {
+      const res  = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+        body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 800, messages: [{ role: "user", content: prompt }] }),
+      });
+      const data  = await res.json();
+      const raw   = data.content?.[0]?.text || "[]";
+      const clean = raw.replace(/```json|```/g, "").trim();
+      setTakeaways(JSON.parse(clean));
+    } catch { setTakeawaysError("Unable to generate takeaways. Please try again."); }
+    setTakeawaysLoading(false);
+  };
+
   const StatCard = ({ label, value, sub, accent }) => (
     <div style={{ background: "#fff", border: "1px solid rgba(0,0,0,0.07)", borderRadius: "0.875rem", padding: "1rem 1.25rem", flex: 1, minWidth: 120 }}>
       <p style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: "0 0 0.35rem" }}>{label}</p>
@@ -2799,11 +2875,80 @@ function CareTeamDashboard({ entries, bpReadings = [] }) {
         );
       })()}
 
+      {/* ── AI Key Takeaways ── */}
+      <div style={{ background: "#fff", border: "1px solid rgba(0,0,0,0.07)", borderRadius: "0.875rem", padding: "1.25rem" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.875rem", flexWrap: "wrap", gap: "0.5rem" }}>
+          <div>
+            <p style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: TEAL, margin: "0 0 0.15rem" }}>AI Key Takeaways</p>
+            <p style={{ fontSize: "0.75rem", color: WARM_GRAY, margin: 0 }}>Clinical insights generated from your tracking data · for discussion with your provider</p>
+          </div>
+          {takeaways && !takeawaysLoading && (
+            <button onClick={generateTakeaways} style={{ background: "none", border: "1px solid rgba(0,0,0,0.12)", borderRadius: "100px", padding: "0.35rem 0.875rem", fontSize: "0.75rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit" }}>
+              Regenerate
+            </button>
+          )}
+        </div>
+
+        {!takeaways && !takeawaysLoading && !takeawaysError && (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem", padding: "1rem 0" }}>
+            <p style={{ fontSize: "0.82rem", color: WARM_GRAY, margin: 0, textAlign: "center", maxWidth: 340, lineHeight: 1.6 }}>
+              Generate AI-powered clinical insights from your {entries.length} entries across {totalDays} days of tracking.
+            </p>
+            <button onClick={generateTakeaways}
+              style={{ background: SAGE_DARK, color: "#fff", border: "none", borderRadius: "100px", padding: "0.65rem 1.75rem", fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+              Generate Key Takeaways →
+            </button>
+          </div>
+        )}
+
+        {takeawaysLoading && (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem", padding: "1.25rem 0" }}>
+            <div style={{ width: 28, height: 28, border: `3px solid ${SAGE_LIGHT}`, borderTop: `3px solid ${SAGE_DARK}`, borderRadius: "50%", animation: "spin 0.8s linear infinite" }}/>
+            <p style={{ fontSize: "0.78rem", color: WARM_GRAY, margin: 0 }}>Analysing your data…</p>
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+          </div>
+        )}
+
+        {takeawaysError && (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.625rem", padding: "0.75rem 0" }}>
+            <p style={{ fontSize: "0.82rem", color: "#c0392b", margin: 0 }}>{takeawaysError}</p>
+            <button onClick={generateTakeaways} style={{ background: SAGE_DARK, color: "#fff", border: "none", borderRadius: "100px", padding: "0.5rem 1.25rem", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+              Try again
+            </button>
+          </div>
+        )}
+
+        {takeaways && !takeawaysLoading && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
+            {takeaways.map((t, i) => {
+              const catColors = {
+                alert:       { bg: "#fdeaea", border: "#c0392b", dot: "#c0392b" },
+                correlation: { bg: TEAL_LIGHT, border: TEAL, dot: TEAL },
+                trend:       { bg: "#fef3da", border: "#e8a838", dot: "#e8a838" },
+                functional:  { bg: SAGE_LIGHT, border: SAGE_DARK, dot: SAGE_DARK },
+                pattern:     { bg: SAGE_LIGHT, border: SAGE, dot: SAGE },
+              };
+              const col = catColors[t.category] || catColors.pattern;
+              return (
+                <div key={i} style={{ display: "flex", gap: "0.75rem", alignItems: "flex-start", background: col.bg, border: `1px solid ${col.border}22`, borderRadius: "0.625rem", padding: "0.75rem 0.875rem" }}>
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: col.dot, flexShrink: 0, marginTop: "0.3rem" }}/>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ margin: 0, fontSize: "0.82rem", color: INK, lineHeight: 1.6 }}>{t.insight}</p>
+                    <p style={{ margin: "0.2rem 0 0", fontSize: "0.65rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: col.dot }}>{t.category}</p>
+                  </div>
+                </div>
+              );
+            })}
+            <p style={{ fontSize: "0.68rem", color: WARM_GRAY, margin: "0.25rem 0 0", fontStyle: "italic" }}>
+              These insights are generated from self-reported tracking data and are not a medical assessment. Always discuss with your healthcare provider.
+            </p>
+          </div>
+        )}
+      </div>
+
     </div>
   );
 }
-
-/* ─── ReportPromptView — extracted to avoid IIFE-in-ternary JSX issues ─────── */
 function ReportPromptView({ careTeam, reportPrompt, setReportPrompt, entries, handleGenerateReport, s }) {
   const selectedMember    = careTeam.find(p => p.name === reportPrompt.providerName);
   const isOther           = reportPrompt.showOther;
