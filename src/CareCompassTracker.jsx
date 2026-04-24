@@ -2553,63 +2553,174 @@ Respond ONLY with valid JSON, no markdown:
 
       {/* ── Per-Symptom Trend Lines ── */}
       {(() => {
-        // Collect per-symptom daily max severity over last 30 days
-        const symDays = {};
-        last30.forEach(e => {
-          const d = new Date(e.timestamp).toLocaleDateString("en-US", { month: "numeric", day: "numeric" });
+        const COLORS = ["#4a7058","#4a9fa5","#c0392b","#e8a838","#8b7ab8","#c0567a"];
+
+        // Build per-symptom data across ALL entries (bucket by calendar date)
+        const symDaysAll = {};
+        entries.forEach(e => {
+          const d = new Date(e.timestamp).toLocaleDateString("en-US", { month: "numeric", day: "numeric", year: "numeric" });
           (e.trackedSymptoms || []).forEach(ts => {
+            if (!symDaysAll[ts.id]) symDaysAll[ts.id] = { label: ts.label, days: {}, count: 0, totalSev: 0 };
+            if (!symDaysAll[ts.id].days[d] || ts.severity > symDaysAll[ts.id].days[d]) symDaysAll[ts.id].days[d] = ts.severity;
+            symDaysAll[ts.id].count++;
+            symDaysAll[ts.id].totalSev += ts.severity;
+          });
+        });
+
+        // Top symptoms by occurrence across all time
+        const allSymList = Object.entries(symDaysAll)
+          .map(([id, v]) => ({ id, label: v.label, days: v.days, count: v.count, totalSev: v.totalSev }))
+          .filter(s => Object.keys(s.days).length >= 2)
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 6);
+
+        if (allSymList.length === 0) return null;
+
+        // Range options — resolve to ms cutoff (null = all time)
+        const RANGES = [
+          { label: "30d", ms: 30 * 86400000 },
+          { label: "90d", ms: 90 * 86400000 },
+          { label: "6mo", ms: 180 * 86400000 },
+          { label: "All", ms: null },
+        ];
+        const [rangeIdx, setRangeIdx] = React.useState(0);
+        const range = RANGES[rangeIdx];
+
+        // Filter entries to selected range
+        const rangeEntries = range.ms ? entries.filter(e => now - new Date(e.timestamp) <= range.ms) : entries;
+
+        // Rebuild per-symptom days for the selected range
+        const symDays = {};
+        rangeEntries.forEach(e => {
+          const d = new Date(e.timestamp).toLocaleDateString("en-US", { month: "numeric", day: "numeric", year: "numeric" });
+          (e.trackedSymptoms || []).forEach(ts => {
+            if (!allSymList.find(s => s.id === ts.id)) return; // only top symptoms
             if (!symDays[ts.id]) symDays[ts.id] = { label: ts.label, days: {}, count: 0, totalSev: 0 };
             if (!symDays[ts.id].days[d] || ts.severity > symDays[ts.id].days[d]) symDays[ts.id].days[d] = ts.severity;
             symDays[ts.id].count++;
             symDays[ts.id].totalSev += ts.severity;
           });
         });
-        const symList = Object.entries(symDays)
-          .map(([id, v]) => ({ id, label: v.label, days: v.days, dayCount: Object.keys(v.days).length, avgSev: v.count ? v.totalSev / v.count : 0 }))
-          .filter(s => s.dayCount >= 2)
-          .sort((a, b) => b.dayCount - a.dayCount);
 
-        if (symList.length === 0) return null;
+        const symList = allSymList.map(s => ({
+          ...s,
+          days: symDays[s.id]?.days || {},
+          dayCount: Object.keys(symDays[s.id]?.days || {}).length,
+          avgSev: symDays[s.id]?.count ? symDays[s.id].totalSev / symDays[s.id].count : 0,
+        })).filter(s => s.dayCount >= 1);
 
-        const COLORS = ["#4a7058","#4a9fa5","#c0392b","#e8a838","#8b7ab8","#c0567a"];
-        const allDates = [...new Set(last30.map(e => new Date(e.timestamp).toLocaleDateString("en-US", { month: "numeric", day: "numeric" })))].sort((a,b) => {
-          const [am,ad] = a.split("/").map(Number), [bm,bd] = b.split("/").map(Number);
-          return am !== bm ? am - bm : ad - bd;
-        });
+        // X-axis: all unique dates in range, sorted chronologically
+        const allDates = [...new Set(rangeEntries.map(e =>
+          new Date(e.timestamp).toLocaleDateString("en-US", { month: "numeric", day: "numeric", year: "numeric" })
+        ))].sort((a, b) => new Date(a) - new Date(b));
+
+        // For dense data, bucket into weekly averages to keep chart readable
+        const useWeekly = allDates.length > 60;
+        let chartDates, getVal;
+        if (useWeekly) {
+          // Group dates into ISO weeks
+          const weekMap = {};
+          rangeEntries.forEach(e => {
+            const dt = new Date(e.timestamp);
+            const weekStart = new Date(dt); weekStart.setDate(dt.getDate() - dt.getDay());
+            const wk = weekStart.toLocaleDateString("en-US", { month: "numeric", day: "numeric" });
+            (e.trackedSymptoms || []).forEach(ts => {
+              const key = ts.id + "||" + wk;
+              if (!weekMap[key]) weekMap[key] = { id: ts.id, wk, vals: [] };
+              weekMap[key].vals.push(ts.severity);
+            });
+          });
+          const allWeeks = [...new Set(Object.values(weekMap).map(v => v.wk))].sort((a,b) => {
+            const [am,ad] = a.split("/").map(Number), [bm,bd] = b.split("/").map(Number);
+            return am !== bm ? am - bm : ad - bd;
+          });
+          chartDates = allWeeks;
+          getVal = (symId, wk) => {
+            const k = symId + "||" + wk;
+            if (!weekMap[k]) return null;
+            const vals = weekMap[k].vals;
+            return Math.max(...vals);
+          };
+        } else {
+          chartDates = allDates;
+          getVal = (symId, d) => symDays[symId]?.days[d] ?? null;
+        }
+
+        const rangeLabel = range.ms
+          ? `last ${range.label}${useWeekly ? " (weekly avg)" : ""}`
+          : `all time${useWeekly ? " (weekly)" : ""}`;
+
         const TW = 560, TH = 110, TP = { t: 8, b: 24, l: 24, r: 8 };
         const tCW = TW - TP.l - TP.r, tCH = TH - TP.t - TP.b;
-        const tX = i => TP.l + (i / Math.max(allDates.length - 1, 1)) * tCW;
+        const tX = i => TP.l + (i / Math.max(chartDates.length - 1, 1)) * tCW;
         const tY = v => TP.t + tCH - ((v / 10) * tCH);
+
+        // X label step: aim for ~6 labels
+        const labelStep = Math.max(1, Math.ceil(chartDates.length / 6));
+
+        // Format date label: show year only if data spans multiple years
+        const allYears = new Set(rangeEntries.map(e => new Date(e.timestamp).getFullYear()));
+        const showYear = allYears.size > 1;
+        const fmtLabel = d => {
+          if (useWeekly) return d; // already "M/D"
+          const parts = d.split("/"); // M/D/YYYY
+          return showYear ? `${parts[0]}/${parts[1]}/${parts[2].slice(2)}` : `${parts[0]}/${parts[1]}`;
+        };
 
         return (
           <div style={{ background: "#fff", border: "1px solid rgba(0,0,0,0.07)", borderRadius: "0.875rem", padding: "1.25rem" }}>
-            <p style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: "0 0 0.15rem" }}>Per-Symptom Severity Trends</p>
-            <p style={{ fontSize: "0.75rem", color: WARM_GRAY, margin: "0 0 0.875rem" }}>Daily peak per tracked symptom — last 30 days</p>
-            <svg width="100%" viewBox={`0 0 ${TW} ${TH}`} style={{ overflow: "visible", display: "block" }}>
-              {[2,4,6,8,10].map(v => (
-                <g key={v}>
-                  <line x1={TP.l} y1={tY(v)} x2={TW-TP.r} y2={tY(v)} stroke="#e8e4e0" strokeWidth="0.5" strokeDasharray="3 3"/>
-                  <text x={TP.l-4} y={tY(v)+3} fontSize="8" fill="#bbb" textAnchor="end">{v}</text>
-                </g>
-              ))}
-              {symList.slice(0,6).map((sym, si) => {
-                const color = COLORS[si % COLORS.length];
-                const points = allDates.map((d, i) => sym.days[d] != null ? { x: tX(i), y: tY(sym.days[d]), v: sym.days[d] } : null).filter(Boolean);
-                if (points.length < 2) return null;
-                const path = points.map((p, pi) => `${pi === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
-                return (
-                  <g key={sym.id}>
-                    <path d={path} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" strokeOpacity="0.8"/>
-                    {points.map((p, pi) => <circle key={pi} cx={p.x} cy={p.y} r="3" fill={color} stroke="#fff" strokeWidth="1"/>)}
+            {/* Header + range toggle */}
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "0.75rem", gap: "0.5rem", flexWrap: "wrap" }}>
+              <div>
+                <p style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: "0 0 0.1rem" }}>Per-Symptom Severity Trends</p>
+                <p style={{ fontSize: "0.75rem", color: WARM_GRAY, margin: 0 }}>Daily peak per tracked symptom — {rangeLabel}</p>
+              </div>
+              <div style={{ display: "flex", gap: "0.25rem" }}>
+                {RANGES.map((r, ri) => (
+                  <button key={r.label} onClick={() => setRangeIdx(ri)}
+                    style={{ fontSize: "0.68rem", fontWeight: 600, padding: "0.2rem 0.5rem", borderRadius: 6, border: `1.5px solid ${rangeIdx === ri ? SAGE_DARK : "rgba(0,0,0,0.12)"}`, background: rangeIdx === ri ? SAGE_DARK : "transparent", color: rangeIdx === ri ? "#fff" : WARM_GRAY, cursor: "pointer", transition: "all 0.12s" }}
+                  >{r.label}</button>
+                ))}
+              </div>
+            </div>
+
+            {chartDates.length < 2 || symList.length === 0 ? (
+              <p style={{ fontSize: "0.78rem", color: WARM_GRAY, fontStyle: "italic", margin: "0.5rem 0" }}>Not enough data in this range yet.</p>
+            ) : (
+              <svg width="100%" viewBox={`0 0 ${TW} ${TH}`} style={{ overflow: "visible", display: "block" }}>
+                {[2,4,6,8,10].map(v => (
+                  <g key={v}>
+                    <line x1={TP.l} y1={tY(v)} x2={TW-TP.r} y2={tY(v)} stroke="#e8e4e0" strokeWidth="0.5" strokeDasharray="3 3"/>
+                    <text x={TP.l-4} y={tY(v)+3} fontSize="8" fill="#bbb" textAnchor="end">{v}</text>
                   </g>
-                );
-              })}
-              {allDates.map((d, i) => i % Math.ceil(allDates.length / 6) === 0 && (
-                <text key={d} x={tX(i)} y={TH-4} fontSize="8" fill="#bbb" textAnchor="middle">{d}</text>
-              ))}
-            </svg>
+                ))}
+                {symList.map((sym, si) => {
+                  const color = COLORS[si % COLORS.length];
+                  const points = chartDates.map((d, i) => {
+                    const v = getVal(sym.id, d);
+                    return v != null ? { x: tX(i), y: tY(v), v } : null;
+                  }).filter(Boolean);
+                  if (points.length < 2) return null;
+                  const path = points.map((p, pi) => `${pi === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
+                  return (
+                    <g key={sym.id}>
+                      <path d={path} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" strokeOpacity="0.8"/>
+                      {points.map((p, pi) => (
+                        <circle key={pi} cx={p.x} cy={p.y} r="2.5" fill={color} stroke="#fff" strokeWidth="1">
+                          <title>{sym.label}: {p.v}/10</title>
+                        </circle>
+                      ))}
+                    </g>
+                  );
+                })}
+                {chartDates.map((d, i) => i % labelStep === 0 && (
+                  <text key={d} x={tX(i)} y={TH-4} fontSize="8" fill="#bbb" textAnchor="middle">{fmtLabel(d)}</text>
+                ))}
+              </svg>
+            )}
+
             <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", marginTop: "0.5rem" }}>
-              {symList.slice(0,6).map((sym, si) => (
+              {symList.map((sym, si) => (
                 <div key={sym.id} style={{ display: "flex", alignItems: "center", gap: "0.3rem", fontSize: "0.7rem", color: WARM_GRAY }}>
                   <span style={{ display: "inline-block", width: 16, height: 2.5, background: COLORS[si % COLORS.length], borderRadius: 2 }}/>
                   {sym.label} <span style={{ color: SAGE_DARK, fontWeight: 600 }}>{sym.avgSev.toFixed(1)}/10 avg</span>
