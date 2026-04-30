@@ -621,51 +621,55 @@ export default function SageLogChat({ mode: modeProp, onSave, onCancel, onSwitch
           </div>
         )}
 
-        {/* Extraction loading */}
-        {isExtracting && (
-          <div style={styles.extractingBanner}>
-            <div style={styles.extractingSpinner} />
-            <span style={{ fontSize: "0.82rem", color: SAGE_DARK, fontWeight: 500 }}>
-              Sage is organizing what you shared…
-            </span>
-          </div>
-        )}
+        <div ref={chatEndRef} />
+      </div>
 
-        {/* Structured data preview */}
-        {extractedData && !isExtracting && (
+      {/* ── Result panels — outside chatArea so always fully visible ── */}
+
+      {/* Extraction loading */}
+      {isExtracting && (
+        <div style={{ ...styles.extractingBanner, margin: "0 1rem 0.5rem" }}>
+          <div style={styles.extractingSpinner} />
+          <span style={{ fontSize: "0.82rem", color: SAGE_DARK, fontWeight: 500 }}>
+            Sage is organizing what you shared…
+          </span>
+        </div>
+      )}
+
+      {/* Structured data preview */}
+      {extractedData && !isExtracting && (
+        <div style={{ overflowY: "auto", flexShrink: 0, maxHeight: "60vh", padding: "0 1rem 0.5rem" }}>
           <StructuredPreview
             data={extractedData}
             mode={mode}
             onConfirm={handleConfirm}
             onEdit={handleEditManually}
           />
-        )}
+        </div>
+      )}
 
-        {/* Save nudge — shown when isComplete but extraction hasn't fired yet */}
-        {isComplete && !extractedData && !isExtracting && !error && (
-          <div style={{ background: SAGE_LIGHT, borderRadius: "0.875rem", padding: "0.875rem 1rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem", alignSelf: "stretch" }}>
-            <span style={{ fontSize: "0.82rem", color: SAGE_DARK, fontWeight: 500, lineHeight: 1.4 }}>
-              Looks like you're done — ready to save?
-            </span>
-            <button onClick={handleDone} style={{ background: SAGE_DARK, color: "#fff", border: "none", borderRadius: "100px", padding: "0.45rem 1rem", fontSize: "0.78rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
-              Save →
-            </button>
+      {/* Save nudge */}
+      {isComplete && !extractedData && !isExtracting && !error && (
+        <div style={{ background: SAGE_LIGHT, borderRadius: "0.875rem", padding: "0.875rem 1rem", margin: "0 1rem 0.5rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem", flexShrink: 0 }}>
+          <span style={{ fontSize: "0.82rem", color: SAGE_DARK, fontWeight: 500, lineHeight: 1.4 }}>
+            Looks like you're done — ready to save?
+          </span>
+          <button onClick={handleDone} style={{ background: SAGE_DARK, color: "#fff", border: "none", borderRadius: "100px", padding: "0.45rem 1rem", fontSize: "0.78rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+            Save →
+          </button>
+        </div>
+      )}
+
+      {/* Error */}
+      {error && (
+        <div style={{ ...styles.errorBanner, flexDirection: "column", alignItems: "flex-start", gap: "0.625rem", margin: "0 1rem 0.5rem", flexShrink: 0 }}>
+          <span style={{ fontSize: "0.82rem", color: "#c0392b", lineHeight: 1.5 }}>{error}</span>
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            <button onClick={() => extractData(messagesRef.current)} style={styles.retryBtn}>Retry</button>
+            <button onClick={() => onSwitchToForm({})} style={{ ...styles.retryBtn, borderColor: WARM_GRAY, color: WARM_GRAY }}>Save manually</button>
           </div>
-        )}
-
-        {/* Error */}
-        {error && (
-          <div style={{ ...styles.errorBanner, flexDirection: "column", alignItems: "flex-start", gap: "0.625rem" }}>
-            <span style={{ fontSize: "0.82rem", color: "#c0392b", lineHeight: 1.5 }}>{error}</span>
-            <div style={{ display: "flex", gap: "0.5rem" }}>
-              <button onClick={() => extractData(messagesRef.current)} style={styles.retryBtn}>Retry</button>
-              <button onClick={() => onSwitchToForm({})} style={{ ...styles.retryBtn, borderColor: WARM_GRAY, color: WARM_GRAY }}>Save manually</button>
-            </div>
-          </div>
-        )}
-
-        <div ref={chatEndRef} />
-      </div>
+        </div>
+      )}
 
       {/* Input area — hidden once complete or extraction is showing */}
       {!extractedData && !isExtracting && !isComplete && (
@@ -759,8 +763,10 @@ const styles = {
   /* Chat area */
   chatArea: {
     flex: 1,
+    flexShrink: 1,
+    minHeight: 0,
     overflowY: "auto",
-    padding: "1.25rem 1rem 2.5rem",
+    padding: "1.25rem 1rem 1rem",
     display: "flex",
     flexDirection: "column",
     gap: "0.875rem",
