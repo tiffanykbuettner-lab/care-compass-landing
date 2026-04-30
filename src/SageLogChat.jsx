@@ -93,12 +93,11 @@ TONE GUIDELINES:
 - Don't say "Great!" or "Awesome!" — be genuine, not performatively positive
 
 WHEN TO WRAP UP:
-When you've covered the essential topics for this mode and the conversation feels complete, you MUST end your final message with exactly this token on its own at the very end: [CONVERSATION_COMPLETE]
+When you've covered the essential topics and the conversation feels complete, you MUST append [CONVERSATION_COMPLETE] at the very end of your closing message. This token is machine-readable and triggers saving — without it, nothing gets saved.
 
-This token is machine-readable and triggers saving. You MUST include it. Example of a correct final message:
-"Take care of yourself today — I hope you get some rest. [CONVERSATION_COMPLETE]"
+Correct example: "Alright, that's everything I need. Take care of yourself today. [CONVERSATION_COMPLETE]"
 
-CRITICAL: Never end a conversation without [CONVERSATION_COMPLETE]. If you are writing a closing or farewell message, it must include [CONVERSATION_COMPLETE] at the end. Do not write any text after the token.`;
+CRITICAL RULE: Any message that is a farewell, closing, or wrap-up MUST end with [CONVERSATION_COMPLETE]. Never write a closing message without it.`;
 }
 
 /* ─── Extraction prompt ───────────────────────────────────────────────────── */
@@ -235,21 +234,22 @@ export default function SageLogChat({ mode: modeProp, onSave, onCancel, onSwitch
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, streamingText]);
 
-  /* Detect closing language in last Sage message as fallback for missed signal */
+  /* Fallback: detect closing language in last Sage message and set isComplete */
   useEffect(() => {
     if (isComplete || isLoading || messages.length < 4) return;
     const last = messages[messages.length - 1];
     if (last?.role !== "assistant") return;
+    const lower = last.content.toLowerCase();
     const closingPhrases = [
       "take care", "feel better", "get some rest", "hope you", "sending you",
       "be gentle with yourself", "rest up", "hope things ease", "wishing you",
       "that's everything", "we've covered", "all noted", "got everything",
+      "take it easy", "hope you feel", "hope it eases", "hope the",
     ];
-    const lower = last.content.toLowerCase();
     if (closingPhrases.some(p => lower.includes(p))) {
       setIsComplete(true);
     }
-  }, [messages]);
+  }, [messages, isLoading]);
 
   /* Open with Sage's first message */
   useEffect(() => {
@@ -561,13 +561,13 @@ export default function SageLogChat({ mode: modeProp, onSave, onCancel, onSwitch
           />
         )}
 
-        {/* Save nudge — shown when isComplete but extraction hasn't fired */}
+        {/* Save nudge — shown when isComplete but extraction hasn't fired yet */}
         {isComplete && !extractedData && !isExtracting && !error && (
           <div style={{ background: SAGE_LIGHT, borderRadius: "0.875rem", padding: "0.875rem 1rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem", alignSelf: "stretch" }}>
-            <span style={{ fontSize: "0.82rem", color: SAGE_DARK, fontWeight: 500 }}>
-              Ready to save your log?
+            <span style={{ fontSize: "0.82rem", color: SAGE_DARK, fontWeight: 500, lineHeight: 1.4 }}>
+              Looks like you're done — ready to save?
             </span>
-            <button onClick={handleDone} style={{ background: SAGE_DARK, color: "#fff", border: "none", borderRadius: "100px", padding: "0.4rem 0.875rem", fontSize: "0.78rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+            <button onClick={handleDone} style={{ background: SAGE_DARK, color: "#fff", border: "none", borderRadius: "100px", padding: "0.45rem 1rem", fontSize: "0.78rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
               Save →
             </button>
           </div>
@@ -610,7 +610,7 @@ export default function SageLogChat({ mode: modeProp, onSave, onCancel, onSwitch
         </div>
       )}
 
-      {/* Switch to form hint — only when still chatting */}
+      {/* Switch to form hint — only while still chatting */}
       {!extractedData && !isExtracting && !isComplete && (
         <p style={styles.switchHint}>
           <button onClick={onSwitchToForm} style={styles.switchHintBtn}>
