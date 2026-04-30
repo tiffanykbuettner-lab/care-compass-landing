@@ -4492,7 +4492,7 @@ ${extraContext}` : ""}`;
           <div style={s.addBtnWrap} className="no-print">
             <style>{SAGE_KEYFRAMES}</style>
             <button onClick={openNew} style={{ ...s.addBtn, display: "flex", alignItems: "center", gap: "0.6rem", paddingLeft: "1.5rem", paddingRight: "1.75rem" }}>
-              <FireflyBare size={24} />
+              <FireflyBare size={34} />
               Talk to Sage
             </button>
           </div>
