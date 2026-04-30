@@ -6295,8 +6295,16 @@ ${extraContext}` : ""}`;
       {showForm && (
         <div style={s.modalOverlay} onClick={() => { setShowForm(false); }}>
           <div style={s.modal} onClick={e => e.stopPropagation()}>
-            <div style={s.modalHeader}><h2 style={s.modalTitle}>{editingEntry ? "Edit entry" : "Log an entry"}</h2><button onClick={() => { setShowForm(false); }} style={s.modalClose}><Icon name="close" size={16} /></button></div>
-            <div style={s.modalBody}>
+
+            {/* Header */}
+            <div style={{ ...s.modalHeader, background: editingEntry ? OFF_WHITE : SAGE_LIGHT, borderBottom: `1px solid ${editingEntry ? "rgba(0,0,0,0.07)" : "rgba(74,112,88,0.15)"}` }}>
+              <h2 style={{ ...s.modalTitle, fontSize: "1.05rem" }}>
+                {editingEntry ? "Edit entry" : "Log a symptom"}
+              </h2>
+              <button onClick={() => { setShowForm(false); }} style={s.modalClose}><Icon name="close" size={16} /></button>
+            </div>
+
+            <div style={{ ...s.modalBody, gap: "1rem" }}>
 
               {/* ── 1. Tracked symptom chips (primary) ── */}
               {userTrackedSymptoms.length > 0 && (() => {
@@ -6498,114 +6506,126 @@ ${extraContext}` : ""}`;
                   }}
                 />
               </div>
-              <div style={s.formRow}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
                 <div style={s.formGroup}>
-                  <label style={s.label}>Activity & what symptoms limited</label>
-                  <input
-                    value={form.activity}
-                    onChange={e => setForm(f => ({ ...f, activity: e.target.value }))}
-                    placeholder="e.g. couldn't drive due to dizziness, sat while cooking, short walk then rested…"
-                    style={s.input}
-                  />
+                  <label style={s.label}>Activity & limitations</label>
+                  <input value={form.activity} onChange={e => setForm(f => ({ ...f, activity: e.target.value }))}
+                    placeholder="e.g. couldn't drive, sat while cooking…" style={s.input}/>
                 </div>
-                <div style={s.formGroup}><label style={s.label}>Weather / environment</label><input value={form.weather} onChange={e => setForm(f => ({ ...f, weather: e.target.value }))} placeholder="e.g. hot, humid, cold, indoors…" style={s.input}/></div>
-              </div>
-              {/* ── Functional Impact fields — evening only ── */}
-              {isEveningTime && <>
-              <div style={s.formGroup}>
-                <label style={s.label}>Hours upright today <span style={s.optional}>(optional)</span></label>
-                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                  {["< 2h", "2–4h", "4–8h", "8+h"].map(opt => {
-                    const active = form.hoursUpright === opt;
-                    return (
-                      <button
-                        key={opt}
-                        type="button"
-                        onClick={() => setForm(f => ({ ...f, hoursUpright: active ? null : opt }))}
-                        style={{ padding: "0.45rem 1rem", borderRadius: "100px", border: `1.5px solid ${active ? SAGE_DARK : "rgba(0,0,0,0.15)"}`, background: active ? SAGE_DARK : "transparent", color: active ? "#fff" : INK, fontSize: "0.82rem", fontWeight: active ? 600 : 400, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}
-                      >
-                        {opt}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div style={s.formGroup}>
-                <label style={s.label}>Tasks managed today <span style={s.optional}>(optional — check all that applied)</span></label>
-                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                  {["Work / school", "Self-care", "Chores", "Social / errands"].map(task => {
-                    const checked = (form.tasksCompleted || []).includes(task);
-                    return (
-                      <button
-                        key={task}
-                        type="button"
-                        onClick={() => setForm(f => ({ ...f, tasksCompleted: checked ? (f.tasksCompleted || []).filter(t => t !== task) : [...(f.tasksCompleted || []), task] }))}
-                        style={{ padding: "0.45rem 1rem", borderRadius: "100px", border: `1.5px solid ${checked ? TEAL : "rgba(0,0,0,0.15)"}`, background: checked ? TEAL : "transparent", color: checked ? "#fff" : INK, fontSize: "0.82rem", fontWeight: checked ? 600 : 400, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}
-                      >
-                        {checked ? "✓ " : ""}{task}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div style={s.formGroup}>
-                <label style={s.label}>Energy envelope used <span style={s.optional}>(optional)</span></label>
-                <div style={{ display: "flex", gap: "0.5rem" }}>
-                  {[["Low", "#4A8C7A"], ["Medium", "#e8a838"], ["High", "#c0392b"]].map(([level, color]) => {
-                    const active = form.energyEnvelope === level;
-                    return (
-                      <button
-                        key={level}
-                        type="button"
-                        onClick={() => setForm(f => ({ ...f, energyEnvelope: active ? null : level }))}
-                        style={{ flex: 1, padding: "0.5rem 0", borderRadius: "0.6rem", border: `1.5px solid ${active ? color : "rgba(0,0,0,0.12)"}`, background: active ? color : "transparent", color: active ? "#fff" : INK, fontSize: "0.82rem", fontWeight: active ? 700 : 400, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s", textAlign: "center" }}
-                      >
-                        {level}
-                      </button>
-                    );
-                  })}
-                </div>
-                <p style={{ fontSize: "0.72rem", color: WARM_GRAY, margin: "0.35rem 0 0" }}>How much of your energy capacity did today's activity use?</p>
-              </div>
-              </>}
-              <div style={s.formGroup}>
-                <label style={s.label}>Stress level <span style={s.sevValue}>{form.stress}/10</span></label>
-                <input type="range" min="1" max="10" step="1" value={form.stress} onChange={e => setForm(f => ({ ...f, stress: Number(e.target.value) }))} style={{ width: "100%", accentColor: SAGE_DARK }}/>
-                <div style={s.sevLabels}><span style={s.sevLabel}>Low</span><span style={s.sevLabel}>High</span></div>
-              </div>
-              {form.sleep != null && (
                 <div style={s.formGroup}>
-                  <label style={s.label}>Sleep quality last night <span style={s.sevValue}>{form.sleep}/10</span></label>
-                  <input type="range" min="1" max="10" step="1" value={form.sleep} onChange={e => setForm(f => ({ ...f, sleep: Number(e.target.value) }))} style={{ width: "100%", accentColor: TEAL }}/>
-                  <div style={s.sevLabels}><span style={s.sevLabel}>Poor</span><span style={s.sevLabel}>Excellent</span></div>
+                  <label style={s.label}>Weather / environment</label>
+                  <input value={form.weather} onChange={e => setForm(f => ({ ...f, weather: e.target.value }))}
+                    placeholder="e.g. hot, humid, cold…" style={s.input}/>
+                </div>
+              </div>
+              {/* ── Functional Impact — evening only ── */}
+              {isEveningTime && (
+                <div style={{ background: OFF_WHITE, borderRadius: "0.875rem", overflow: "hidden", border: "1px solid rgba(0,0,0,0.06)" }}>
+                  <p style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: 0, padding: "0.625rem 1rem", borderBottom: "1px solid rgba(0,0,0,0.05)" }}>Functional impact</p>
+                  <div style={{ padding: "0.875rem 1rem", borderBottom: "1px solid rgba(0,0,0,0.05)" }}>
+                    <label style={{ ...s.label, display: "block", marginBottom: "0.4rem" }}>Hours upright today <span style={s.optional}>(optional)</span></label>
+                    <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                      {["< 2h", "2–4h", "4–8h", "8+h"].map(opt => {
+                        const active = form.hoursUpright === opt;
+                        return (
+                          <button key={opt} type="button"
+                            onClick={() => setForm(f => ({ ...f, hoursUpright: active ? null : opt }))}
+                            style={{ padding: "0.4rem 0.875rem", borderRadius: "100px", border: `1.5px solid ${active ? SAGE_DARK : "rgba(0,0,0,0.15)"}`, background: active ? SAGE_DARK : "transparent", color: active ? "#fff" : INK, fontSize: "0.8rem", fontWeight: active ? 600 : 400, cursor: "pointer", fontFamily: "inherit" }}>
+                            {opt}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div style={{ padding: "0.875rem 1rem", borderBottom: "1px solid rgba(0,0,0,0.05)" }}>
+                    <label style={{ ...s.label, display: "block", marginBottom: "0.4rem" }}>Tasks managed <span style={s.optional}>(optional)</span></label>
+                    <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                      {[["Work", "Work / school"], ["Self-care", "Self-care"], ["Chores", "Chores"], ["Social", "Social / errands"]].map(([short, full]) => {
+                        const checked = (form.tasksCompleted || []).includes(full);
+                        return (
+                          <button key={full} type="button"
+                            onClick={() => setForm(f => ({ ...f, tasksCompleted: checked ? (f.tasksCompleted || []).filter(t => t !== full) : [...(f.tasksCompleted || []), full] }))}
+                            style={{ padding: "0.4rem 0.875rem", borderRadius: "100px", border: `1.5px solid ${checked ? TEAL : "rgba(0,0,0,0.15)"}`, background: checked ? TEAL : "transparent", color: checked ? "#fff" : INK, fontSize: "0.8rem", fontWeight: checked ? 600 : 400, cursor: "pointer", fontFamily: "inherit" }}>
+                            {checked ? "✓ " : ""}{short}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div style={{ padding: "0.875rem 1rem" }}>
+                    <label style={{ ...s.label, display: "block", marginBottom: "0.4rem" }}>Energy envelope used <span style={s.optional}>(optional)</span></label>
+                    <div style={{ display: "flex", gap: "0.5rem" }}>
+                      {[["Low", "#4A8C7A"], ["Medium", "#e8a838"], ["High", "#c0392b"]].map(([level, color]) => {
+                        const active = form.energyEnvelope === level;
+                        return (
+                          <button key={level} type="button"
+                            onClick={() => setForm(f => ({ ...f, energyEnvelope: active ? null : level }))}
+                            style={{ flex: 1, padding: "0.5rem 0", borderRadius: "0.5rem", border: `1.5px solid ${active ? color : "rgba(0,0,0,0.12)"}`, background: active ? color : "transparent", color: active ? "#fff" : INK, fontSize: "0.8rem", fontWeight: active ? 700 : 400, cursor: "pointer", fontFamily: "inherit", textAlign: "center" }}>
+                            {level}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               )}
-              <div style={s.formGroup}>
-                <label style={s.label}>Additional notes <span style={s.optional}>(optional)</span></label>
-                <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Anything else worth noting…" style={{ ...s.textarea, width: "100%", boxSizing: "border-box" }} rows={2}/>
+
+              {/* ── More details card ── */}
+              <div style={{ background: OFF_WHITE, borderRadius: "0.875rem", overflow: "hidden", border: "1px solid rgba(0,0,0,0.06)" }}>
+                <p style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: 0, padding: "0.625rem 1rem", borderBottom: "1px solid rgba(0,0,0,0.05)" }}>More details <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(optional)</span></p>
+
+                <div style={{ padding: "0.875rem 1rem", borderBottom: "1px solid rgba(0,0,0,0.05)", display: "grid", gridTemplateColumns: form.sleep != null ? "1fr 1fr" : "1fr", gap: "1rem" }}>
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "0.4rem" }}>
+                      <label style={{ ...s.label, margin: 0, fontSize: "0.78rem" }}>Stress level</label>
+                      <span style={{ fontSize: "0.88rem", fontWeight: 700, color: SAGE_DARK }}>{form.stress}/10</span>
+                    </div>
+                    <input type="range" min="1" max="10" step="1" value={form.stress} onChange={e => setForm(f => ({ ...f, stress: Number(e.target.value) }))} style={{ width: "100%", accentColor: SAGE_DARK }}/>
+                    <div style={s.sevLabels}><span style={s.sevLabel}>Low</span><span style={s.sevLabel}>High</span></div>
+                  </div>
+                  {form.sleep != null && (
+                    <div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "0.4rem" }}>
+                        <label style={{ ...s.label, margin: 0, fontSize: "0.78rem" }}>Sleep quality</label>
+                        <span style={{ fontSize: "0.88rem", fontWeight: 700, color: TEAL }}>{form.sleep}/10</span>
+                      </div>
+                      <input type="range" min="1" max="10" step="1" value={form.sleep} onChange={e => setForm(f => ({ ...f, sleep: Number(e.target.value) }))} style={{ width: "100%", accentColor: TEAL }}/>
+                      <div style={s.sevLabels}><span style={s.sevLabel}>Poor</span><span style={s.sevLabel}>Excellent</span></div>
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ padding: "0.875rem 1rem", borderBottom: "1px solid rgba(0,0,0,0.05)" }}>
+                  <label style={{ ...s.label, marginBottom: "0.4rem", display: "block" }}>Additional notes</label>
+                  <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Anything else worth noting…" style={{ ...s.textarea, width: "100%", boxSizing: "border-box", background: "#fff" }} rows={2}/>
+                </div>
+
+                <div style={{ padding: "0.875rem 1rem" }}>
+                  <label style={{ ...s.label, marginBottom: "0.4rem", display: "block" }}>Photos</label>
+                  <label style={s.photoUploadArea}>
+                    <input type="file" accept="image/*" multiple style={{ display: "none" }} onChange={handlePhotoUpload}/>
+                    <span style={{ ...s.photoUploadIcon, color:"#7a9e87", display:"flex", alignItems:"center" }}><Icon name="camera" size={20} /></span>
+                    <span style={s.photoUploadText}>Tap to add photos</span>
+                    <span style={s.photoUploadSub}>Rashes, swelling, bruising — anything worth documenting</span>
+                  </label>
+                  {(form.photos || []).length > 0 && (
+                    <div style={s.photoPreviewRow}>
+                      {(form.photos || []).map((photo, idx) => (
+                        <div key={idx} style={s.photoPreviewWrap}>
+                          <img src={photo.data} alt={photo.name} style={s.photoPreview}/>
+                          <button onClick={() => removePhoto(idx)} style={s.photoRemoveBtn}><Icon name="close" size={16} /></button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <div style={s.formGroup}>
-                <label style={s.label}>Photos <span style={s.optional}>(optional — up to 3, max 2MB each)</span></label>
-                <label style={s.photoUploadArea}>
-                  <input type="file" accept="image/*" multiple style={{ display: "none" }} onChange={handlePhotoUpload}/>
-                  <span style={{ ...s.photoUploadIcon, color:"#7a9e87", display:"flex", alignItems:"center" }}><Icon name="camera" size={20} /></span>
-                  <span style={s.photoUploadText}>Tap to add photos</span>
-                  <span style={s.photoUploadSub}>Rashes, swelling, bruising — anything worth documenting</span>
-                </label>
-                {(form.photos || []).length > 0 && (
-                  <div style={s.photoPreviewRow}>
-                    {(form.photos || []).map((photo, idx) => (
-                      <div key={idx} style={s.photoPreviewWrap}>
-                        <img src={photo.data} alt={photo.name} style={s.photoPreview}/>
-                        <button onClick={() => removePhoto(idx)} style={s.photoRemoveBtn}><Icon name="close" size={16} /></button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
             </div>
-            <div style={s.modalFooter}><button onClick={() => { setShowForm(false); }} style={s.cancelBtn}>Cancel</button><button onClick={handleSubmit} style={s.saveBtn}>{editingEntry ? "Update Entry →" : "Save Entry →"}</button></div>
+            <div style={{ ...s.modalFooter, justifyContent: "space-between" }}>
+              <button onClick={() => { setShowForm(false); }} style={s.cancelBtn}>Cancel</button>
+              <button onClick={handleSubmit} style={s.saveBtn}>{editingEntry ? "Update Entry →" : "Save Entry →"}</button>
+            </div>
           </div>
         </div>
       )}
@@ -6615,7 +6635,7 @@ ${extraContext}` : ""}`;
         <p style={s.footerDisclaimer}>Care Compass is not a medical service and does not provide medical advice, diagnosis, or treatment.</p>
       </footer>
 
-      <div className="no-print">{!showSageChat && !showMorningCheckin && !showEveningCheckin && <SageChatbot hideOnAsk={view === "ask"} />}</div>
+      <div className="no-print">{!showSageChat && !showMorningCheckin && !showEveningCheckin && !showForm && <SageChatbot hideOnAsk={view === "ask"} />}</div>
 
     </div>
   );
