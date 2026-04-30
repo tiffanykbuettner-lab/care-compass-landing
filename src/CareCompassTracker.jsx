@@ -3353,7 +3353,7 @@ export default function CareCompassTracker() {
   const [showMorningCheckin, setShowMorningCheckin] = useState(false);
   const [showEveningCheckin, setShowEveningCheckin] = useState(false);
   const [morningForm, setMorningForm] = useState({ sleep: 7, severity: 5, symptoms: "", energy: 5, notes: "" });
-  const [eveningForm, setEveningForm] = useState({ severity: 5, symptoms: "", food: "", medications: "", selectedMedIds: [], activity: "", stress: 5, notes: "" });
+  const [eveningForm, setEveningForm] = useState({ severity: 5, symptoms: "", food: "", medications: "", selectedMedIds: [], activity: "", stress: 5, notes: "", hoursUpright: null, tasksCompleted: [], energyEnvelope: null });
   const [checkinSaved, setCheckinSaved] = useState(""); // id of entry pending delete confirmation
   const [saveError, setSaveError]         = useState("");
   const [safetyAlert, setSafetyAlert]     = useState(null); // null | { triggers, bpCrisis }
@@ -6049,6 +6049,58 @@ ${extraContext}` : ""}`;
                   <div style={s.sevLabels}><span style={s.sevLabel}>Low</span><span style={s.sevLabel}>High</span></div>
                 </div>
 
+                {/* Functional Impact — hours upright */}
+                <div style={s.formGroup}>
+                  <label style={s.label}>Hours upright today <span style={s.optional}>(optional)</span></label>
+                  <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                    {["< 2h", "2–4h", "4–8h", "8+h"].map(opt => {
+                      const active = eveningForm.hoursUpright === opt;
+                      return (
+                        <button key={opt} type="button"
+                          onClick={() => setEveningForm(f => ({ ...f, hoursUpright: active ? null : opt }))}
+                          style={{ padding: "0.45rem 1rem", borderRadius: "100px", border: `1.5px solid ${active ? SAGE_DARK : "rgba(0,0,0,0.15)"}`, background: active ? SAGE_DARK : "transparent", color: active ? "#fff" : INK, fontSize: "0.82rem", fontWeight: active ? 600 : 400, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}>
+                          {opt}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Functional Impact — tasks managed */}
+                <div style={s.formGroup}>
+                  <label style={s.label}>Tasks managed today <span style={s.optional}>(optional — check all that applied)</span></label>
+                  <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                    {["Work / school", "Self-care", "Chores", "Social / errands"].map(task => {
+                      const checked = (eveningForm.tasksCompleted || []).includes(task);
+                      return (
+                        <button key={task} type="button"
+                          onClick={() => setEveningForm(f => ({ ...f, tasksCompleted: checked ? (f.tasksCompleted || []).filter(t => t !== task) : [...(f.tasksCompleted || []), task] }))}
+                          style={{ padding: "0.45rem 1rem", borderRadius: "100px", border: `1.5px solid ${checked ? TEAL : "rgba(0,0,0,0.15)"}`, background: checked ? TEAL : "transparent", color: checked ? "#fff" : INK, fontSize: "0.82rem", fontWeight: checked ? 600 : 400, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}>
+                          {checked ? "✓ " : ""}{task}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Functional Impact — energy envelope */}
+                <div style={s.formGroup}>
+                  <label style={s.label}>Energy envelope used <span style={s.optional}>(optional)</span></label>
+                  <div style={{ display: "flex", gap: "0.5rem" }}>
+                    {[["Low", "#4A8C7A"], ["Medium", "#e8a838"], ["High", "#c0392b"]].map(([level, color]) => {
+                      const active = eveningForm.energyEnvelope === level;
+                      return (
+                        <button key={level} type="button"
+                          onClick={() => setEveningForm(f => ({ ...f, energyEnvelope: active ? null : level }))}
+                          style={{ flex: 1, padding: "0.5rem 0", borderRadius: "0.6rem", border: `1.5px solid ${active ? color : "rgba(0,0,0,0.12)"}`, background: active ? color : "transparent", color: active ? "#fff" : INK, fontSize: "0.82rem", fontWeight: active ? 700 : 400, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s", textAlign: "center" }}>
+                          {level}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p style={{ fontSize: "0.72rem", color: WARM_GRAY, margin: "0.35rem 0 0" }}>How much of your energy capacity did today's activity use?</p>
+                </div>
+
                 {/* Reflections */}
                 <div style={s.formGroup}>
                   <label style={s.label}>
@@ -6069,7 +6121,7 @@ ${extraContext}` : ""}`;
                   setShowEveningCheckin(false);
                   setCheckinSaved("Evening check-in saved!");
                   setTimeout(() => setCheckinSaved(""), 3000);
-                  setEveningForm({ severity: 5, symptoms: "", food: "", medications: "", selectedMedIds: [], activity: "", stress: 5, notes: "" });
+                  setEveningForm({ severity: 5, symptoms: "", food: "", medications: "", selectedMedIds: [], activity: "", stress: 5, notes: "", hoursUpright: null, tasksCompleted: [], energyEnvelope: null });
                 }} style={s.saveBtn}>Save check-in →</button>
               </div>
             </div>
