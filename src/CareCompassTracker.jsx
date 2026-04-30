@@ -4462,7 +4462,7 @@ ${extraContext}` : ""}`;
                 <p style={{ fontSize: "0.78rem", color: WARM_GRAY, margin: 0 }}>A quick check-in takes under a minute.</p>
               </div>
               <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
-                <button onClick={() => setShowMorningCheckin(true)} style={{ background: "#e8a838", color: "#fff", border: "none", borderRadius: "100px", padding: "0.55rem 1.1rem", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Check in →</button>
+                <button onClick={() => setShowMorningCheckin(true)} style={{ background: "#e8a838", color: "#fff", border: "none", borderRadius: "100px", padding: "0.55rem 1.1rem", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Quick check-in →</button>
                 <button onClick={() => { saveCheckin("morning_skip", {}); }} style={{ background: "none", border: "none", fontSize: "0.75rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit" }}>Skip</button>
               </div>
             </div>
@@ -4477,7 +4477,7 @@ ${extraContext}` : ""}`;
                 <p style={{ fontSize: "0.78rem", color: WARM_GRAY, margin: 0 }}>Reflect on today or summarise your symptoms.</p>
               </div>
               <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
-                <button onClick={() => setShowEveningCheckin(true)} style={{ background: "#7c5cbf", color: "#fff", border: "none", borderRadius: "100px", padding: "0.55rem 1.1rem", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Check in →</button>
+                <button onClick={() => setShowEveningCheckin(true)} style={{ background: "#7c5cbf", color: "#fff", border: "none", borderRadius: "100px", padding: "0.55rem 1.1rem", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Quick check-in →</button>
                 <button onClick={() => { saveCheckin("evening_skip", {}); }} style={{ background: "none", border: "none", fontSize: "0.75rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit" }}>Skip</button>
               </div>
             </div>
@@ -6217,7 +6217,14 @@ ${extraContext}` : ""}`;
         <div style={s.modalOverlay} onClick={() => setShowEntryChooser(false)}>
           <div style={{ ...s.modal, maxHeight: "auto", paddingBottom: "env(safe-area-inset-bottom)" }} onClick={e => e.stopPropagation()}>
             <div style={s.modalHeader}>
-              <h2 style={s.modalTitle}>How would you like to log?</h2>
+              <div>
+                <h2 style={s.modalTitle}>Log an entry</h2>
+                {(shouldShowMorning || shouldShowEvening) && (
+                  <p style={{ fontSize: "0.75rem", color: WARM_GRAY, margin: "0.15rem 0 0" }}>
+                    For your {shouldShowMorning ? "morning" : "evening"} check-in, use the banner above.
+                  </p>
+                )}
+              </div>
               <button onClick={() => setShowEntryChooser(false)} style={s.modalClose}><Icon name="close" size={16} /></button>
             </div>
             <div style={{ padding: "1.25rem", display: "flex", flexDirection: "column", gap: "0.875rem" }}>
@@ -6243,7 +6250,7 @@ ${extraContext}` : ""}`;
                   <span style={{ fontSize: "0.95rem", fontWeight: 700, color: INK }}>Tell Sage what's going on</span>
                 </div>
                 <p style={{ fontSize: "0.82rem", color: WARM_GRAY, margin: 0, lineHeight: 1.6, paddingLeft: "2.4rem" }}>
-                  Have a conversation — Sage asks questions and turns your story into a structured log.
+                  Have a conversation — Sage asks questions and captures the full picture. Great for real-time symptoms or when you have more to share.
                 </p>
               </button>
               <button
