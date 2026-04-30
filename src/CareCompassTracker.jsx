@@ -5994,13 +5994,22 @@ ${extraContext}` : ""}`;
             </div>
             <div style={s.modalFooter}>
               <button onClick={() => setShowMorningCheckin(false)} style={s.cancelBtn}>Cancel</button>
-              <button onClick={() => {
-                saveCheckin("morning", { sleep: morningForm.sleep, severity: morningForm.severity, stress: morningForm.energy, symptoms: morningForm.symptoms, notes: morningForm.notes });
-                setShowMorningCheckin(false);
-                setCheckinSaved("Morning check-in saved!");
-                setTimeout(() => setCheckinSaved(""), 3000);
-                setMorningForm({ sleep: 7, severity: 5, symptoms: "", energy: 5, notes: "" });
-              }} style={s.saveBtn}>Save check-in →</button>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.5rem" }}>
+                <button onClick={() => {
+                  setShowMorningCheckin(false);
+                  setSageChatMode("morning");
+                  setShowSageChat(true);
+                }} style={{ background: "none", border: "none", fontSize: "0.78rem", color: SAGE_DARK, cursor: "pointer", fontFamily: "inherit", textDecoration: "underline", textDecorationColor: "rgba(74,112,88,0.4)", padding: 0 }}>
+                  Tell Sage instead →
+                </button>
+                <button onClick={() => {
+                  saveCheckin("morning", { sleep: morningForm.sleep, severity: morningForm.severity, stress: morningForm.energy, symptoms: morningForm.symptoms, notes: morningForm.notes });
+                  setShowMorningCheckin(false);
+                  setCheckinSaved("Morning check-in saved!");
+                  setTimeout(() => setCheckinSaved(""), 3000);
+                  setMorningForm({ sleep: 7, severity: 5, symptoms: "", energy: 5, notes: "" });
+                }} style={s.saveBtn}>Save check-in →</button>
+              </div>
             </div>
           </div>
         </div>
@@ -6185,15 +6194,24 @@ ${extraContext}` : ""}`;
               </div>
               <div style={s.modalFooter}>
                 <button onClick={() => setShowEveningCheckin(false)} style={s.cancelBtn}>Cancel</button>
-                <button onClick={() => {
-                  const selectedMedsStr = buildMedString(eveningForm.selectedMedIds || []);
-                  const finalMeds = [selectedMedsStr, eveningForm.medications].filter(Boolean).join(", ");
-                  saveCheckin("evening", { ...eveningForm, medications: finalMeds });
-                  setShowEveningCheckin(false);
-                  setCheckinSaved("Evening check-in saved!");
-                  setTimeout(() => setCheckinSaved(""), 3000);
-                  setEveningForm({ severity: 5, symptoms: "", food: "", medications: "", selectedMedIds: [], activity: "", stress: 5, notes: "", hoursUpright: null, tasksCompleted: [], energyEnvelope: null });
-                }} style={s.saveBtn}>Save check-in →</button>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.5rem" }}>
+                  <button onClick={() => {
+                    setShowEveningCheckin(false);
+                    setSageChatMode("evening");
+                    setShowSageChat(true);
+                  }} style={{ background: "none", border: "none", fontSize: "0.78rem", color: SAGE_DARK, cursor: "pointer", fontFamily: "inherit", textDecoration: "underline", textDecorationColor: "rgba(74,112,88,0.4)", padding: 0 }}>
+                    Tell Sage instead →
+                  </button>
+                  <button onClick={() => {
+                    const selectedMedsStr = buildMedString(eveningForm.selectedMedIds || []);
+                    const finalMeds = [selectedMedsStr, eveningForm.medications].filter(Boolean).join(", ");
+                    saveCheckin("evening", { ...eveningForm, medications: finalMeds });
+                    setShowEveningCheckin(false);
+                    setCheckinSaved("Evening check-in saved!");
+                    setTimeout(() => setCheckinSaved(""), 3000);
+                    setEveningForm({ severity: 5, symptoms: "", food: "", medications: "", selectedMedIds: [], activity: "", stress: 5, notes: "", hoursUpright: null, tasksCompleted: [], energyEnvelope: null });
+                  }} style={s.saveBtn}>Save check-in →</button>
+                </div>
               </div>
             </div>
           </div>
