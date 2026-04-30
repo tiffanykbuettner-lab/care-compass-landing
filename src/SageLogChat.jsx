@@ -369,6 +369,8 @@ export default function SageLogChat({ mode: modeProp, onSave, onCancel, onSwitch
       const clean = raw.replace(/```json|```/g, "").trim();
       const parsed = JSON.parse(clean);
       setExtractedData(parsed);
+      /* Scroll after the preview card has rendered */
+      setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 120);
     } catch {
       setError("Couldn't extract your data. You can still save manually.");
     } finally {
@@ -583,7 +585,7 @@ const styles = {
   chatArea: {
     flex: 1,
     overflowY: "auto",
-    padding: "1.25rem 1rem",
+    padding: "1.25rem 1rem 2.5rem",
     display: "flex",
     flexDirection: "column",
     gap: "0.875rem",
