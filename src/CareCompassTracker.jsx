@@ -5437,7 +5437,7 @@ ${extraContext}` : ""}`;
           )}
 
           {view === "ask" && (
-            <div style={s.tabContent}>
+            <div style={{ ...s.tabContent, paddingBottom: "env(safe-area-inset-bottom, 1rem)" }}>
               <SageAskWidget mode="tracker" />
             </div>
           )}
@@ -6601,7 +6601,7 @@ ${extraContext}` : ""}`;
         <p style={s.footerDisclaimer}>Care Compass is not a medical service and does not provide medical advice, diagnosis, or treatment.</p>
       </footer>
 
-      {!showSageChat && <SageChatbot />}
+      {!showSageChat && <SageChatbot hideOnAsk={view === "ask"} />}
 
     </div>
   );
@@ -6944,7 +6944,7 @@ const TRACKER_SUGGESTIONS = [
   "How does the blood pressure log work?",
 ];
 
-function SageChatbot() {
+function SageChatbot({ hideOnAsk = false }) {
   // greeting phases: "hidden" | "showing" | "fading" | "gone"
   const [greetPhase, setGreetPhase] = useState("hidden");
   const [open, setOpen] = useState(false);
@@ -6996,8 +6996,8 @@ function SageChatbot() {
     <>
       <style>{SAGE_KEYFRAMES}</style>
 
-      {/* Auto-fading greeting bubble */}
-      {(greetPhase === "showing" || greetPhase === "fading") && !open && (
+      {/* Auto-fading greeting bubble — hidden on ask tab */}
+      {!hideOnAsk && (greetPhase === "showing" || greetPhase === "fading") && !open && (
         <div style={{
           position:"fixed", bottom:"5.75rem", right:"1.5rem",
           background:"#fff", borderRadius:"1rem",
@@ -7055,8 +7055,8 @@ function SageChatbot() {
         </div>
       )}
 
-      {/* FAB */}
-      {!open && (
+      {/* FAB — hidden on ask tab to avoid blocking SageAskWidget */}
+      {!open && !hideOnAsk && (
         <button style={ss.fab} onClick={openChat} aria-label="Chat with Sage">
           <FireflyMark size={48}/>
         </button>
