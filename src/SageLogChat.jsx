@@ -225,31 +225,40 @@ export default function SageLogChat({ mode: modeProp, onSave, onCancel, onSwitch
   const [extractedData, setExtractedData] = useState(null);
   const [error, setError]                 = useState("");
 
-  const chatEndRef  = useRef(null);
-  const inputRef    = useRef(null);
-  const apiKey      = import.meta.env.VITE_ANTHROPIC_API_KEY;
+  const chatEndRef   = useRef(null);
+  const inputRef     = useRef(null);
+  const messagesRef  = useRef([]);
+  const apiKey       = import.meta.env.VITE_ANTHROPIC_API_KEY;
+
+  /* Keep messagesRef current */
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
 
   /* Auto-scroll to bottom */
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, streamingText]);
 
-  /* Fallback: detect closing language in last Sage message and set isComplete */
+  /* Fallback: detect closing language when each load completes */
   useEffect(() => {
-    if (isComplete || isLoading || messages.length < 4) return;
-    const last = messages[messages.length - 1];
+    if (isLoading) return; // only run when a turn just finished
+    const msgs = messagesRef.current;
+    if (msgs.length < 4) return;
+    const last = msgs[msgs.length - 1];
     if (last?.role !== "assistant") return;
+    if (last.content.includes("[CONVERSATION_COMPLETE]")) return; // already handled
     const lower = last.content.toLowerCase();
     const closingPhrases = [
       "take care", "feel better", "get some rest", "hope you", "sending you",
       "be gentle with yourself", "rest up", "hope things ease", "wishing you",
       "that's everything", "we've covered", "all noted", "got everything",
-      "take it easy", "hope you feel", "hope it eases", "hope the",
+      "take it easy", "hope you feel", "hope it eases", "alright, that",
+      "i've got everything", "all set", "that covers", "sounds like a migraine",
+      "dark and quiet", "step away",
     ];
     if (closingPhrases.some(p => lower.includes(p))) {
       setIsComplete(true);
     }
-  }, [messages, isLoading]);
+  }, [isLoading]);
 
   /* Open with Sage's first message */
   useEffect(() => {
