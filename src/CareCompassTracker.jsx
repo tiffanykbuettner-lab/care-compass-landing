@@ -474,6 +474,7 @@ function EntryCard({ entry, onDelete, onEdit }) {
   const date = new Date(entry.timestamp);
   const isMorning = entry.tag === "Morning check-in";
   const isEvening = entry.tag === "Evening check-in";
+  const isSageChat = entry.source === "sage_chat";
   return (
     <div style={s.entryCard}>
       <div style={s.entryCardHeader} onClick={() => setExpanded(e => !e)}>
@@ -484,6 +485,7 @@ function EntryCard({ entry, onDelete, onEdit }) {
               {date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} · {date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
               {isMorning && <span style={{ display:"inline-flex", alignItems:"center", gap:"0.25rem", marginLeft:"0.5rem", background:"#fef3da", color:"#8a5a00", borderRadius:"100px", padding:"0.1rem 0.5rem", fontSize:"0.68rem", fontWeight:600, verticalAlign:"middle" }}><MorningSunIcon size={13} /> Morning</span>}
               {isEvening && <span style={{ display:"inline-flex", alignItems:"center", gap:"0.25rem", marginLeft:"0.5rem", background:"#f0eef9", color:"#7c5cbf", borderRadius:"100px", padding:"0.1rem 0.5rem", fontSize:"0.68rem", fontWeight:600, verticalAlign:"middle" }}><EveningMoonIcon size={13} /> Evening</span>}
+              {isSageChat && !isMorning && !isEvening && <span style={{ display:"inline-flex", alignItems:"center", gap:"0.2rem", marginLeft:"0.5rem", background:SAGE_LIGHT, color:SAGE_DARK, borderRadius:"100px", padding:"0.1rem 0.5rem", fontSize:"0.68rem", fontWeight:600, verticalAlign:"middle" }}>✦ Sage</span>}
             </p>
             <p style={s.entryPreview}>{entry.symptoms || (entry.trackedSymptoms && entry.trackedSymptoms.length > 0 ? entry.trackedSymptoms.map(ts => `${ts.label} (${ts.severity}/10)`).join(", ") : "No symptoms noted")}</p>
           </div>
@@ -4305,11 +4307,12 @@ ${extraContext}` : ""}`;
     // Entry type — optional, only applied if user selected types
     if (advFilter.tags.length > 0) {
       const tag = e.tag || "";
-      const isManual = !tag.includes("Morning") && !tag.includes("Evening");
+      const isManual = !tag.includes("Morning") && !tag.includes("Evening") && e.source !== "sage_chat";
       const matchesMorning = advFilter.tags.includes("morning") && tag.includes("Morning");
       const matchesEvening = advFilter.tags.includes("evening") && tag.includes("Evening");
       const matchesManual  = advFilter.tags.includes("manual")  && isManual;
-      if (!matchesMorning && !matchesEvening && !matchesManual) return false;
+      const matchesSage    = advFilter.tags.includes("sage")    && e.source === "sage_chat";
+      if (!matchesMorning && !matchesEvening && !matchesManual && !matchesSage) return false;
     }
     return true;
   });
@@ -4754,7 +4757,7 @@ ${extraContext}` : ""}`;
                           <div>
                             <label style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: WARM_GRAY, display: "block", marginBottom: "0.35rem" }}>Entry type</label>
                             <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
-                              {[{val:"morning",label:"Morning check-in"},{val:"evening",label:"Evening check-in"},{val:"manual",label:"Symptom log"}].map(tag => {
+                              {[{val:"morning",label:"Morning check-in"},{val:"evening",label:"Evening check-in"},{val:"manual",label:"Symptom log"},{val:"sage",label:"✦ Sage"}].map(tag => {
                                 const active = advFilter.tags.includes(tag.val);
                                 return <button key={tag.val} onClick={() => setAdvFilter(f => ({ ...f, tags: active ? f.tags.filter(t => t !== tag.val) : [...f.tags, tag.val] }))}
                                   style={{ background: active ? SAGE_DARK : "transparent", color: active ? "#fff" : WARM_GRAY, border: "1px solid " + (active ? SAGE_DARK : "rgba(0,0,0,0.12)"), borderRadius: "100px", padding: "0.3rem 0.75rem", fontSize: "0.78rem", cursor: "pointer", fontFamily: "inherit", fontWeight: active ? 600 : 400 }}>{tag.label}</button>;
