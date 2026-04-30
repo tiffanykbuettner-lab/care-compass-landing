@@ -116,34 +116,34 @@ function buildExtractionPrompt(transcript, mode) {
   const isEvening = mode === "evening";
   const isMorning = mode === "morning";
 
-  return `You are a medical data extraction assistant. Extract structured health data from this conversation transcript and return ONLY valid JSON with no markdown, no explanation, no preamble.
+  return `You are a medical data extraction assistant. Extract structured health data from this conversation transcript and return ONLY a valid JSON object. No markdown fences, no explanation, no text before or after the JSON.
 
 TRANSCRIPT:
 ${transcript}
 
-Extract into this exact JSON shape (use null for fields not mentioned, empty array [] for empty arrays):
+Return this exact JSON shape. Use null for numbers not mentioned, empty string "" for text not mentioned, empty array [] for arrays not mentioned:
 {
   "severity": <number 1-10 or null>,
-  "symptoms": "<free text description of symptoms or empty string>",
-  "food": "<food and drink mentioned or empty string>",
-  "medications": "<medications mentioned or empty string>",
-  "activity": "<activity limitations and functional impact or empty string>",
-  "sleep": ${isMorning ? "<sleep quality 1-10 or null>" : "null"},
+  "symptoms": "<summary of all symptoms mentioned, or empty string>",
+  "food": "<food and drink mentioned, or empty string>",
+  "medications": "<medications mentioned, or empty string>",
+  "activity": "<what the person couldn't do or what was limited due to symptoms, or empty string>",
+  "sleep": <sleep quality 1-10 or null — only populate if this is a morning check-in and sleep was discussed>,
   "stress": <stress level 1-10 or null>,
-  "notes": "<any additional notes, reflections, or context worth preserving or empty string>",
-  "hoursUpright": ${isEvening ? "<one of: '< 2h', '2–4h', '4–8h', '8+h' or null>" : "null"},
-  "tasksCompleted": ${isEvening ? "<array of tasks from: 'Work / school', 'Self-care', 'Chores', 'Social / errands' — only include ones mentioned>" : "[]"},
-  "energyEnvelope": ${isEvening ? "<one of: 'Low', 'Medium', 'High' or null>" : "null"},
+  "notes": "<additional context, emotional state, or things worth remembering, or empty string>",
+  "hoursUpright": <${isEvening ? `one of the strings: "< 2h" or "2–4h" or "4–8h" or "8+h", or null if not mentioned` : "null — not applicable for this entry type"}>,
+  "tasksCompleted": [${isEvening ? `strings from this set only if mentioned: "Work / school", "Self-care", "Chores", "Social / errands"` : ""}],
+  "energyEnvelope": <${isEvening ? `one of the strings: "Low" or "Medium" or "High", or null if not mentioned` : "null — not applicable for this entry type"}>,
   "trackedSymptoms": []
 }
 
-Rules:
-- severity: interpret phrases like "pretty bad", "manageable", "rough" into a 1-10 number using clinical judgment
-- symptoms: combine all symptom mentions into a readable summary
-- activity: focus on what the person COULDN'T do or what was LIMITED — this is critical for doctor reports
-- notes: capture any emotional context, unusual observations, or things they wanted to remember
-- Be conservative — only extract what was actually mentioned
-- Return ONLY the JSON object, nothing else`;
+Extraction rules:
+- severity: convert natural language ("pretty bad", "a 6 or 7", "unbearable") into a single integer 1-10
+- symptoms: write a clear readable summary combining all mentions
+- activity: focus on LIMITATIONS and what they COULDN'T do — this matters most for doctor reports
+- notes: capture emotional tone, unusual details, or anything clinically relevant not captured elsewhere
+- Only include what was actually mentioned in the conversation
+- The JSON must be syntactically valid — use double quotes for all strings`;
 }
 
 /* ─── Firefly avatar — self-contained for chat use ───────────────────────── */
@@ -268,6 +268,8 @@ export default function SageLogChat({ mode: modeProp, onSave, onCancel, onSwitch
   const [error, setError]                 = useState("");
 
   const chatEndRef   = useRef(null);
+  const chatAreaRef  = useRef(null);
+  const rootRef      = useRef(null);
   const inputRef     = useRef(null);
   const messagesRef  = useRef([]);
   const apiKey       = import.meta.env.VITE_ANTHROPIC_API_KEY;
@@ -474,6 +476,8 @@ export default function SageLogChat({ mode: modeProp, onSave, onCancel, onSwitch
 
     try {
       const transcript = buildTranscript(msgs || messagesRef.current);
+      console.log("[SageLogChat] Starting extraction. Transcript length:", transcript.length, "Mode:", mode);
+
       const response = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
@@ -489,20 +493,21 @@ export default function SageLogChat({ mode: modeProp, onSave, onCancel, onSwitch
         }),
       });
 
+      console.log("[SageLogChat] Extraction response status:", response.status);
       const data = await response.json();
+      console.log("[SageLogChat] Extraction API response type:", data.type, "error:", data.error, "content length:", data.content?.length);
 
-      // Handle API-level errors (rate limit, auth, etc)
       if (data.error) {
         throw new Error(data.error.message || "API error");
       }
 
       const raw = data.content?.[0]?.text || "";
+      console.log("[SageLogChat] Raw extraction text (first 400 chars):", raw.slice(0, 400));
 
       if (!raw) {
         throw new Error("Empty response from API");
       }
 
-      // Try to extract JSON even if the model adds surrounding text
       let parsed = null;
       const jsonMatch = raw.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
@@ -516,12 +521,17 @@ export default function SageLogChat({ mode: modeProp, onSave, onCancel, onSwitch
         throw new Error("Invalid JSON structure");
       }
 
+      console.log("[SageLogChat] Extraction success. Severity:", parsed.severity, "Symptoms:", parsed.symptoms?.slice(0, 80));
       setExtractedData(parsed);
-      setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 150);
+      // Collapse chat area so result panel is immediately visible without scrolling
+      if (chatAreaRef.current) {
+        chatAreaRef.current.style.maxHeight = "35vh";
+        chatAreaRef.current.style.transition = "max-height 0.3s ease";
+      }
 
     } catch (err) {
-      // Show error with the actual reason so we can debug
       const msg = err?.message || "Unknown error";
+      console.error("[SageLogChat] Extraction failed:", msg, err);
       setError(`Couldn't organize your data (${msg}). Tap Retry or save manually.`);
     } finally {
       setIsExtracting(false);
@@ -564,7 +574,7 @@ export default function SageLogChat({ mode: modeProp, onSave, onCancel, onSwitch
 
   /* ─── Render ─────────────────────────────────────────────────────────────── */
   return (
-    <div style={styles.root}>
+    <div ref={rootRef} style={styles.root}>
       {/* Header */}
       <div style={{ ...styles.header, borderBottom: `2px solid ${modeColor}20` }}>
         <div style={styles.headerLeft}>
@@ -590,7 +600,7 @@ export default function SageLogChat({ mode: modeProp, onSave, onCancel, onSwitch
       </div>
 
       {/* Chat area */}
-      <div style={styles.chatArea}>
+      <div ref={chatAreaRef} style={styles.chatArea}>
 
         {/* Messages */}
         {messages.map((msg, i) => (
