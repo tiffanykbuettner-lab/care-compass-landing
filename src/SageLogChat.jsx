@@ -252,13 +252,30 @@ export default function SageLogChat({ mode: modeProp, onSave, onCancel, onSwitch
       .join("\n");
   }
 
-  /* ── Call Anthropic API with streaming ── */
+  /* ── User sends a message ── */
+  async function handleSend() {
+    const text = input.trim();
+    if (!text || isLoading) return;
+
+    const userMsg = { role: "user", content: text };
+    const updated = [...messages, userMsg];
+    setMessages(updated);
+    setInput("");
+
+    await callSage(updated);
+  }
+
+  /* ── Call Anthropic API with streaming (turns 2+) ── */
   async function callSage(conversationMessages) {
     setIsLoading(true);
     setStreamingText("");
     setError("");
 
     try {
+      // API requires user turn first — prepend a silent seed
+      const seed = { role: "user", content: `[START_${(mode || "intraday").toUpperCase()}_CHECKIN]` };
+      const apiMessages = [seed, ...conversationMessages].map(m => ({ role: m.role, content: m.content }));
+
       const response = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
@@ -272,7 +289,7 @@ export default function SageLogChat({ mode: modeProp, onSave, onCancel, onSwitch
           max_tokens: 300,
           system: buildSystemPrompt(mode, previousContext),
           stream: true,
-          messages: conversationMessages.map(m => ({ role: m.role, content: m.content })),
+          messages: apiMessages,
         }),
       });
 
@@ -307,13 +324,13 @@ export default function SageLogChat({ mode: modeProp, onSave, onCancel, onSwitch
       const cleanText = fullText.replace("[CONVERSATION_COMPLETE]", "").trim();
 
       const assistantMsg = { role: "assistant", content: cleanText };
-      setMessages(prev => [...prev, assistantMsg]);
+      const fullHistory = [...conversationMessages, assistantMsg];
+      setMessages(fullHistory);
       setStreamingText("");
 
       if (isConversationDone) {
         setIsComplete(true);
-        /* Auto-trigger extraction */
-        await extractData([...conversationMessages, assistantMsg]);
+        await extractData(fullHistory);
       }
     } catch (err) {
       setError("Something went wrong — tap to retry.");
@@ -324,22 +341,64 @@ export default function SageLogChat({ mode: modeProp, onSave, onCancel, onSwitch
 
   /* ── Start conversation — Sage speaks first ── */
   async function startConversation() {
-    const seed = { role: "user", content: `[START_${mode.toUpperCase()}_CHECKIN]` };
+    const seed = { role: "user", content: `[START_${(mode || "intraday").toUpperCase()}_CHECKIN]` };
     setMessages([]);
-    await callSage([seed]);
+    // Pass seed separately; callSage will store only the assistant reply in state
+    await callSageWithSeed(seed);
   }
 
-  /* ── User sends a message ── */
-  async function handleSend() {
-    const text = input.trim();
-    if (!text || isLoading) return;
-
-    const userMsg = { role: "user", content: text };
-    const updated = [...messages, userMsg];
-    setMessages(updated);
-    setInput("");
-
-    await callSage(updated);
+  /* First turn only — seed stays out of rendered messages */
+  async function callSageWithSeed(seed) {
+    setIsLoading(true);
+    setStreamingText("");
+    setError("");
+    try {
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 300,
+          system: buildSystemPrompt(mode, previousContext),
+          stream: true,
+          messages: [{ role: seed.role, content: seed.content }],
+        }),
+      });
+      if (!response.ok) throw new Error("API error");
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullText = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value);
+        const lines = chunk.split("\n").filter(l => l.startsWith("data: "));
+        for (const line of lines) {
+          const data = line.slice(6);
+          if (data === "[DONE]") break;
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.type === "content_block_delta" && parsed.delta?.text) {
+              fullText += parsed.delta.text;
+              setStreamingText(fullText);
+            }
+          } catch {}
+        }
+      }
+      const cleanText = fullText.replace("[CONVERSATION_COMPLETE]", "").trim();
+      const firstAssistantMsg = { role: "assistant", content: cleanText };
+      setMessages([firstAssistantMsg]);
+      setStreamingText("");
+    } catch {
+      setError("Something went wrong — tap to retry.");
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   /* ── Extract structured data from transcript ── */
@@ -408,6 +467,7 @@ export default function SageLogChat({ mode: modeProp, onSave, onCancel, onSwitch
   /* ── "I'm done" button — user signals conversation is complete ── */
   async function handleDone() {
     setIsComplete(true);
+    // messages state is current here since no async gap before this point
     await extractData(messages);
   }
 
