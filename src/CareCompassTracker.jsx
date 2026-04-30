@@ -5951,71 +5951,95 @@ ${extraContext}` : ""}`;
       {showMorningCheckin && (
         <div style={s.modalOverlay} onClick={() => setShowMorningCheckin(false)}>
           <div style={s.modal} onClick={e => e.stopPropagation()}>
-            <div style={s.modalHeader}>
-              <h2 style={{ ...s.modalTitle, display:"flex", alignItems:"center" }}><MorningSunIcon size={18} />Morning check-in</h2>
-              <button onClick={() => setShowMorningCheckin(false)} style={s.modalClose}><Icon name="close" size={16} /></button>
-            </div>
-            <div style={s.modalBody}>
-              {/* Sleep quality */}
-              <div style={s.formGroup}>
-                <label style={s.label}>Sleep quality last night <span style={s.sevValue}>{morningForm.sleep}/10</span></label>
-                <input type="range" min="1" max="10" step="1" value={morningForm.sleep}
-                  onChange={e => setMorningForm(f => ({ ...f, sleep: Number(e.target.value) }))}
-                  style={{ width: "100%", accentColor: TEAL }}/>
-                <div style={s.sevLabels}><span style={s.sevLabel}>Poor</span><span style={s.sevLabel}>Excellent</span></div>
+
+            {/* Header */}
+            <div style={{ ...s.modalHeader, background: "linear-gradient(135deg, #fff8e8, #fff3d4)", borderBottom: "1px solid #f0d58a" }}>
+              <h2 style={{ ...s.modalTitle, display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "1.05rem" }}>
+                <MorningSunIcon size={18} /> Morning check-in
+              </h2>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                <button onClick={() => { setShowMorningCheckin(false); setSageChatMode("morning"); setShowSageChat(true); }}
+                  style={{ background: SAGE_LIGHT, border: `1px solid ${SAGE}`, borderRadius: "100px", padding: "0.3rem 0.75rem", fontSize: "0.75rem", fontWeight: 600, color: SAGE_DARK, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+                  ✦ Tell Sage instead
+                </button>
+                <button onClick={() => setShowMorningCheckin(false)} style={s.modalClose}><Icon name="close" size={16} /></button>
               </div>
-              {/* Morning severity */}
-              <div style={s.formGroup}>
-                <label style={s.label}>How are you feeling this morning? <span style={s.sevValue}>{morningForm.severity}/10</span></label>
+            </div>
+
+            <div style={{ ...s.modalBody, gap: "1rem" }}>
+
+              {/* Section: How you're feeling */}
+              <p style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: 0 }}>How are you feeling</p>
+
+              {/* Severity — full width, prominent */}
+              <div style={{ background: OFF_WHITE, borderRadius: "0.875rem", padding: "1rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "0.5rem" }}>
+                  <label style={{ ...s.label, margin: 0 }}>Overall severity this morning</label>
+                  <span style={{ ...s.sevValue, fontSize: "1.1rem" }}>{morningForm.severity}<span style={{ fontSize: "0.7rem", fontWeight: 400, color: WARM_GRAY }}>/10</span></span>
+                </div>
                 <SeveritySlider value={morningForm.severity} onChange={v => setMorningForm(f => ({ ...f, severity: v }))}/>
               </div>
-              {/* Energy level */}
-              <div style={s.formGroup}>
-                <label style={s.label}>Energy level <span style={s.sevValue}>{morningForm.energy}/10</span></label>
-                <input type="range" min="1" max="10" step="1" value={morningForm.energy}
-                  onChange={e => setMorningForm(f => ({ ...f, energy: Number(e.target.value) }))}
-                  style={{ width: "100%", accentColor: "#e8a838" }}/>
-                <div style={s.sevLabels}><span style={s.sevLabel}>Exhausted</span><span style={s.sevLabel}>Energised</span></div>
+
+              {/* Sleep + Energy side by side */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                <div style={{ background: OFF_WHITE, borderRadius: "0.875rem", padding: "0.875rem" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "0.5rem" }}>
+                    <label style={{ ...s.label, margin: 0, fontSize: "0.78rem" }}>Sleep quality</label>
+                    <span style={{ fontSize: "0.88rem", fontWeight: 700, color: TEAL }}>{morningForm.sleep}/10</span>
+                  </div>
+                  <input type="range" min="1" max="10" step="1" value={morningForm.sleep}
+                    onChange={e => setMorningForm(f => ({ ...f, sleep: Number(e.target.value) }))}
+                    style={{ width: "100%", accentColor: TEAL, margin: "0.25rem 0" }}/>
+                  <div style={s.sevLabels}><span style={s.sevLabel}>Poor</span><span style={s.sevLabel}>Great</span></div>
+                </div>
+                <div style={{ background: OFF_WHITE, borderRadius: "0.875rem", padding: "0.875rem" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "0.5rem" }}>
+                    <label style={{ ...s.label, margin: 0, fontSize: "0.78rem" }}>Energy level</label>
+                    <span style={{ fontSize: "0.88rem", fontWeight: 700, color: "#e8a838" }}>{morningForm.energy}/10</span>
+                  </div>
+                  <input type="range" min="1" max="10" step="1" value={morningForm.energy}
+                    onChange={e => setMorningForm(f => ({ ...f, energy: Number(e.target.value) }))}
+                    style={{ width: "100%", accentColor: "#e8a838", margin: "0.25rem 0" }}/>
+                  <div style={s.sevLabels}><span style={s.sevLabel}>Low</span><span style={s.sevLabel}>High</span></div>
+                </div>
               </div>
-              {/* Symptoms on waking */}
+
+              {/* Divider */}
+              <div style={{ borderTop: "1px solid rgba(0,0,0,0.06)", margin: "0" }} />
+              <p style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: 0 }}>Details <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(optional)</span></p>
+
               <div style={s.formGroup}>
-                <label style={s.label}>Any symptoms on waking? <span style={s.optional}>(optional)</span></label>
+                <label style={s.label}>Symptoms on waking?</label>
                 <textarea value={morningForm.symptoms} onChange={e => setMorningForm(f => ({ ...f, symptoms: e.target.value }))}
-                    placeholder="e.g. stiff joints on waking, heart racing when I stood up from bed..."
+                    placeholder="e.g. stiff joints, heart racing when standing up..."
                     style={{ ...s.textarea, width: "100%", boxSizing: "border-box" }} rows={2}/>
               </div>
-              {/* Notes */}
+
               <div style={s.formGroup}>
-                <label style={s.label}>Anything else to note? <span style={s.optional}>(optional)</span></label>
+                <label style={s.label}>Anything else to note?</label>
                 <textarea value={morningForm.notes} onChange={e => setMorningForm(f => ({ ...f, notes: e.target.value }))}
                     placeholder="e.g. slept 6 hours, woke at 3am, vivid dreams..."
                     style={{ ...s.textarea, width: "100%", boxSizing: "border-box" }} rows={2}/>
               </div>
+
             </div>
-            <div style={s.modalFooter}>
+
+            <div style={{ ...s.modalFooter, justifyContent: "space-between" }}>
               <button onClick={() => setShowMorningCheckin(false)} style={s.cancelBtn}>Cancel</button>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.5rem" }}>
-                <button onClick={() => {
-                  setShowMorningCheckin(false);
-                  setSageChatMode("morning");
-                  setShowSageChat(true);
-                }} style={{ background: "none", border: "none", fontSize: "0.78rem", color: SAGE_DARK, cursor: "pointer", fontFamily: "inherit", textDecoration: "underline", textDecorationColor: "rgba(74,112,88,0.4)", padding: 0 }}>
-                  Tell Sage instead →
-                </button>
-                <button onClick={() => {
-                  saveCheckin("morning", { sleep: morningForm.sleep, severity: morningForm.severity, stress: morningForm.energy, symptoms: morningForm.symptoms, notes: morningForm.notes });
-                  setShowMorningCheckin(false);
-                  setCheckinSaved("Morning check-in saved!");
-                  setTimeout(() => setCheckinSaved(""), 3000);
-                  setMorningForm({ sleep: 7, severity: 5, symptoms: "", energy: 5, notes: "" });
-                }} style={s.saveBtn}>Save check-in →</button>
-              </div>
+              <button onClick={() => {
+                saveCheckin("morning", { sleep: morningForm.sleep, severity: morningForm.severity, stress: morningForm.energy, symptoms: morningForm.symptoms, notes: morningForm.notes });
+                setShowMorningCheckin(false);
+                setCheckinSaved("Morning check-in saved!");
+                setTimeout(() => setCheckinSaved(""), 3000);
+                setMorningForm({ sleep: 7, severity: 5, symptoms: "", energy: 5, notes: "" });
+              }} style={s.saveBtn}>Save check-in →</button>
             </div>
+
           </div>
         </div>
       )}
 
-      {/* ── Evening check-in modal — smart: adapts based on today's logged entries ── */}
+      {/* ── Evening check-in modal ── */}
       {showEveningCheckin && (() => {
         const todayEntries = entries.filter(e => new Date(e.timestamp).toDateString() === new Date().toDateString() && e.tag !== "Evening check-in");
         const hasLoggedToday = todayEntries.length > 0;
@@ -6026,69 +6050,142 @@ ${extraContext}` : ""}`;
         return (
           <div style={s.modalOverlay} onClick={() => setShowEveningCheckin(false)}>
             <div style={s.modal} onClick={e => e.stopPropagation()}>
-              <div style={s.modalHeader}>
-                <h2 style={{ ...s.modalTitle, display:"flex", alignItems:"center" }}><EveningMoonIcon size={18} />Evening check-in</h2>
-                <button onClick={() => setShowEveningCheckin(false)} style={s.modalClose}><Icon name="close" size={16} /></button>
-              </div>
-              <div style={s.modalBody}>
 
-                {/* Context banner — adapts to whether user logged today */}
+              {/* Header */}
+              <div style={{ ...s.modalHeader, background: "linear-gradient(135deg, #f0eeff, #e8e0ff)", borderBottom: "1px solid #c4aff5" }}>
+                <h2 style={{ ...s.modalTitle, display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "1.05rem" }}>
+                  <EveningMoonIcon size={18} /> Evening check-in
+                </h2>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                  <button onClick={() => { setShowEveningCheckin(false); setSageChatMode("evening"); setShowSageChat(true); }}
+                    style={{ background: SAGE_LIGHT, border: `1px solid ${SAGE}`, borderRadius: "100px", padding: "0.3rem 0.75rem", fontSize: "0.75rem", fontWeight: 600, color: SAGE_DARK, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+                    ✦ Tell Sage instead
+                  </button>
+                  <button onClick={() => setShowEveningCheckin(false)} style={s.modalClose}><Icon name="close" size={16} /></button>
+                </div>
+              </div>
+
+              <div style={{ ...s.modalBody, gap: "1rem" }}>
+
+                {/* Context banner */}
                 {hasLoggedToday ? (
-                  <div style={{ background: SAGE_LIGHT, borderRadius: "0.75rem", padding: "0.75rem 1rem", marginBottom: "0.25rem" }}>
-                    <p style={{ fontSize: "0.78rem", fontWeight: 600, color: SAGE_DARK, margin: "0 0 0.2rem" }}>
-                      You logged {todayEntries.length} {todayEntries.length === 1 ? "entry" : "entries"} today
-                    </p>
-                    <p style={{ fontSize: "0.75rem", color: SAGE_DARK, margin: 0, lineHeight: 1.6 }}>
-                      This is just a reflection — no need to repeat what you already noted. Add anything you missed or want to capture overall.
-                    </p>
+                  <div style={{ background: SAGE_LIGHT, borderRadius: "0.75rem", padding: "0.625rem 0.875rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    <span style={{ fontSize: "0.8rem", color: SAGE_DARK }}>
+                      You logged {todayEntries.length} {todayEntries.length === 1 ? "entry" : "entries"} today — just add anything you missed or want to capture overall.
+                    </span>
                   </div>
                 ) : (
-                  <div style={{ background: "#fff8e8", borderRadius: "0.75rem", padding: "0.75rem 1rem", marginBottom: "0.25rem", border: "1px solid #f0d58a" }}>
-                    <p style={{ fontSize: "0.78rem", fontWeight: 600, color: "#9a7a00", margin: "0 0 0.2rem" }}>No entries logged today yet</p>
-                    <p style={{ fontSize: "0.75rem", color: "#9a7a00", margin: 0, lineHeight: 1.6 }}>
-                      This is a great opportunity to capture your full day in one go.
-                    </p>
+                  <div style={{ background: "#fff8e8", borderRadius: "0.75rem", padding: "0.625rem 0.875rem", border: "1px solid #f0d58a" }}>
+                    <span style={{ fontSize: "0.8rem", color: "#9a7a00" }}>No entries today yet — capture your full day here.</span>
                   </div>
                 )}
 
-                {/* Day severity */}
-                <div style={s.formGroup}>
-                  <label style={s.label}>How was your day overall? <span style={s.sevValue}>{eveningForm.severity}/10</span></label>
-                  <SeveritySlider value={hasLoggedToday && eveningForm.severity === 5 ? avgSeverity : eveningForm.severity} onChange={v => setEveningForm(f => ({ ...f, severity: v }))}/>
-                  {hasLoggedToday && <p style={{ fontSize: "0.72rem", color: "#aaa", margin: "0.3rem 0 0", fontStyle: "italic" }}>Pre-set from your logged entries — adjust if your overall day felt different</p>}
+                {/* Section: How was your day */}
+                <p style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: 0 }}>How was your day</p>
+
+                {/* Severity + Stress side by side */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                  <div style={{ background: OFF_WHITE, borderRadius: "0.875rem", padding: "0.875rem", gridColumn: "1 / -1" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "0.5rem" }}>
+                      <label style={{ ...s.label, margin: 0 }}>Overall severity today</label>
+                      <span style={{ ...s.sevValue, fontSize: "1.1rem" }}>{hasLoggedToday && eveningForm.severity === 5 ? avgSeverity : eveningForm.severity}<span style={{ fontSize: "0.7rem", fontWeight: 400, color: WARM_GRAY }}>/10</span></span>
+                    </div>
+                    <SeveritySlider value={hasLoggedToday && eveningForm.severity === 5 ? avgSeverity : eveningForm.severity} onChange={v => setEveningForm(f => ({ ...f, severity: v }))}/>
+                    {hasLoggedToday && <p style={{ fontSize: "0.7rem", color: "#bbb", margin: "0.3rem 0 0", fontStyle: "italic" }}>Pre-set from your entries — adjust if today felt different overall</p>}
+                  </div>
+                  <div style={{ background: OFF_WHITE, borderRadius: "0.875rem", padding: "0.875rem" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "0.5rem" }}>
+                      <label style={{ ...s.label, margin: 0, fontSize: "0.78rem" }}>Stress level</label>
+                      <span style={{ fontSize: "0.88rem", fontWeight: 700, color: SAGE_DARK }}>{eveningForm.stress}/10</span>
+                    </div>
+                    <input type="range" min="1" max="10" step="1" value={eveningForm.stress}
+                      onChange={e => setEveningForm(f => ({ ...f, stress: Number(e.target.value) }))}
+                      style={{ width: "100%", accentColor: SAGE_DARK, margin: "0.25rem 0" }}/>
+                    <div style={s.sevLabels}><span style={s.sevLabel}>Low</span><span style={s.sevLabel}>High</span></div>
+                  </div>
+                  <div style={{ background: OFF_WHITE, borderRadius: "0.875rem", padding: "0.875rem" }}>
+                    <label style={{ ...s.label, margin: "0 0 0.5rem", fontSize: "0.78rem", display: "block" }}>Energy used today</label>
+                    <div style={{ display: "flex", gap: "0.4rem" }}>
+                      {[["Low", "#4A8C7A"], ["Med", "#e8a838"], ["High", "#c0392b"]].map(([level, color]) => {
+                        const fullLabel = level === "Med" ? "Medium" : level;
+                        const active = eveningForm.energyEnvelope === fullLabel;
+                        return (
+                          <button key={level} type="button"
+                            onClick={() => setEveningForm(f => ({ ...f, energyEnvelope: active ? null : fullLabel }))}
+                            style={{ flex: 1, padding: "0.4rem 0", borderRadius: "0.5rem", border: `1.5px solid ${active ? color : "rgba(0,0,0,0.12)"}`, background: active ? color : "transparent", color: active ? "#fff" : INK, fontSize: "0.75rem", fontWeight: active ? 700 : 400, cursor: "pointer", fontFamily: "inherit", textAlign: "center" }}>
+                            {level}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
 
-                {/* Symptoms — guided prompt for depth */}
+                {/* Divider */}
+                <div style={{ borderTop: "1px solid rgba(0,0,0,0.06)" }} />
+                <p style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: 0 }}>Functional impact</p>
+
                 <div style={s.formGroup}>
-                  <label style={s.label}>
-                    {hasLoggedToday ? "Anything to add about your symptoms?" : "How did you feel today?"}
-                    <span style={s.optional}> (optional)</span>
-                  </label>
+                  <label style={s.label}>{hasLoggedToday ? "Anything to add about symptoms?" : "How did you feel today?"} <span style={s.optional}>(optional)</span></label>
                   {hasLoggedToday && todaySymptoms && (
-                    <div style={{ background: OFF_WHITE, borderRadius: "0.5rem", padding: "0.5rem 0.75rem", marginBottom: "0.5rem", fontSize: "0.75rem", color: WARM_GRAY, fontStyle: "italic", lineHeight: 1.5 }}>
-                      Already noted: {todaySymptoms.length > 120 ? todaySymptoms.slice(0, 120) + "..." : todaySymptoms}
+                    <div style={{ background: OFF_WHITE, borderRadius: "0.5rem", padding: "0.4rem 0.65rem", marginBottom: "0.4rem", fontSize: "0.72rem", color: WARM_GRAY, fontStyle: "italic", lineHeight: 1.5 }}>
+                      Already noted: {todaySymptoms.length > 100 ? todaySymptoms.slice(0, 100) + "…" : todaySymptoms}
                     </div>
                   )}
                   <textarea value={eveningForm.symptoms} onChange={e => setEveningForm(f => ({ ...f, symptoms: e.target.value }))}
-                      placeholder={hasLoggedToday ? "Anything that changed as the day went on?" : "Describe each symptom in detail..."}
-                      style={{ ...s.textarea, width: "100%", boxSizing: "border-box" }} rows={hasLoggedToday ? 2 : 3}/>
+                      placeholder={hasLoggedToday ? "Anything that changed as the day went on?" : "Describe each symptom..."}
+                      style={{ ...s.textarea, width: "100%", boxSizing: "border-box" }} rows={2}/>
                 </div>
 
-                {/* Functional impact — always shown, key for doctor reports */}
                 <div style={s.formGroup}>
-                  <label style={s.label}>What did your symptoms stop or limit you from doing? <span style={s.optional}>(optional)</span></label>
-                  <textarea value={eveningForm.activity}
-                    onChange={e => setEveningForm(f => ({ ...f, activity: e.target.value }))}
-                    placeholder="e.g. couldn't drive due to dizziness, had to sit while cooking, skipped the gym, needed help getting dressed, light sensitivity made screen use painful..."
+                  <label style={s.label}>What did symptoms stop or limit you from doing? <span style={s.optional}>(optional)</span></label>
+                  <textarea value={eveningForm.activity} onChange={e => setEveningForm(f => ({ ...f, activity: e.target.value }))}
+                    placeholder="e.g. couldn't drive, had to sit while cooking, skipped the gym..."
                     style={s.textarea} rows={2}/>
                   {hasLoggedToday && todayActivity && (
-                    <p style={{ fontSize: "0.72rem", color: "#aaa", margin: "0.3rem 0 0", fontStyle: "italic" }}>Already noted: {todayActivity.length > 80 ? todayActivity.slice(0,80)+"..." : todayActivity}</p>
+                    <p style={{ fontSize: "0.7rem", color: "#bbb", margin: "0.25rem 0 0", fontStyle: "italic" }}>Already noted: {todayActivity.length > 80 ? todayActivity.slice(0,80)+"…" : todayActivity}</p>
                   )}
                 </div>
 
-                {/* Only show food/meds if they haven't logged today */}
+                {/* Hours upright + Tasks */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                  <div>
+                    <label style={{ ...s.label, display: "block", marginBottom: "0.4rem" }}>Hours upright <span style={s.optional}>(optional)</span></label>
+                    <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
+                      {["< 2h", "2–4h", "4–8h", "8+h"].map(opt => {
+                        const active = eveningForm.hoursUpright === opt;
+                        return (
+                          <button key={opt} type="button"
+                            onClick={() => setEveningForm(f => ({ ...f, hoursUpright: active ? null : opt }))}
+                            style={{ padding: "0.35rem 0.65rem", borderRadius: "100px", border: `1.5px solid ${active ? SAGE_DARK : "rgba(0,0,0,0.15)"}`, background: active ? SAGE_DARK : "transparent", color: active ? "#fff" : INK, fontSize: "0.75rem", fontWeight: active ? 600 : 400, cursor: "pointer", fontFamily: "inherit" }}>
+                            {opt}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ ...s.label, display: "block", marginBottom: "0.4rem" }}>Tasks managed <span style={s.optional}>(optional)</span></label>
+                    <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
+                      {[["Work", "Work / school"], ["Self-care", "Self-care"], ["Chores", "Chores"], ["Social", "Social / errands"]].map(([short, full]) => {
+                        const checked = (eveningForm.tasksCompleted || []).includes(full);
+                        return (
+                          <button key={full} type="button"
+                            onClick={() => setEveningForm(f => ({ ...f, tasksCompleted: checked ? (f.tasksCompleted || []).filter(t => t !== full) : [...(f.tasksCompleted || []), full] }))}
+                            style={{ padding: "0.35rem 0.65rem", borderRadius: "100px", border: `1.5px solid ${checked ? TEAL : "rgba(0,0,0,0.15)"}`, background: checked ? TEAL : "transparent", color: checked ? "#fff" : INK, fontSize: "0.75rem", fontWeight: checked ? 600 : 400, cursor: "pointer", fontFamily: "inherit" }}>
+                            {checked ? "✓ " : ""}{short}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Food/meds only if not logged today */}
                 {!hasLoggedToday && (
                   <>
+                    <div style={{ borderTop: "1px solid rgba(0,0,0,0.06)" }} />
+                    <p style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: 0 }}>Food & medications</p>
                     <div style={s.formGroup}>
                       <label style={s.label}>Medications today</label>
                       <MedPicker
@@ -6116,103 +6213,37 @@ ${extraContext}` : ""}`;
                     </div>
                     <div style={s.formGroup}>
                       <label style={s.label}>Food & drink today <span style={s.optional}>(optional)</span></label>
-                      <textarea value={eveningForm.food}
-                        onChange={e => setEveningForm(f => ({ ...f, food: e.target.value }))}
-                        placeholder="Anything notable about what you ate or drank today?"
+                      <textarea value={eveningForm.food} onChange={e => setEveningForm(f => ({ ...f, food: e.target.value }))}
+                        placeholder="Anything notable about what you ate or drank?"
                         style={s.textarea} rows={2}/>
                     </div>
                   </>
                 )}
 
-                {/* Stress */}
-                <div style={s.formGroup}>
-                  <label style={s.label}>Stress level today <span style={s.sevValue}>{eveningForm.stress}/10</span></label>
-                  <input type="range" min="1" max="10" step="1" value={eveningForm.stress}
-                    onChange={e => setEveningForm(f => ({ ...f, stress: Number(e.target.value) }))}
-                    style={{ width: "100%", accentColor: SAGE_DARK }}/>
-                  <div style={s.sevLabels}><span style={s.sevLabel}>Low</span><span style={s.sevLabel}>High</span></div>
-                </div>
-
-                {/* Functional Impact — hours upright */}
-                <div style={s.formGroup}>
-                  <label style={s.label}>Hours upright today <span style={s.optional}>(optional)</span></label>
-                  <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                    {["< 2h", "2–4h", "4–8h", "8+h"].map(opt => {
-                      const active = eveningForm.hoursUpright === opt;
-                      return (
-                        <button key={opt} type="button"
-                          onClick={() => setEveningForm(f => ({ ...f, hoursUpright: active ? null : opt }))}
-                          style={{ padding: "0.45rem 1rem", borderRadius: "100px", border: `1.5px solid ${active ? SAGE_DARK : "rgba(0,0,0,0.15)"}`, background: active ? SAGE_DARK : "transparent", color: active ? "#fff" : INK, fontSize: "0.82rem", fontWeight: active ? 600 : 400, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}>
-                          {opt}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-                <div style={s.formGroup}>
-                  <label style={s.label}>Tasks managed today <span style={s.optional}>(optional — check all that applied)</span></label>
-                  <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                    {["Work / school", "Self-care", "Chores", "Social / errands"].map(task => {
-                      const checked = (eveningForm.tasksCompleted || []).includes(task);
-                      return (
-                        <button key={task} type="button"
-                          onClick={() => setEveningForm(f => ({ ...f, tasksCompleted: checked ? (f.tasksCompleted || []).filter(t => t !== task) : [...(f.tasksCompleted || []), task] }))}
-                          style={{ padding: "0.45rem 1rem", borderRadius: "100px", border: `1.5px solid ${checked ? TEAL : "rgba(0,0,0,0.15)"}`, background: checked ? TEAL : "transparent", color: checked ? "#fff" : INK, fontSize: "0.82rem", fontWeight: checked ? 600 : 400, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}>
-                          {checked ? "✓ " : ""}{task}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-                <div style={s.formGroup}>
-                  <label style={s.label}>Energy envelope used <span style={s.optional}>(optional)</span></label>
-                  <div style={{ display: "flex", gap: "0.5rem" }}>
-                    {[["Low", "#4A8C7A"], ["Medium", "#e8a838"], ["High", "#c0392b"]].map(([level, color]) => {
-                      const active = eveningForm.energyEnvelope === level;
-                      return (
-                        <button key={level} type="button"
-                          onClick={() => setEveningForm(f => ({ ...f, energyEnvelope: active ? null : level }))}
-                          style={{ flex: 1, padding: "0.5rem 0", borderRadius: "0.6rem", border: `1.5px solid ${active ? color : "rgba(0,0,0,0.12)"}`, background: active ? color : "transparent", color: active ? "#fff" : INK, fontSize: "0.82rem", fontWeight: active ? 700 : 400, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s", textAlign: "center" }}>
-                          {level}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <p style={{ fontSize: "0.72rem", color: WARM_GRAY, margin: "0.35rem 0 0" }}>How much of your energy capacity did today's activity use?</p>
-                </div>
-
                 {/* Reflections */}
+                <div style={{ borderTop: "1px solid rgba(0,0,0,0.06)" }} />
                 <div style={s.formGroup}>
-                  <label style={s.label}>
-                    {hasLoggedToday ? "Anything else to reflect on?" : "Reflections"}
-                    <span style={s.optional}> (optional)</span>
-                  </label>
+                  <label style={s.label}>{hasLoggedToday ? "Anything else to reflect on?" : "Reflections"} <span style={s.optional}>(optional)</span></label>
                   <textarea value={eveningForm.notes} onChange={e => setEveningForm(f => ({ ...f, notes: e.target.value }))}
-                      placeholder={hasLoggedToday ? "Overall thoughts on today..." : "Anything you want to remember or reflect on from today..."}
+                      placeholder={hasLoggedToday ? "Overall thoughts on today..." : "Anything you want to remember from today..."}
                       style={{ ...s.textarea, width: "100%", boxSizing: "border-box" }} rows={2}/>
                 </div>
+
               </div>
-              <div style={s.modalFooter}>
+
+              <div style={{ ...s.modalFooter, justifyContent: "space-between" }}>
                 <button onClick={() => setShowEveningCheckin(false)} style={s.cancelBtn}>Cancel</button>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.5rem" }}>
-                  <button onClick={() => {
-                    setShowEveningCheckin(false);
-                    setSageChatMode("evening");
-                    setShowSageChat(true);
-                  }} style={{ background: "none", border: "none", fontSize: "0.78rem", color: SAGE_DARK, cursor: "pointer", fontFamily: "inherit", textDecoration: "underline", textDecorationColor: "rgba(74,112,88,0.4)", padding: 0 }}>
-                    Tell Sage instead →
-                  </button>
-                  <button onClick={() => {
-                    const selectedMedsStr = buildMedString(eveningForm.selectedMedIds || []);
-                    const finalMeds = [selectedMedsStr, eveningForm.medications].filter(Boolean).join(", ");
-                    saveCheckin("evening", { ...eveningForm, medications: finalMeds });
-                    setShowEveningCheckin(false);
-                    setCheckinSaved("Evening check-in saved!");
-                    setTimeout(() => setCheckinSaved(""), 3000);
-                    setEveningForm({ severity: 5, symptoms: "", food: "", medications: "", selectedMedIds: [], activity: "", stress: 5, notes: "", hoursUpright: null, tasksCompleted: [], energyEnvelope: null });
-                  }} style={s.saveBtn}>Save check-in →</button>
-                </div>
+                <button onClick={() => {
+                  const selectedMedsStr = buildMedString(eveningForm.selectedMedIds || []);
+                  const finalMeds = [selectedMedsStr, eveningForm.medications].filter(Boolean).join(", ");
+                  saveCheckin("evening", { ...eveningForm, medications: finalMeds });
+                  setShowEveningCheckin(false);
+                  setCheckinSaved("Evening check-in saved!");
+                  setTimeout(() => setCheckinSaved(""), 3000);
+                  setEveningForm({ severity: 5, symptoms: "", food: "", medications: "", selectedMedIds: [], activity: "", stress: 5, notes: "", hoursUpright: null, tasksCompleted: [], energyEnvelope: null });
+                }} style={s.saveBtn}>Save check-in →</button>
               </div>
+
             </div>
           </div>
         );
