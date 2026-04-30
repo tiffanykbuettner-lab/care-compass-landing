@@ -6223,8 +6223,13 @@ ${extraContext}` : ""}`;
             <div style={{ padding: "1.25rem", display: "flex", flexDirection: "column", gap: "0.875rem" }}>
               <button
                 onClick={() => {
-                  const hour = new Date().getHours();
-                  const mode = hour >= 4 && hour < 12 ? "morning" : hour >= 18 || hour < 4 ? "evening" : "intraday";
+                  // Morning = within 4hrs of morningStart; Evening = after eveningStart; Intraday = middle of day
+                  const morningEndMins = morningStartMins + 4 * 60;
+                  const mode = (nowMins >= morningStartMins && nowMins < morningEndMins)
+                    ? "morning"
+                    : isEveningTime
+                    ? "evening"
+                    : "intraday";
                   setSageChatMode(mode);
                   setShowEntryChooser(false);
                   setShowSageChat(true);
