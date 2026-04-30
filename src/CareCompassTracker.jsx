@@ -6008,18 +6008,19 @@ ${extraContext}` : ""}`;
               <div style={{ borderTop: "1px solid rgba(0,0,0,0.06)", margin: "0" }} />
               <p style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: 0 }}>Details <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(optional)</span></p>
 
-              <div style={s.formGroup}>
-                <label style={s.label}>Symptoms on waking?</label>
-                <textarea value={morningForm.symptoms} onChange={e => setMorningForm(f => ({ ...f, symptoms: e.target.value }))}
-                    placeholder="e.g. stiff joints, heart racing when standing up..."
-                    style={{ ...s.textarea, width: "100%", boxSizing: "border-box" }} rows={2}/>
-              </div>
-
-              <div style={s.formGroup}>
-                <label style={s.label}>Anything else to note?</label>
-                <textarea value={morningForm.notes} onChange={e => setMorningForm(f => ({ ...f, notes: e.target.value }))}
-                    placeholder="e.g. slept 6 hours, woke at 3am, vivid dreams..."
-                    style={{ ...s.textarea, width: "100%", boxSizing: "border-box" }} rows={2}/>
+              <div style={{ background: OFF_WHITE, borderRadius: "0.875rem", overflow: "hidden", border: "1px solid rgba(0,0,0,0.06)" }}>
+                <div style={{ padding: "0.875rem 1rem" }}>
+                  <label style={{ ...s.label, marginBottom: "0.4rem", display: "block" }}>Symptoms on waking?</label>
+                  <textarea value={morningForm.symptoms} onChange={e => setMorningForm(f => ({ ...f, symptoms: e.target.value }))}
+                      placeholder="e.g. stiff joints, heart racing when standing up..."
+                      style={{ ...s.textarea, width: "100%", boxSizing: "border-box", background: "#fff" }} rows={2}/>
+                </div>
+                <div style={{ borderTop: "1px solid rgba(0,0,0,0.06)", padding: "0.875rem 1rem" }}>
+                  <label style={{ ...s.label, marginBottom: "0.4rem", display: "block" }}>Anything else to note?</label>
+                  <textarea value={morningForm.notes} onChange={e => setMorningForm(f => ({ ...f, notes: e.target.value }))}
+                      placeholder="e.g. slept 6 hours, woke at 3am, vivid dreams..."
+                      style={{ ...s.textarea, width: "100%", boxSizing: "border-box", background: "#fff" }} rows={2}/>
+                </div>
               </div>
 
             </div>
