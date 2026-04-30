@@ -146,7 +146,40 @@ Rules:
 - Return ONLY the JSON object, nothing else`;
 }
 
-/* ─── StructuredPreview — shows extracted data before save ────────────────── */
+/* ─── Firefly avatar — self-contained for chat use ───────────────────────── */
+const FF_KEYFRAMES = `
+  @keyframes slffFloat { 0%,100%{transform:translateY(0px)} 50%{transform:translateY(-2px)} }
+  @keyframes slffWingL { 0%,100%{transform:rotate(0deg) scaleY(1)} 50%{transform:rotate(-18deg) scaleY(0.82)} }
+  @keyframes slffWingR { 0%,100%{transform:rotate(0deg) scaleY(1)} 50%{transform:rotate(18deg) scaleY(0.82)} }
+  @keyframes slffAntL  { 0%,100%{transform:rotate(0deg)} 50%{transform:rotate(-5deg)} }
+  @keyframes slffAntR  { 0%,100%{transform:rotate(0deg)} 50%{transform:rotate(5deg)} }
+`;
+
+const FireflyAvatar = ({ size = 26, bg = SAGE_DARK }) => (
+  <>
+    <style>{FF_KEYFRAMES}</style>
+    <div style={{ width: size, height: size, borderRadius: "50%", background: bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden" }}>
+      <svg width={size * 0.85} height={size * 0.85} viewBox="0 0 72 72" fill="none"
+        style={{ animation: "slffFloat 3s ease-in-out infinite" }}>
+        <ellipse cx="36" cy="36" rx="4" ry="6.5" fill="#e8f5e0"/>
+        <ellipse cx="28" cy="34" rx="8" ry="3.5" fill="#a8d4b0" opacity="0.9" style={{ animation:"slffWingL 0.6s ease-in-out infinite", transformOrigin:"50% 50%" }}/>
+        <ellipse cx="44" cy="34" rx="8" ry="3.5" fill="#a8d4b0" opacity="0.9" style={{ animation:"slffWingR 0.6s ease-in-out infinite", animationDelay:"0.05s", transformOrigin:"50% 50%" }}/>
+        <g style={{ transformOrigin:"34.5px 30px", animation:"slffAntL 2.8s ease-in-out infinite" }}>
+          <line x1="34.5" y1="30" x2="31" y2="25" stroke="#c8f0c0" strokeWidth="1.2" strokeLinecap="round"/>
+          <circle cx="31" cy="24.5" fill="#d4ffb0"><animate attributeName="r" values="1;1.8;1" dur="2.4s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.6;1;0.6" dur="2.4s" repeatCount="indefinite"/></circle>
+        </g>
+        <g style={{ transformOrigin:"37.5px 30px", animation:"slffAntR 2.8s ease-in-out infinite", animationDelay:"0.4s" }}>
+          <line x1="37.5" y1="30" x2="41" y2="25" stroke="#c8f0c0" strokeWidth="1.2" strokeLinecap="round"/>
+          <circle cx="41" cy="24.5" fill="#d4ffb0"><animate attributeName="r" values="1;1.8;1" dur="2.4s" begin="0.5s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.6;1;0.6" dur="2.4s" begin="0.5s" repeatCount="indefinite"/></circle>
+        </g>
+        <circle cx="36" cy="41" fill="#d4ffb0">
+          <animate attributeName="r" values="2.5;4;2.5" dur="1.8s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="0.5;1;0.5" dur="1.8s" repeatCount="indefinite"/>
+        </circle>
+      </svg>
+    </div>
+  </>
+);
 function StructuredPreview({ data, mode, onConfirm, onEdit }) {
   const isEvening = mode === "evening";
   const isMorning = mode === "morning";
@@ -208,9 +241,7 @@ function ChatBubble({ role, content, isStreaming }) {
   return (
     <div style={{ ...styles.bubble, ...(isSage ? styles.sageBubble : styles.userBubble) }}>
       {isSage && (
-        <div style={styles.sageAvatar}>
-          <Icon name="leaf" size={13} color="#fff" />
-        </div>
+        <FireflyAvatar size={28} />
       )}
       <div style={{ ...styles.bubbleContent, ...(isSage ? styles.sageBubbleContent : styles.userBubbleContent) }}>
         <p style={styles.bubbleText}>
@@ -541,7 +572,10 @@ export default function SageLogChat({ mode: modeProp, onSave, onCancel, onSwitch
             {getModeIcon(mode)}
             <span>{getModeLabel(mode)}</span>
           </div>
-          <p style={styles.headerSub}>Talking with Sage</p>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", paddingLeft: "0.1rem" }}>
+            <FireflyAvatar size={20} bg={SAGE_DARK} />
+            <p style={styles.headerSub}>Talking with Sage</p>
+          </div>
         </div>
         <div style={styles.headerActions}>
           {!extractedData && !isExtracting && messages.length >= 3 && (
@@ -571,9 +605,7 @@ export default function SageLogChat({ mode: modeProp, onSave, onCancel, onSwitch
         {/* Loading dots when waiting for first word */}
         {isLoading && !streamingText && (
           <div style={styles.thinkingBubble}>
-            <div style={styles.sageAvatar}>
-              <Icon name="leaf" size={13} color="#fff" />
-            </div>
+            <FireflyAvatar size={28} />
             <div style={styles.dots}>
               <span style={{ ...styles.dot, animationDelay: "0ms" }} />
               <span style={{ ...styles.dot, animationDelay: "160ms" }} />
