@@ -93,9 +93,12 @@ TONE GUIDELINES:
 - Don't say "Great!" or "Awesome!" — be genuine, not performatively positive
 
 WHEN TO WRAP UP:
-When you've covered the essential topics for this mode and the conversation feels complete, end your message with the exact text: [CONVERSATION_COMPLETE]
+When you've covered the essential topics for this mode and the conversation feels complete, you MUST end your final message with exactly this token on its own at the very end: [CONVERSATION_COMPLETE]
 
-Do NOT add any text after [CONVERSATION_COMPLETE].`;
+This token is machine-readable and triggers saving. You MUST include it. Example of a correct final message:
+"Take care of yourself today — I hope you get some rest. [CONVERSATION_COMPLETE]"
+
+CRITICAL: Never end a conversation without [CONVERSATION_COMPLETE]. If you are writing a closing or farewell message, it must include [CONVERSATION_COMPLETE] at the end. Do not write any text after the token.`;
 }
 
 /* ─── Extraction prompt ───────────────────────────────────────────────────── */
@@ -231,6 +234,22 @@ export default function SageLogChat({ mode: modeProp, onSave, onCancel, onSwitch
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, streamingText]);
+
+  /* Detect closing language in last Sage message as fallback for missed signal */
+  useEffect(() => {
+    if (isComplete || isLoading || messages.length < 4) return;
+    const last = messages[messages.length - 1];
+    if (last?.role !== "assistant") return;
+    const closingPhrases = [
+      "take care", "feel better", "get some rest", "hope you", "sending you",
+      "be gentle with yourself", "rest up", "hope things ease", "wishing you",
+      "that's everything", "we've covered", "all noted", "got everything",
+    ];
+    const lower = last.content.toLowerCase();
+    if (closingPhrases.some(p => lower.includes(p))) {
+      setIsComplete(true);
+    }
+  }, [messages]);
 
   /* Open with Sage's first message */
   useEffect(() => {
@@ -484,7 +503,7 @@ export default function SageLogChat({ mode: modeProp, onSave, onCancel, onSwitch
           <p style={styles.headerSub}>Talking with Sage</p>
         </div>
         <div style={styles.headerActions}>
-          {!isComplete && messages.length >= 3 && (
+          {!extractedData && !isExtracting && messages.length >= 3 && (
             <button onClick={handleDone} style={styles.doneBtn}>
               I'm done →
             </button>
@@ -542,19 +561,31 @@ export default function SageLogChat({ mode: modeProp, onSave, onCancel, onSwitch
           />
         )}
 
+        {/* Save nudge — shown when isComplete but extraction hasn't fired */}
+        {isComplete && !extractedData && !isExtracting && !error && (
+          <div style={{ background: SAGE_LIGHT, borderRadius: "0.875rem", padding: "0.875rem 1rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem", alignSelf: "stretch" }}>
+            <span style={{ fontSize: "0.82rem", color: SAGE_DARK, fontWeight: 500 }}>
+              Ready to save your log?
+            </span>
+            <button onClick={handleDone} style={{ background: SAGE_DARK, color: "#fff", border: "none", borderRadius: "100px", padding: "0.4rem 0.875rem", fontSize: "0.78rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+              Save →
+            </button>
+          </div>
+        )}
+
         {/* Error */}
         {error && (
           <div style={styles.errorBanner}>
             <span style={{ fontSize: "0.82rem", color: "#c0392b" }}>{error}</span>
-            <button onClick={() => extractData()} style={styles.retryBtn}>Retry</button>
+            <button onClick={() => extractData(messages)} style={styles.retryBtn}>Retry</button>
           </div>
         )}
 
         <div ref={chatEndRef} />
       </div>
 
-      {/* Input area — hidden once extraction is showing */}
-      {!extractedData && !isExtracting && (
+      {/* Input area — hidden once complete or extraction is showing */}
+      {!extractedData && !isExtracting && !isComplete && (
         <div style={styles.inputArea}>
           <button onClick={onSwitchToForm} style={styles.switchBtn}>
             <Icon name="forward" size={14} color={WARM_GRAY} />
@@ -566,7 +597,7 @@ export default function SageLogChat({ mode: modeProp, onSave, onCancel, onSwitch
             onKeyDown={handleKeyDown}
             placeholder="Type your reply…"
             rows={1}
-            disabled={isLoading || isComplete}
+            disabled={isLoading}
             style={styles.input}
           />
           <button
@@ -579,8 +610,8 @@ export default function SageLogChat({ mode: modeProp, onSave, onCancel, onSwitch
         </div>
       )}
 
-      {/* Switch to form hint */}
-      {!extractedData && !isExtracting && (
+      {/* Switch to form hint — only when still chatting */}
+      {!extractedData && !isExtracting && !isComplete && (
         <p style={styles.switchHint}>
           <button onClick={onSwitchToForm} style={styles.switchHintBtn}>
             Switch to quick form instead
