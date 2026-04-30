@@ -3355,7 +3355,7 @@ export default function CareCompassTracker() {
   const [showEveningCheckin, setShowEveningCheckin] = useState(false);
   const [showEntryChooser, setShowEntryChooser]   = useState(false);
   const [showSageChat, setShowSageChat]           = useState(false);
-  const [sageChatMode, setSageChatMode]           = useState(null); // "morning" | "evening" | "intraday"
+  const [sageChatMode, setSageChatMode]           = useState(null);
   const [morningForm, setMorningForm] = useState({ sleep: 7, severity: 5, symptoms: "", energy: 5, notes: "" });
   const [eveningForm, setEveningForm] = useState({ severity: 5, symptoms: "", food: "", medications: "", selectedMedIds: [], activity: "", stress: 5, notes: "", hoursUpright: null, tasksCompleted: [], energyEnvelope: null });
   const [checkinSaved, setCheckinSaved] = useState(""); // id of entry pending delete confirmation
@@ -3543,7 +3543,6 @@ export default function CareCompassTracker() {
     setShowForm(true);
   };
 
-  /* Build a short summary of today's entries to pass to Sage as context */
   const buildPreviousContext = () => {
     const todayEntries = entries.filter(e =>
       new Date(e.timestamp).toDateString() === new Date().toDateString()
@@ -3558,7 +3557,6 @@ export default function CareCompassTracker() {
     }).join("; ");
   };
 
-  /* Called when Sage chat produces a confirmed entry */
   const handleSageLogSave = (entryData, mode) => {
     const tag = mode === "morning" ? "Morning check-in" : mode === "evening" ? "Evening check-in" : undefined;
     const finalEntry = {
@@ -3573,7 +3571,6 @@ export default function CareCompassTracker() {
     setShowSageChat(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
-    // Safety check
     const combinedText = [finalEntry.symptoms, finalEntry.notes, finalEntry.activity].filter(Boolean).join(" ");
     const triggers = checkEmergencySymptoms(combinedText);
     if (triggers.length) {
@@ -3582,7 +3579,6 @@ export default function CareCompassTracker() {
     }
   };
 
-  /* Called when user wants to edit Sage's extracted data in the manual form */
   const handleSageToForm = (prefillData) => {
     const last = entries[0] || null;
     setForm({
@@ -6129,8 +6125,6 @@ ${extraContext}` : ""}`;
                     })}
                   </div>
                 </div>
-
-                {/* Functional Impact — tasks managed */}
                 <div style={s.formGroup}>
                   <label style={s.label}>Tasks managed today <span style={s.optional}>(optional — check all that applied)</span></label>
                   <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
@@ -6146,8 +6140,6 @@ ${extraContext}` : ""}`;
                     })}
                   </div>
                 </div>
-
-                {/* Functional Impact — energy envelope */}
                 <div style={s.formGroup}>
                   <label style={s.label}>Energy envelope used <span style={s.optional}>(optional)</span></label>
                   <div style={{ display: "flex", gap: "0.5rem" }}>
@@ -6229,7 +6221,6 @@ ${extraContext}` : ""}`;
               <button onClick={() => setShowEntryChooser(false)} style={s.modalClose}><Icon name="close" size={16} /></button>
             </div>
             <div style={{ padding: "1.25rem", display: "flex", flexDirection: "column", gap: "0.875rem" }}>
-              {/* Sage Chat option */}
               <button
                 onClick={() => {
                   const hour = new Date().getHours();
@@ -6238,7 +6229,7 @@ ${extraContext}` : ""}`;
                   setShowEntryChooser(false);
                   setShowSageChat(true);
                 }}
-                style={{ background: SAGE_LIGHT, border: `1.5px solid ${SAGE}`, borderRadius: "1rem", padding: "1.25rem", textAlign: "left", cursor: "pointer", fontFamily: "inherit", width: "100%", transition: "all 0.15s" }}
+                style={{ background: SAGE_LIGHT, border: `1.5px solid ${SAGE}`, borderRadius: "1rem", padding: "1.25rem", textAlign: "left", cursor: "pointer", fontFamily: "inherit", width: "100%" }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: "0.625rem", marginBottom: "0.4rem" }}>
                   <div style={{ width: 28, height: 28, borderRadius: "50%", background: SAGE_DARK, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -6247,14 +6238,12 @@ ${extraContext}` : ""}`;
                   <span style={{ fontSize: "0.95rem", fontWeight: 700, color: INK }}>Tell Sage what's going on</span>
                 </div>
                 <p style={{ fontSize: "0.82rem", color: WARM_GRAY, margin: 0, lineHeight: 1.6, paddingLeft: "2.4rem" }}>
-                  Have a conversation — Sage asks questions, captures your story, and turns it into a structured log. Great for days when you want to explain, not just fill in boxes.
+                  Have a conversation — Sage asks questions and turns your story into a structured log.
                 </p>
               </button>
-
-              {/* Quick Form option */}
               <button
                 onClick={openNewForm}
-                style={{ background: "#fff", border: "1.5px solid rgba(0,0,0,0.12)", borderRadius: "1rem", padding: "1.25rem", textAlign: "left", cursor: "pointer", fontFamily: "inherit", width: "100%", transition: "all 0.15s" }}
+                style={{ background: "#fff", border: "1.5px solid rgba(0,0,0,0.12)", borderRadius: "1rem", padding: "1.25rem", textAlign: "left", cursor: "pointer", fontFamily: "inherit", width: "100%" }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: "0.625rem", marginBottom: "0.4rem" }}>
                   <div style={{ width: 28, height: 28, borderRadius: "50%", background: INK_LIGHT, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -6266,7 +6255,6 @@ ${extraContext}` : ""}`;
                   Fill in the fields directly — faster on bad days when you just want to log and move on.
                 </p>
               </button>
-
               <p style={{ fontSize: "0.72rem", color: WARM_GRAY, textAlign: "center", margin: "0.25rem 0 0" }}>
                 You can switch between these at any time
               </p>
@@ -6277,7 +6265,7 @@ ${extraContext}` : ""}`;
 
       {/* ── Sage Chat log entry ── */}
       {showSageChat && (
-        <div style={{ ...s.modalOverlay, alignItems: "stretch", padding: 0 }} onClick={() => setShowSageChat(false)}>
+        <div style={{ position: "fixed", inset: 0, zIndex: 500, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "stretch" }} onClick={() => setShowSageChat(false)}>
           <div style={{ width: "100%", maxWidth: 540, margin: "0 auto", height: "100dvh", display: "flex", flexDirection: "column" }} onClick={e => e.stopPropagation()}>
             <SageLogChat
               mode={sageChatMode}
@@ -6613,7 +6601,7 @@ ${extraContext}` : ""}`;
         <p style={s.footerDisclaimer}>Care Compass is not a medical service and does not provide medical advice, diagnosis, or treatment.</p>
       </footer>
 
-      <SageChatbot />
+      {!showSageChat && <SageChatbot />}
 
     </div>
   );
