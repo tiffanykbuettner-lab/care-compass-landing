@@ -238,27 +238,19 @@ export default function SageLogChat({ mode: modeProp, onSave, onCancel, onSwitch
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, streamingText]);
 
-  /* Fallback: detect closing language when each load completes */
-  useEffect(() => {
-    if (isLoading) return; // only run when a turn just finished
-    const msgs = messagesRef.current;
-    if (msgs.length < 4) return;
-    const last = msgs[msgs.length - 1];
-    if (last?.role !== "assistant") return;
-    if (last.content.includes("[CONVERSATION_COMPLETE]")) return; // already handled
-    const lower = last.content.toLowerCase();
-    const closingPhrases = [
+  /* ── Closing language detection helper ── */
+  function looksLikeClosing(text) {
+    const lower = text.toLowerCase();
+    const phrases = [
       "take care", "feel better", "get some rest", "hope you", "sending you",
       "be gentle with yourself", "rest up", "hope things ease", "wishing you",
       "that's everything", "we've covered", "all noted", "got everything",
       "take it easy", "hope you feel", "hope it eases", "alright, that",
-      "i've got everything", "all set", "that covers", "sounds like a migraine",
-      "dark and quiet", "step away",
+      "i've got everything", "all set", "that covers", "dark and quiet",
+      "step away", "i hope the", "i hope you can", "i hope things",
     ];
-    if (closingPhrases.some(p => lower.includes(p))) {
-      setIsComplete(true);
-    }
-  }, [isLoading]);
+    return phrases.some(p => lower.includes(p));
+  }
 
   /* Open with Sage's first message */
   useEffect(() => {
@@ -357,6 +349,10 @@ export default function SageLogChat({ mode: modeProp, onSave, onCancel, onSwitch
       setStreamingText("");
 
       if (isConversationDone) {
+        setIsComplete(true);
+        await extractData(fullHistory);
+      } else if (fullHistory.length >= 4 && looksLikeClosing(cleanText)) {
+        // Fallback: model wrapped up without the signal — detect and extract anyway
         setIsComplete(true);
         await extractData(fullHistory);
       }
