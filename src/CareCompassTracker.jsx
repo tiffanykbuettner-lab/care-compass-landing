@@ -6601,7 +6601,7 @@ ${extraContext}` : ""}`;
         <p style={s.footerDisclaimer}>Care Compass is not a medical service and does not provide medical advice, diagnosis, or treatment.</p>
       </footer>
 
-      {!showSageChat && <SageChatbot hideOnAsk={view === "ask"} />}
+      <div className="no-print">{!showSageChat && <SageChatbot hideOnAsk={view === "ask"} />}</div>
 
     </div>
   );
@@ -7015,7 +7015,7 @@ function SageChatbot({ hideOnAsk = false }) {
 
       {/* Chat drawer */}
       {open && (
-        <div style={ss.drawer}>
+        <div className="no-print" style={ss.drawer}>
           <div style={ss.drawerHeader}>
             <div style={ss.drawerHeaderLeft}>
               <FireflyMark size={44}/>
@@ -7057,7 +7057,7 @@ function SageChatbot({ hideOnAsk = false }) {
 
       {/* FAB — hidden on ask tab to avoid blocking SageAskWidget */}
       {!open && !hideOnAsk && (
-        <button style={ss.fab} onClick={openChat} aria-label="Chat with Sage">
+        <button className="no-print" style={ss.fab} onClick={openChat} aria-label="Chat with Sage">
           <FireflyMark size={48}/>
         </button>
       )}
