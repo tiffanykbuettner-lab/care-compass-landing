@@ -431,7 +431,7 @@ export default function SageLogChat({ mode: modeProp, onSave, onCancel, onSwitch
     setError("");
 
     try {
-      const transcript = buildTranscript(msgs || messages);
+      const transcript = buildTranscript(msgs || messagesRef.current);
       const response = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
@@ -442,20 +442,45 @@ export default function SageLogChat({ mode: modeProp, onSave, onCancel, onSwitch
         },
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
-          max_tokens: 800,
+          max_tokens: 1024,
           messages: [{ role: "user", content: buildExtractionPrompt(transcript, mode) }],
         }),
       });
 
       const data = await response.json();
-      const raw = data.content?.[0]?.text || "{}";
-      const clean = raw.replace(/```json|```/g, "").trim();
-      const parsed = JSON.parse(clean);
+
+      // Handle API-level errors (rate limit, auth, etc)
+      if (data.error) {
+        throw new Error(data.error.message || "API error");
+      }
+
+      const raw = data.content?.[0]?.text || "";
+
+      if (!raw) {
+        throw new Error("Empty response from API");
+      }
+
+      // Try to extract JSON even if the model adds surrounding text
+      let parsed = null;
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        parsed = JSON.parse(jsonMatch[0]);
+      } else {
+        const clean = raw.replace(/```json|```/g, "").trim();
+        parsed = JSON.parse(clean);
+      }
+
+      if (!parsed || typeof parsed !== "object") {
+        throw new Error("Invalid JSON structure");
+      }
+
       setExtractedData(parsed);
-      /* Scroll after the preview card has rendered */
-      setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 120);
-    } catch {
-      setError("Couldn't extract your data. You can still save manually.");
+      setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 150);
+
+    } catch (err) {
+      // Show error with the actual reason so we can debug
+      const msg = err?.message || "Unknown error";
+      setError(`Couldn't organize your data (${msg}). Tap Retry or save manually.`);
     } finally {
       setIsExtracting(false);
     }
@@ -580,9 +605,12 @@ export default function SageLogChat({ mode: modeProp, onSave, onCancel, onSwitch
 
         {/* Error */}
         {error && (
-          <div style={styles.errorBanner}>
-            <span style={{ fontSize: "0.82rem", color: "#c0392b" }}>{error}</span>
-            <button onClick={() => extractData(messages)} style={styles.retryBtn}>Retry</button>
+          <div style={{ ...styles.errorBanner, flexDirection: "column", alignItems: "flex-start", gap: "0.625rem" }}>
+            <span style={{ fontSize: "0.82rem", color: "#c0392b", lineHeight: 1.5 }}>{error}</span>
+            <div style={{ display: "flex", gap: "0.5rem" }}>
+              <button onClick={() => extractData(messagesRef.current)} style={styles.retryBtn}>Retry</button>
+              <button onClick={() => onSwitchToForm({})} style={{ ...styles.retryBtn, borderColor: WARM_GRAY, color: WARM_GRAY }}>Save manually</button>
+            </div>
           </div>
         )}
 
