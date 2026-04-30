@@ -6615,7 +6615,7 @@ ${extraContext}` : ""}`;
         <p style={s.footerDisclaimer}>Care Compass is not a medical service and does not provide medical advice, diagnosis, or treatment.</p>
       </footer>
 
-      <div className="no-print">{!showSageChat && <SageChatbot hideOnAsk={view === "ask"} />}</div>
+      <div className="no-print">{!showSageChat && !showMorningCheckin && !showEveningCheckin && <SageChatbot hideOnAsk={view === "ask"} />}</div>
 
     </div>
   );
@@ -7235,12 +7235,12 @@ const s = {
   reportFooter: { borderTop: `1px solid ${SAGE_LIGHT}`, paddingTop: "1rem", textAlign: "center" },
   reportFooterText: { fontSize: "0.75rem", color: "#aaa", margin: 0 },
   modalOverlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 200, display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0", overscrollBehavior: "none", WebkitTapHighlightColor: "transparent", WebkitOverflowScrolling: "touch" },
-  modal: { background: "#fff", borderRadius: "1.25rem 1.25rem 0 0", width: "100%", maxWidth: 680, height: "90vh", maxHeight: "90vh", display: "flex", flexDirection: "column", overflow: "hidden", boxSizing: "border-box" },
+  modal: { background: "#fff", borderRadius: "1.25rem 1.25rem 0 0", width: "100%", maxWidth: 680, maxHeight: "88dvh", display: "flex", flexDirection: "column", overflow: "hidden", boxSizing: "border-box" },
   modalHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.25rem 1.5rem", borderBottom: `1px solid rgba(0,0,0,0.07)` },
   modalTitle: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.2rem", fontWeight: 700, color: INK, margin: 0 },
   modalClose: { background: "transparent", border: "none", color: WARM_GRAY, fontSize: "1rem", cursor: "pointer" },
   modalBody: { flex: 1, overflowY: "auto", overflowX: "hidden", padding: "1.25rem", display: "flex", flexDirection: "column", gap: "1.25rem", boxSizing: "border-box", width: "100%", WebkitOverflowScrolling: "touch" },
-  modalFooter: { padding: "1rem 1.5rem", borderTop: `1px solid rgba(0,0,0,0.07)`, display: "flex", justifyContent: "flex-end", gap: "0.75rem" },
+  modalFooter: { padding: "1rem 1.5rem", paddingBottom: "calc(1rem + env(safe-area-inset-bottom, 0px))", borderTop: `1px solid rgba(0,0,0,0.07)`, display: "flex", justifyContent: "flex-end", gap: "0.75rem" },
   formGroup: { display: "flex", flexDirection: "column", gap: "0.4rem", flex: 1 },
   formRow: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem" },
   label: { fontSize: "0.85rem", fontWeight: 600, color: INK_LIGHT },
