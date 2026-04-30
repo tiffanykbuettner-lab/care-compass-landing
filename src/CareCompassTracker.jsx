@@ -6301,7 +6301,20 @@ ${extraContext}` : ""}`;
               <h2 style={{ ...s.modalTitle, fontSize: "1.05rem" }}>
                 {editingEntry ? "Edit entry" : "Log a symptom"}
               </h2>
-              <button onClick={() => { setShowForm(false); }} style={s.modalClose}><Icon name="close" size={16} /></button>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                {!editingEntry && (
+                  <button onClick={() => {
+                    setShowForm(false);
+                    const morningEndMins = morningStartMins + 4 * 60;
+                    const mode = (nowMins >= morningStartMins && nowMins < morningEndMins) ? "morning" : isEveningTime ? "evening" : "intraday";
+                    setSageChatMode(mode);
+                    setShowSageChat(true);
+                  }} style={{ background: "#fff", border: `1px solid ${SAGE}`, borderRadius: "100px", padding: "0.3rem 0.75rem", fontSize: "0.75rem", fontWeight: 600, color: SAGE_DARK, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+                    ✦ Tell Sage instead
+                  </button>
+                )}
+                <button onClick={() => { setShowForm(false); }} style={s.modalClose}><Icon name="close" size={16} /></button>
+              </div>
             </div>
 
             <div style={{ ...s.modalBody, gap: "1rem" }}>
