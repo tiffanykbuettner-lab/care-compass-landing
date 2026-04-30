@@ -4468,7 +4468,7 @@ ${extraContext}` : ""}`;
                 <p style={{ fontSize: "0.78rem", color: WARM_GRAY, margin: 0 }}>A quick check-in takes under a minute.</p>
               </div>
               <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
-                <button onClick={() => setShowMorningCheckin(true)} style={{ background: "#e8a838", color: "#fff", border: "none", borderRadius: "100px", padding: "0.55rem 1.1rem", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Check in →</button>
+                <button onClick={() => setShowMorningCheckin(true)} style={{ background: "#e8a838", color: "#fff", border: "none", borderRadius: "100px", padding: "0.55rem 1.1rem", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Quick check-in →</button>
                 <button onClick={() => { saveCheckin("morning_skip", {}); }} style={{ background: "none", border: "none", fontSize: "0.75rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit" }}>Skip</button>
               </div>
             </div>
@@ -4483,13 +4483,19 @@ ${extraContext}` : ""}`;
                 <p style={{ fontSize: "0.78rem", color: WARM_GRAY, margin: 0 }}>Reflect on today or summarise your symptoms.</p>
               </div>
               <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
-                <button onClick={() => setShowEveningCheckin(true)} style={{ background: "#7c5cbf", color: "#fff", border: "none", borderRadius: "100px", padding: "0.55rem 1.1rem", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Check in →</button>
+                <button onClick={() => setShowEveningCheckin(true)} style={{ background: "#7c5cbf", color: "#fff", border: "none", borderRadius: "100px", padding: "0.55rem 1.1rem", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Quick check-in →</button>
                 <button onClick={() => { saveCheckin("evening_skip", {}); }} style={{ background: "none", border: "none", fontSize: "0.75rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit" }}>Skip</button>
               </div>
             </div>
           )}
 
-          <div style={s.addBtnWrap} className="no-print"><button onClick={openNew} style={s.addBtn}>🌿 Talk to Sage</button></div>
+          <div style={s.addBtnWrap} className="no-print">
+            <style>{SAGE_KEYFRAMES}</style>
+            <button onClick={openNew} style={{ ...s.addBtn, display: "flex", alignItems: "center", gap: "0.6rem", paddingLeft: "1.5rem", paddingRight: "1.75rem" }}>
+              <FireflyBare size={24} />
+              Talk to Sage
+            </button>
+          </div>
           {entries.length > 0 && (
             <div style={s.statsRow} className="no-print">
               {[{ label: "Total entries", val: entries.length }, { label: "Today's entries", val: todayCount }, { label: "Avg severity", val: avgSeverity }, { label: "Days tracked", val: new Set(entries.map(e => new Date(e.timestamp).toDateString())).size }].map(({ label, val }) => (
@@ -4570,7 +4576,7 @@ ${extraContext}` : ""}`;
                   <div style={{ flex: 1 }}>
                     <p style={{ fontSize: "0.82rem", fontWeight: 600, color: INK, margin: "0 0 0.2rem" }}>Two ways to track — both work</p>
                     <p style={{ fontSize: "0.78rem", color: WARM_GRAY, margin: 0, lineHeight: 1.6 }}>
-                      <strong>Log as it happens</strong> for the most accurate patterns — tap <strong>"Talk to Sage"</strong> whenever you notice something. Or use <strong>morning & evening check-ins</strong> for a daily rhythm. If you logged throughout the day, your evening check-in is just a quick reflection — no need to re-enter what you already noted.
+                      <strong>Log as it happens</strong> for the most accurate patterns — tap "+ Log Entry" whenever you notice something. Or use <strong>morning & evening check-ins</strong> for a daily rhythm. If you logged throughout the day, your evening check-in is just a quick reflection — no need to re-enter what you already noted.
                     </p>
                   </div>
                   <button
@@ -6573,7 +6579,39 @@ const SAGE_KEYFRAMES = `
   @keyframes sageGreetIn  { from{opacity:0;transform:translateY(10px) scale(0.95)} to{opacity:1;transform:translateY(0) scale(1)} }
   @keyframes sageGreetOut { from{opacity:1;transform:translateY(0) scale(1)} to{opacity:0;transform:translateY(6px) scale(0.97)} }
   @keyframes sageDrawerIn { from{opacity:0;transform:translateY(12px) scale(0.95)} to{opacity:1;transform:translateY(0) scale(1)} }
+  @keyframes ffFloat { 0%,100%{transform:translateY(0px)} 50%{transform:translateY(-3px)} }
 `;
+
+/* Bare firefly — no circle background, no botanical petals. For button use. */
+const FireflyBare = ({ size = 28 }) => (
+  <svg width={size} height={size} viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg"
+    style={{ animation:"ffFloat 3s ease-in-out infinite", display:"block", flexShrink: 0 }}>
+    <ellipse cx="36" cy="36" rx="4" ry="6.5" fill="rgba(255,255,255,0.9)"/>
+    <ellipse cx="28" cy="34" rx="8" ry="3.5" fill="rgba(255,255,255,0.5)" style={{ animation:"ffWingL 0.6s ease-in-out infinite" }}/>
+    <ellipse cx="44" cy="34" rx="8" ry="3.5" fill="rgba(255,255,255,0.5)" style={{ animation:"ffWingR 0.6s ease-in-out infinite", animationDelay:"0.05s" }}/>
+    <g style={{ transformOrigin:"34.5px 30px", animation:"ffAntL 2.8s ease-in-out infinite" }}>
+      <line x1="34.5" y1="30" x2="31" y2="25" stroke="rgba(255,255,255,0.7)" strokeWidth="0.9" strokeLinecap="round"/>
+      <circle cx="31" cy="24.5" fill="#c8ffb0"><animate attributeName="r" values="1;1.6;1" dur="2.4s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.5;1;0.5" dur="2.4s" repeatCount="indefinite"/></circle>
+    </g>
+    <g style={{ transformOrigin:"37.5px 30px", animation:"ffAntR 2.8s ease-in-out infinite", animationDelay:"0.4s" }}>
+      <line x1="37.5" y1="30" x2="41" y2="25" stroke="rgba(255,255,255,0.7)" strokeWidth="0.9" strokeLinecap="round"/>
+      <circle cx="41" cy="24.5" fill="#c8ffb0"><animate attributeName="r" values="1;1.6;1" dur="2.4s" begin="0.5s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.5;1;0.5" dur="2.4s" begin="0.5s" repeatCount="indefinite"/></circle>
+    </g>
+    <ellipse cx="34.2" cy="33.5" fill="#b8f0b0">
+      <animate attributeName="rx" values="1.3;1.3;1.3;0.2;1.3" dur="5s" keyTimes="0;0.7;0.85;0.9;1" repeatCount="indefinite"/>
+      <animate attributeName="ry" values="1.3;1.3;1.3;0.15;1.3" dur="5s" keyTimes="0;0.7;0.85;0.9;1" repeatCount="indefinite"/>
+    </ellipse>
+    <ellipse cx="37.8" cy="33.5" fill="#b8f0b0">
+      <animate attributeName="rx" values="1.3;1.3;1.3;0.2;1.3" dur="5s" keyTimes="0;0.7;0.85;0.9;1" begin="0.08s" repeatCount="indefinite"/>
+      <animate attributeName="ry" values="1.3;1.3;1.3;0.15;1.3" dur="5s" keyTimes="0;0.7;0.85;0.9;1" begin="0.08s" repeatCount="indefinite"/>
+    </ellipse>
+    <circle cx="36" cy="41" r="3" fill="#7fff7a" opacity="0.2"/>
+    <circle cx="36" cy="41" fill="#c8ffb0">
+      <animate attributeName="r" values="2.8;4;2.8" dur="1.8s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.3;0.9;0.3" dur="1.8s" repeatCount="indefinite"/>
+    </circle>
+  </svg>
+);
 
 const FireflyMark = ({ size = 36 }) => (
   <svg width={size} height={size} viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg"
