@@ -3576,6 +3576,12 @@ export default function CareCompassTracker() {
       ...(tag ? { tag } : {}),
     };
     saveEntries([finalEntry, ...entries]);
+
+    // Register morning/evening checkins so the banner knows they're done
+    if (mode === "morning" || mode === "evening") {
+      saveCheckin(mode, entryData);
+    }
+
     setShowSageChat(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
