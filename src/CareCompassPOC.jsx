@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import SageAssessmentChat from "./SageAssessmentChat";
 
 const LOADING_STYLES = `
 @keyframes loadProgress {
@@ -1047,8 +1048,83 @@ const ss = {
   sendBtn:{ width:40, height:40, borderRadius:"0.75rem", background:"#4a7058", color:"#fff", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 },
 };
 
+/* ─── Shared analysis prompt builder ─────────────────────────────────────── */
+function buildAnalysisPrompt({ name, ageRange, duration, severity, allSymptoms, diagnoses, medications, allergies, diet, activity, sleep, stress, recentChanges, familyHistoryStr, extraContext = "" }) {
+  return `You are a compassionate, knowledgeable health navigation assistant for Care Compass — a platform that helps people with chronic illness understand their symptoms and advocate for themselves.
+
+A user has shared the following health information. Your role is to:
+1. Identify symptom patterns and clusters that may be connected
+2. Suggest areas and conditions they might want to research and discuss with their doctor (NOT diagnose)
+3. Recommend types of specialists who may be relevant
+4. Provide thoughtful questions they can bring to their next appointment
+
+CORE PHILOSOPHY — READ THIS CAREFULLY:
+Your primary job is pattern recognition based on what the user actually experiences — their symptoms, timing, triggers, and how their body behaves. This takes precedence over any existing diagnoses or labels.
+
+WHY THIS MATTERS: Complex conditions are frequently misdiagnosed. A user may carry a diagnosis that was the "simplest explanation" rather than the correct one. Seronegative presentations, atypical symptom clusters, and diagnostic momentum mean that labels on a chart can be wrong or incomplete. Do not anchor your analysis to existing diagnoses. Instead, let the symptom pattern speak for itself — then note where existing diagnoses align or potentially conflict.
+
+HOW TO WEIGHT INFORMATION:
+1. HIGHEST WEIGHT — Symptoms and lived experience: what the user actually describes experiencing across body systems, their severity, timing, and patterns
+2. HIGH WEIGHT — Daily variables: food, medications, activity, sleep, stress and how they correlate with symptoms
+3. MODERATE WEIGHT — Family history: genetic context that may inform pattern recognition, not restrict it
+4. LOWER WEIGHT — Existing diagnoses: treat as context and one possible explanation, not confirmed truth. If symptoms don't fully align with a given diagnosis, say so gently. If the pattern suggests something additional or different, explore it.
+5. LOWEST WEIGHT — Medication lists: unless a medication is new or the symptom is new, long-standing medications are less likely to be the cause of new symptoms
+
+IMPORTANT GUIDELINES:
+- Never diagnose. Use language like "may be worth exploring", "could be connected to", "you might ask your doctor about"
+- Be warm, empathetic, and validating — many chronic illness patients feel dismissed. Many have been told their symptoms aren't real or don't fit a pattern
+- If existing diagnoses seem incomplete or potentially misaligned with the symptom picture, gently note this — e.g. "Your current diagnosis may not fully account for [symptom cluster]"
+- Focus on cross-system pattern recognition — this is where Care Compass adds the most value
+- Be thorough but clear and readable
+- Use ## for main sections and - for bullet points
+- MEDICATION ANALYSIS: If medications are provided, actively assess them for: (1) known interactions between listed medications, (2) symptoms that could be side effects of a listed medication, (3) medications that may reduce the efficacy of another, (4) medications that may be poorly suited to a listed condition or diagnosis. Use language like "worth discussing with your prescriber", "some people find that...", "it may be worth asking whether...". Never advise stopping or changing a medication.
+
+USER'S HEALTH INFORMATION:
+Name: ${name || "the user"}
+Age range: ${ageRange || "Not provided"}
+How long they've been experiencing symptoms: ${duration || "Not provided"}
+Overall severity (1-10): ${severity || "Not provided"}
+
+SYMPTOMS BY BODY SYSTEM (PRIMARY SOURCE — weight these most heavily):
+${allSymptoms || "No specific symptoms entered"}
+
+HEALTH HISTORY (context only — do not anchor analysis to these):
+Existing diagnoses: ${diagnoses || "None provided"}
+Current medications: ${medications || "None provided"}
+Known allergies or sensitivities: ${allergies || "None provided"}
+
+DAILY VARIABLES:
+Diet notes: ${diet || "None provided"}
+Activity level: ${activity || "None provided"}
+Sleep quality: ${sleep || "None provided"}
+Stress levels: ${stress || "None provided"}
+Recent changes (new meds, foods, activities): ${recentChanges || "None provided"}
+${familyHistoryStr ? `\nFAMILY HISTORY:\n${familyHistoryStr}\n\nNote: Use family history to add hereditary context. Flag if any reported symptoms align with known familial patterns (e.g. connective tissue disorders, autoimmune conditions, cardiovascular disease). Mention potential genetic factors relevant to specialist referrals.` : ""}
+
+FUNCTIONAL IMPACT INSTRUCTIONS:
+Scan the symptom descriptions and daily variable notes for any mention of activities that were difficult, modified, avoided, or impossible due to symptoms. These include driving, cooking, showering, dressing, hair care, laundry, grocery shopping, walking, stairs, lifting, working, typing, social activities, caregiving, and any other daily task. If found, include a dedicated ## Daily Life Impact section. This is critically important — it helps doctors understand real-world severity rather than abstract numbers.
+
+IMPORTANT: Always complete every section fully. Do not truncate, summarize, or abbreviate due to length. It is better to write less per section than to cut a section short. End every response with the full "A Note From Care Compass" section — if you find yourself running long, trim earlier sections slightly rather than leaving the final ones incomplete.
+
+Please provide a Care Compass Insight Report with these sections:
+## What We Notice
+## Daily Life Impact
+## Patterns Worth Exploring
+## Medication Notes
+For this section: review the medications listed and flag any that may be interacting with each other, causing reported symptoms as side effects, reducing the efficacy of another medication, or that may be worth revisiting given the symptom picture. If no medications were provided or no concerns are apparent, briefly note that. Always use cautious language — never advise stopping or changing anything, only flag for discussion.
+## Specialists Who May Help
+## Questions to Bring to Your Doctor
+## A Note From Care Compass${extraContext ? `
+
+ADDITIONAL CONTEXT FROM USER (incorporate this into your analysis — this was shared after the original report and contains important supplementary history):
+${extraContext}` : ""}`;
+}
+
 /* ─── Main POC component ─────────────────────────────────────────────────── */
 export default function CareCompassPOC() {
+  // "sage" = conversational Sage flow (default), "form" = manual multi-step form
+  const [mode, setMode] = useState("sage");
+
   const [step, setStep]             = useState(0);
   const [maxVisited, setMaxVisited] = useState(0);
   const [loading, setLoading]       = useState(false);
@@ -1159,8 +1235,115 @@ export default function CareCompassPOC() {
 
   const clearSavedForm = () => { try { sessionStorage.removeItem("cc-assessment-form"); } catch {} };
 
+  // ── Sage assessment bridge functions ────────────────────────────────────────
+
+  // Called by SageAssessmentChat when extraction is complete.
+  // Maps extracted data into form state then triggers the analysis.
+  const handleSageComplete = (extracted) => {
+    // Populate all form state from extracted data
+    if (extracted.name)         setName(extracted.name);
+    if (extracted.ageRange)     setAgeRange(extracted.ageRange);
+    if (extracted.duration)     setDuration(extracted.duration);
+    if (extracted.severity)     setSeverity(extracted.severity);
+    if (extracted.diagnoses)    setDiagnoses(extracted.diagnoses);
+    if (extracted.medications)  setMedications(extracted.medications);
+    if (extracted.allergies)    setAllergies(extracted.allergies);
+    if (extracted.diet)         setDiet(extracted.diet);
+    if (extracted.activity)     setActivity(extracted.activity);
+    if (extracted.sleep)        setSleep(extracted.sleep);
+    if (extracted.stress)       setStress(extracted.stress);
+    if (extracted.recentChanges) setRecentChanges(extracted.recentChanges);
+    if (extracted.symptoms) {
+      setSymptoms(prev => ({ ...prev, ...extracted.symptoms }));
+    }
+    // Trigger analysis immediately — state updates are async so we build
+    // the prompt directly from extracted data rather than relying on state
+    handleAnalyzeFromExtracted(extracted);
+  };
+
+  // Called when user taps "Fill it out myself instead" — pre-fills what we have
+  const handleSwitchToForm = (partial) => {
+    if (partial.name)        setName(partial.name);
+    if (partial.ageRange)    setAgeRange(partial.ageRange);
+    if (partial.diagnoses)   setDiagnoses(partial.diagnoses);
+    if (partial.medications) setMedications(partial.medications);
+    setMode("form");
+    window.scrollTo(0, 0);
+  };
   const filledSystems = Object.entries(symptoms).filter(([, v]) => v.trim());
   const allSymptoms   = filledSystems.map(([sys, desc]) => `${sys}: ${desc}`).join("\n");
+
+  // Version that takes extracted data directly (used by Sage flow to avoid async state issues)
+  const handleAnalyzeFromExtracted = async (extracted, attempt = 1) => {
+    const MAX_ATTEMPTS = 3;
+    setLoading(true);
+    setError(null);
+    setRetryCount(attempt - 1);
+    try { localStorage.setItem("cc-assessment-complete", new Date().toISOString()); } catch {}
+
+    const styleEl = document.getElementById("loading-styles") || document.createElement("style");
+    styleEl.id = "loading-styles";
+    styleEl.innerHTML = LOADING_STYLES;
+    if (!document.getElementById("loading-styles")) document.head.appendChild(styleEl);
+
+    const familyHistoryEntries = (() => {
+      try { const s = localStorage.getItem("cc-family-history"); return s ? JSON.parse(s) : []; } catch { return []; }
+    })();
+    const MLABELS = { mother:"Mother", father:"Father", maternal_grandmother:"Maternal grandmother", maternal_grandfather:"Maternal grandfather", paternal_grandmother:"Paternal grandmother", paternal_grandfather:"Paternal grandfather", sister:"Sister", brother:"Brother", maternal_aunt:"Maternal aunt", maternal_uncle:"Maternal uncle", paternal_aunt:"Paternal aunt", paternal_uncle:"Paternal uncle", daughter:"Daughter", son:"Son" };
+    const familyHistoryStr = familyHistoryEntries.filter(e => e.member && e.conditions.length > 0)
+      .map(e => `- ${MLABELS[e.member] || e.member}: ${e.conditions.join(", ")}${e.notes ? " (" + e.notes + ")" : ""}`)
+      .join("\n");
+
+    // Build symptoms string from extracted data
+    const extractedSymptomsStr = extracted.symptoms
+      ? Object.entries(extracted.symptoms).filter(([, v]) => v?.trim()).map(([sys, desc]) => `${sys}: ${desc}`).join("\n")
+      : "";
+
+    const prompt = buildAnalysisPrompt({
+      name: extracted.name || "",
+      ageRange: extracted.ageRange || "",
+      duration: extracted.duration || "",
+      severity: extracted.severity || "",
+      allSymptoms: extractedSymptomsStr,
+      diagnoses: extracted.diagnoses || "",
+      medications: extracted.medications || "",
+      allergies: extracted.allergies || "",
+      diet: extracted.diet || "",
+      activity: extracted.activity || "",
+      sleep: extracted.sleep || "",
+      stress: extracted.stress || "",
+      recentChanges: extracted.recentChanges || "",
+      familyHistoryStr,
+    });
+
+    try {
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+        body: JSON.stringify({ model: "claude-opus-4-6", max_tokens: 8000, messages: [{ role: "user", content: prompt }] }),
+      });
+      if (!response.ok) throw new Error(`API error: ${response.status}`);
+      const data = await response.json();
+      if (!data.content?.[0]?.text) throw new Error("Empty response");
+      setGuidance(data.content[0].text);
+      setStep(4);
+    } catch (err) {
+      if (attempt < MAX_ATTEMPTS) {
+        const delay = attempt * 3000;
+        setError(`Something went wrong — automatically retrying (attempt ${attempt} of ${MAX_ATTEMPTS})…`);
+        setTimeout(() => handleAnalyzeFromExtracted(extracted, attempt + 1), delay);
+      } else {
+        setError("We weren't able to generate your insights after a few attempts. Please try again in a moment.");
+        setLoading(false);
+        const styleEl = document.getElementById("loading-styles");
+        if (styleEl) styleEl.remove();
+      }
+      return;
+    }
+    setLoading(false);
+    const styleElFinal = document.getElementById("loading-styles");
+    if (styleElFinal) styleElFinal.remove();
+  };
 
   const handleAnalyze = async (attempt = 1, extraContext = "") => {
     const MAX_ATTEMPTS = 3;
@@ -1184,74 +1367,7 @@ export default function CareCompassPOC() {
       .map(e => `- ${MLABELS[e.member] || e.member}: ${e.conditions.join(", ")}${e.notes ? " (" + e.notes + ")" : ""}`)
       .join("\n");
 
-    const prompt = `You are a compassionate, knowledgeable health navigation assistant for Care Compass — a platform that helps people with chronic illness understand their symptoms and advocate for themselves.
-
-A user has shared the following health information. Your role is to:
-1. Identify symptom patterns and clusters that may be connected
-2. Suggest areas and conditions they might want to research and discuss with their doctor (NOT diagnose)
-3. Recommend types of specialists who may be relevant
-4. Provide thoughtful questions they can bring to their next appointment
-
-CORE PHILOSOPHY — READ THIS CAREFULLY:
-Your primary job is pattern recognition based on what the user actually experiences — their symptoms, timing, triggers, and how their body behaves. This takes precedence over any existing diagnoses or labels.
-
-WHY THIS MATTERS: Complex conditions are frequently misdiagnosed. A user may carry a diagnosis that was the "simplest explanation" rather than the correct one. Seronegative presentations, atypical symptom clusters, and diagnostic momentum mean that labels on a chart can be wrong or incomplete. Do not anchor your analysis to existing diagnoses. Instead, let the symptom pattern speak for itself — then note where existing diagnoses align or potentially conflict.
-
-HOW TO WEIGHT INFORMATION:
-1. HIGHEST WEIGHT — Symptoms and lived experience: what the user actually describes experiencing across body systems, their severity, timing, and patterns
-2. HIGH WEIGHT — Daily variables: food, medications, activity, sleep, stress and how they correlate with symptoms
-3. MODERATE WEIGHT — Family history: genetic context that may inform pattern recognition, not restrict it
-4. LOWER WEIGHT — Existing diagnoses: treat as context and one possible explanation, not confirmed truth. If symptoms don't fully align with a given diagnosis, say so gently. If the pattern suggests something additional or different, explore it.
-5. LOWEST WEIGHT — Medication lists: unless a medication is new or the symptom is new, long-standing medications are less likely to be the cause of new symptoms
-
-IMPORTANT GUIDELINES:
-- Never diagnose. Use language like "may be worth exploring", "could be connected to", "you might ask your doctor about"
-- Be warm, empathetic, and validating — many chronic illness patients feel dismissed. Many have been told their symptoms aren't real or don't fit a pattern
-- If existing diagnoses seem incomplete or potentially misaligned with the symptom picture, gently note this — e.g. "Your current diagnosis may not fully account for [symptom cluster]" 
-- Focus on cross-system pattern recognition — this is where Care Compass adds the most value
-- Be thorough but clear and readable
-- Use ## for main sections and - for bullet points
-- MEDICATION ANALYSIS: If medications are provided, actively assess them for: (1) known interactions between listed medications, (2) symptoms that could be side effects of a listed medication, (3) medications that may reduce the efficacy of another, (4) medications that may be poorly suited to a listed condition or diagnosis. Use language like "worth discussing with your prescriber", "some people find that...", "it may be worth asking whether...". Never advise stopping or changing a medication.
-
-USER'S HEALTH INFORMATION:
-Name: ${name || "the user"}
-Age range: ${ageRange || "Not provided"}
-How long they've been experiencing symptoms: ${duration}
-Overall severity (1-10): ${severity}
-
-SYMPTOMS BY BODY SYSTEM (PRIMARY SOURCE — weight these most heavily):
-${allSymptoms || "No specific symptoms entered"}
-
-HEALTH HISTORY (context only — do not anchor analysis to these):
-Existing diagnoses: ${diagnoses || "None provided"}
-Current medications: ${medications || "None provided"}
-Known allergies or sensitivities: ${allergies || "None provided"}
-
-DAILY VARIABLES:
-Diet notes: ${diet || "None provided"}
-Activity level: ${activity || "None provided"}
-Sleep quality: ${sleep || "None provided"}
-Stress levels: ${stress || "None provided"}
-Recent changes (new meds, foods, activities): ${recentChanges || "None provided"}
-${familyHistoryStr ? `\nFAMILY HISTORY:\n${familyHistoryStr}\n\nNote: Use family history to add hereditary context. Flag if any reported symptoms align with known familial patterns (e.g. connective tissue disorders, autoimmune conditions, cardiovascular disease). Mention potential genetic factors relevant to specialist referrals.` : ""}
-
-FUNCTIONAL IMPACT INSTRUCTIONS:
-Scan the symptom descriptions and daily variable notes for any mention of activities that were difficult, modified, avoided, or impossible due to symptoms. These include driving, cooking, showering, dressing, hair care, laundry, grocery shopping, walking, stairs, lifting, working, typing, social activities, caregiving, and any other daily task. If found, include a dedicated ## Daily Life Impact section. This is critically important — it helps doctors understand real-world severity rather than abstract numbers.
-
-IMPORTANT: Always complete every section fully. Do not truncate, summarize, or abbreviate due to length. It is better to write less per section than to cut a section short. End every response with the full "A Note From Care Compass" section — if you find yourself running long, trim earlier sections slightly rather than leaving the final ones incomplete.
-
-Please provide a Care Compass Insight Report with these sections:
-## What We Notice
-## Daily Life Impact
-## Patterns Worth Exploring
-## Medication Notes
-For this section: review the medications listed and flag any that may be interacting with each other, causing reported symptoms as side effects, reducing the efficacy of another medication, or that may be worth revisiting given the symptom picture. If no medications were provided or no concerns are apparent, briefly note that. Always use cautious language — never advise stopping or changing anything, only flag for discussion.
-## Specialists Who May Help
-## Questions to Bring to Your Doctor
-## A Note From Care Compass${extraContext ? `
-
-ADDITIONAL CONTEXT FROM USER (incorporate this into your analysis — this was shared after the original report and contains important supplementary history):
-${extraContext}` : ""}`;
+    const prompt = buildAnalysisPrompt({ name, ageRange, duration, severity, allSymptoms, diagnoses, medications, allergies, diet, activity, sleep, stress, recentChanges, familyHistoryStr, extraContext });
 
     try {
       const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -1301,6 +1417,7 @@ ${extraContext}` : ""}`;
     setMaxVisited(0);
     setGuidance(null);
     setError(null);
+    setMode("sage");
     setSymptoms(Object.fromEntries(BODY_SYSTEMS.map(b => [b.system, ""])));
     setDuration(""); setSeverity(""); setAgeRange(""); setDiagnoses("");
     setMedications(""); setAllergies(""); setDiet("");
@@ -1321,13 +1438,64 @@ ${extraContext}` : ""}`;
       </nav>
 
       <main style={s.main}>
-        {/* Guidance output */}
+        {/* Loading overlay — shared by both modes */}
+        {loading && (
+          <div style={s.loadingOverlay}>
+            <div style={s.loadingCard}>
+              <BotanicalMark size={56}/>
+              <h2 style={s.loadingTitle}>Analysing your patterns…</h2>
+              <p style={s.loadingDesc}>Care Compass is reviewing everything you shared — looking for connections across your symptoms, history, and daily variables.</p>
+              <div style={s.loadingBarWrap}><div style={s.loadingBar}/></div>
+              <p style={s.loadingNote}>This usually takes 20–35 seconds. Please don't close this page.</p>
+            </div>
+          </div>
+        )}
+
+        {/* Guidance output — shown after analysis completes */}
         {step === 4 ? (
           <div style={s.container}>
-            <GuidanceOutput guidance={guidance} onReset={handleReset} onEdit={() => goToStep(3)} userName={name}/>
+            <GuidanceOutput guidance={guidance} onReset={handleReset} onEdit={() => { setMode("form"); goToStep(3); }} userName={name}/>
           </div>
+        ) : mode === "sage" ? (
+
+          /* ── Sage conversational mode (default) ── */
+          <div style={{ ...s.container, maxWidth: 680 }}>
+            <div style={s.header}>
+              <p style={s.eyebrow}>Your health, seen whole</p>
+              <h1 style={s.title}>Let's map your symptoms together</h1>
+              <p style={s.subtitle}>
+                Sage will guide you through your symptoms — one area at a time, at your pace.
+                It takes about 10–15 minutes and you can pause anytime.
+              </p>
+            </div>
+            <div style={{ height: "calc(100vh - 280px)", minHeight: 520, display: "flex", flexDirection: "column" }}>
+              <SageAssessmentChat
+                onComplete={handleSageComplete}
+                onSwitchToForm={handleSwitchToForm}
+              />
+            </div>
+          </div>
+
         ) : (
+
+          /* ── Manual form mode (secondary) ── */
           <div style={s.container}>
+
+            {/* "Talk to Sage instead" pill at top of form */}
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <button
+                onClick={() => { setMode("sage"); window.scrollTo(0, 0); }}
+                style={{
+                  display: "flex", alignItems: "center", gap: "0.4rem",
+                  background: SAGE_LIGHT, color: SAGE_DARK,
+                  border: `1px solid ${SAGE}`, borderRadius: "100px",
+                  padding: "0.45rem 1rem", fontSize: "0.8rem",
+                  fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+                }}
+              >
+                ✦ Talk to Sage instead
+              </button>
+            </div>
 
             {/* Header */}
             <div style={s.header}>
@@ -1562,28 +1730,6 @@ ${extraContext}` : ""}`;
 
           </div>
         )}
-      {/* Loading overlay */}
-      {loading && (
-        <div style={s.loadingOverlay}>
-          <div style={s.loadingCard}>
-            <svg width="56" height="56" viewBox="0 0 72 72" fill="none" style={{ marginBottom: "1.25rem" }}>
-              <circle cx="36" cy="36" r="34" fill="#e8f0eb" stroke="#7a9e87" strokeWidth="1"/>
-              <ellipse cx="36" cy="17" rx="7" ry="17" fill="#4a7058"/>
-              <ellipse cx="36" cy="55" rx="5.5" ry="13" fill="#7a9e87" opacity="0.55"/>
-              <ellipse cx="55" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.8"/>
-              <ellipse cx="17" cy="36" rx="17" ry="7" fill="#4a9fa5" opacity="0.45"/>
-              <circle cx="36" cy="36" r="7" fill="#4a7058"/>
-              <circle cx="36" cy="36" r="3" fill="#e8f0eb"/>
-            </svg>
-            <h2 style={s.loadingTitle}>Analyzing your symptoms</h2>
-            <p style={s.loadingDesc}>Care Compass is looking at the full picture — connecting your symptoms, history, and daily variables to surface patterns worth exploring.</p>
-            <div style={s.loadingBarWrap}>
-              <div style={s.loadingBar}/>
-            </div>
-            <p style={s.loadingNote}>This usually takes 10–20 seconds. Please don't close this page.</p>
-          </div>
-        </div>
-      )}
 
       </main>
 
@@ -1593,10 +1739,10 @@ ${extraContext}` : ""}`;
         <p style={s.footerDisclaimer}>Care Compass is not a medical service and does not provide medical advice, diagnosis, or treatment.</p>
       </footer>
 
-      {/* ── Sage ── */}
+      {/* ── Sage nudge + helper chatbot (form mode only) ── */}
       <style>{SAGE_KEYFRAMES}</style>
       {nudge && <SageNudge message={nudge} onDone={() => setNudge(null)} />}
-      {step < 4 && <SageChatbot currentStep={step} />}
+      {mode === "form" && step < 4 && <SageChatbot currentStep={step} />}
 
     </div>
   );
