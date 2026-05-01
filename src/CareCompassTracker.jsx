@@ -6014,23 +6014,17 @@ ${extraContext}` : ""}`;
 
               {/* Divider */}
               <div style={{ borderTop: "1px solid rgba(0,0,0,0.06)", margin: "0" }} />
-              <p style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: 0 }}>Details <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(optional)</span></p>
 
-              <div style={{ background: OFF_WHITE, borderRadius: "0.875rem", overflow: "hidden", border: "1px solid rgba(0,0,0,0.06)" }}>
-                <div style={{ padding: "0.875rem 1rem" }}>
-                  <label style={{ ...s.label, marginBottom: "0.4rem", display: "block" }}>Symptoms on waking?</label>
-                  <textarea value={morningForm.symptoms} onChange={e => setMorningForm(f => ({ ...f, symptoms: e.target.value }))}
-                      onFocus={e => setTimeout(() => e.target.scrollIntoView({ behavior: "smooth", block: "center" }), 320)}
-                      placeholder="e.g. stiff joints, heart racing when standing up..."
-                      style={{ ...s.textarea, width: "100%", boxSizing: "border-box", background: "#fff" }} rows={2}/>
-                </div>
-                <div style={{ borderTop: "1px solid rgba(0,0,0,0.06)", padding: "0.875rem 1rem" }}>
-                  <label style={{ ...s.label, marginBottom: "0.4rem", display: "block" }}>Anything else to note?</label>
-                  <textarea value={morningForm.notes} onChange={e => setMorningForm(f => ({ ...f, notes: e.target.value }))}
-                      onFocus={e => setTimeout(() => e.target.scrollIntoView({ behavior: "smooth", block: "center" }), 320)}
-                      placeholder="e.g. slept 6 hours, woke at 3am, vivid dreams..."
-                      style={{ ...s.textarea, width: "100%", boxSizing: "border-box", background: "#fff" }} rows={2}/>
-                </div>
+              <div style={s.formGroup}>
+                <label style={s.label}>Anything to note? <span style={s.optional}>(optional)</span></label>
+                <textarea
+                  value={morningForm.notes || morningForm.symptoms}
+                  onChange={e => setMorningForm(f => ({ ...f, notes: e.target.value, symptoms: e.target.value }))}
+                  onFocus={e => setTimeout(() => e.target.scrollIntoView({ behavior: "smooth", block: "nearest" }), 320)}
+                  placeholder="Symptoms on waking, sleep quality notes, anything worth capturing..."
+                  style={{ ...s.textarea, width: "100%", boxSizing: "border-box" }}
+                  rows={3}
+                />
               </div>
 
             </div>
@@ -6038,7 +6032,7 @@ ${extraContext}` : ""}`;
             <div style={{ ...s.modalFooter, justifyContent: "space-between" }}>
               <button onClick={() => setShowMorningCheckin(false)} style={s.cancelBtn}>Cancel</button>
               <button onClick={() => {
-                saveCheckin("morning", { sleep: morningForm.sleep, severity: morningForm.severity, stress: morningForm.energy, symptoms: morningForm.symptoms, notes: morningForm.notes });
+                saveCheckin("morning", { sleep: morningForm.sleep, severity: morningForm.severity, stress: morningForm.energy, symptoms: morningForm.notes, notes: morningForm.notes });
                 setShowMorningCheckin(false);
                 setCheckinSaved("Morning check-in saved!");
                 setTimeout(() => setCheckinSaved(""), 3000);
