@@ -4500,6 +4500,11 @@ ${extraContext}` : ""}`;
 
           <div style={s.addBtnWrap} className="no-print">
             <style>{SAGE_KEYFRAMES}</style>
+            <style>{`
+              .cc-modal-body textarea:focus {
+                scroll-margin-bottom: 120px;
+              }
+            `}</style>
             <button onClick={openNew} style={{ ...s.addBtn, display: "flex", alignItems: "center", gap: "0.6rem", paddingLeft: "1.5rem", paddingRight: "1.75rem" }}>
               <FireflyBare size={32} />
               Talk to Sage
@@ -5972,10 +5977,7 @@ ${extraContext}` : ""}`;
               </div>
             </div>
 
-            <div style={{ ...s.modalBody, gap: "1rem" }}>
-
-              {/* Section: How you're feeling */}
-              <p style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: WARM_GRAY, margin: 0 }}>How are you feeling</p>
+            <div style={{ ...s.modalBody, gap: "1rem" }} className="cc-modal-body">
 
               {/* Severity — full width, prominent */}
               <div style={{ background: OFF_WHITE, borderRadius: "0.875rem", padding: "1rem" }}>
@@ -6018,12 +6020,14 @@ ${extraContext}` : ""}`;
                 <div style={{ padding: "0.875rem 1rem" }}>
                   <label style={{ ...s.label, marginBottom: "0.4rem", display: "block" }}>Symptoms on waking?</label>
                   <textarea value={morningForm.symptoms} onChange={e => setMorningForm(f => ({ ...f, symptoms: e.target.value }))}
+                      onFocus={e => setTimeout(() => e.target.scrollIntoView({ behavior: "smooth", block: "center" }), 320)}
                       placeholder="e.g. stiff joints, heart racing when standing up..."
                       style={{ ...s.textarea, width: "100%", boxSizing: "border-box", background: "#fff" }} rows={2}/>
                 </div>
                 <div style={{ borderTop: "1px solid rgba(0,0,0,0.06)", padding: "0.875rem 1rem" }}>
                   <label style={{ ...s.label, marginBottom: "0.4rem", display: "block" }}>Anything else to note?</label>
                   <textarea value={morningForm.notes} onChange={e => setMorningForm(f => ({ ...f, notes: e.target.value }))}
+                      onFocus={e => setTimeout(() => e.target.scrollIntoView({ behavior: "smooth", block: "center" }), 320)}
                       placeholder="e.g. slept 6 hours, woke at 3am, vivid dreams..."
                       style={{ ...s.textarea, width: "100%", boxSizing: "border-box", background: "#fff" }} rows={2}/>
                 </div>
@@ -6323,9 +6327,7 @@ ${extraContext}` : ""}`;
               </div>
             </div>
 
-            <div style={{ ...s.modalBody, gap: "1rem" }}>
-
-              {/* ── 1. Tracked symptom chips (primary) ── */}
+            <div style={{ ...s.modalBody, gap: "1rem" }} className="cc-modal-body">
               {userTrackedSymptoms.length > 0 && (() => {
                 const freqMap = {};
                 entries.forEach(e => (e.trackedSymptoms || []).forEach(ts => {
@@ -7278,7 +7280,7 @@ const s = {
   modalHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.25rem 1.5rem", borderBottom: `1px solid rgba(0,0,0,0.07)` },
   modalTitle: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.2rem", fontWeight: 700, color: INK, margin: 0 },
   modalClose: { background: "transparent", border: "none", color: WARM_GRAY, fontSize: "1rem", cursor: "pointer" },
-  modalBody: { flex: 1, overflowY: "auto", overflowX: "hidden", padding: "1.25rem", display: "flex", flexDirection: "column", gap: "1.25rem", boxSizing: "border-box", width: "100%", WebkitOverflowScrolling: "touch" },
+  modalBody: { flex: 1, overflowY: "auto", overflowX: "hidden", padding: "1.25rem", paddingBottom: "2rem", display: "flex", flexDirection: "column", gap: "1.25rem", boxSizing: "border-box", width: "100%", WebkitOverflowScrolling: "touch" },
   modalFooter: { padding: "1rem 1.5rem", paddingBottom: "calc(1rem + env(safe-area-inset-bottom, 0px))", borderTop: `1px solid rgba(0,0,0,0.07)`, display: "flex", justifyContent: "flex-end", gap: "0.75rem" },
   formGroup: { display: "flex", flexDirection: "column", gap: "0.4rem", flex: 1 },
   formRow: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem" },
