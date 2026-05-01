@@ -1515,7 +1515,7 @@ export default function CareCompassDashboard() {
                 >
                   {showLogPanel
                     ? <>✕ <span>Close</span></>
-                    : <>＋ <span>Log now</span></>
+                    : <>＋ <span>Log a symptom</span></>
                   }
                 </button>
               )
@@ -1525,10 +1525,17 @@ export default function CareCompassDashboard() {
           {/* ── Inline Quick Log panel ── */}
           {!isNew && showLogPanel && (
             <div style={{ background: "#fff", border: "1px solid rgba(0,0,0,0.07)", borderRadius: "1rem", padding: "1.25rem 1.5rem", display: "flex", flexDirection: "column", gap: "0.875rem" }}>
+              {/* Header row: title + Tell Sage instead */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <p style={{ margin: 0, fontSize: "0.78rem", fontWeight: 600, color: WARM_GRAY }}>What's bothering you? <span style={{ fontWeight: 400, fontSize: "0.72rem" }}>Tap to add · slide to rate</span></p>
-                <a href="/tracker" style={{ fontSize: "0.75rem", color: SAGE_DARK, fontWeight: 600, textDecoration: "none" }}>Full log →</a>
+                <p style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: INK }}>Quick Log</p>
+                <a
+                  href="/tracker?sage=1"
+                  style={{ display: "flex", alignItems: "center", gap: "0.35rem", background: SAGE_LIGHT, color: SAGE_DARK, border: `1px solid ${SAGE}`, borderRadius: "100px", padding: "0.35rem 0.875rem", fontSize: "0.78rem", fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" }}
+                >
+                  🌿 Tell Sage instead
+                </a>
               </div>
+              <p style={{ margin: 0, fontSize: "0.78rem", fontWeight: 600, color: WARM_GRAY }}>What's bothering you? <span style={{ fontWeight: 400, fontSize: "0.72rem" }}>Tap to add · slide to rate</span></p>
               {/* Chips */}
               <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
                 {dashSymptoms.map(sym => {
@@ -1560,10 +1567,13 @@ export default function CareCompassDashboard() {
                   ))}
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "0.25rem" }}>
                     <span style={{ fontSize: "0.72rem", color: WARM_GRAY }}>Overall severity: <strong style={{ color: (() => { const s = Math.max(...quickTracked.map(t=>t.severity)); return s>=7?"#c0392b":s>=4?"#e8a838":SAGE_DARK; })() }}>{Math.max(...quickTracked.map(t=>t.severity))}/10</strong></span>
-                    <button type="button" onClick={handleQuickLog}
-                      style={{ background: SAGE_DARK, color: "#fff", border: "none", borderRadius: "100px", padding: "0.5rem 1.25rem", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
-                      Log it →
-                    </button>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.875rem" }}>
+                      <a href="/tracker" style={{ fontSize: "0.72rem", color: WARM_GRAY, textDecoration: "underline", textDecorationColor: "rgba(0,0,0,0.2)" }}>Add more detail</a>
+                      <button type="button" onClick={handleQuickLog}
+                        style={{ background: SAGE_DARK, color: "#fff", border: "none", borderRadius: "100px", padding: "0.5rem 1.25rem", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+                        Log it →
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -1994,7 +2004,7 @@ export default function CareCompassDashboard() {
               <p style={s.quickActionsLabel}>Quick actions</p>
               <div style={s.quickActionsGrid}>
                 {[
-                  { label: "Log a new entry", desc: "Record how you're feeling right now", href: "/tracker", color: SAGE_DARK },
+                  { label: "Log a symptom", desc: "Record how you're feeling right now", href: "/tracker", color: SAGE_DARK },
                   { label: "Run the assessment", desc: "Map symptoms and get pattern insights", href: "/compass", color: TEAL },
                   { label: "Generate a report", desc: "Create a PDF to bring to your doctor", href: "/tracker?report=1", color: WARM_GRAY },
                   { label: "Add appointment", desc: "Schedule a visit and prep your report", href: null, color: "#7a6fa0" },

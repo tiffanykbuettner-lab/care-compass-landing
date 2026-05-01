@@ -3511,6 +3511,20 @@ export default function CareCompassTracker() {
     setShowSageChat(true);
   };
 
+  // Auto-open Sage if navigated here from dashboard "Tell Sage instead"
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("sage") === "1") {
+        openNew();
+        // Clean up the URL param without causing a navigation
+        const url = new URL(window.location.href);
+        url.searchParams.delete("sage");
+        window.history.replaceState({}, "", url.toString());
+      }
+    } catch {}
+  }, []);
+
   const openNewForm = () => {
     setEditingEntry(null);
     const last = entries[0] || null;
