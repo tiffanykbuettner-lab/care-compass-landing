@@ -985,10 +985,10 @@ function SearchableSelect({ value, onChange, options, placeholder = "Select...",
   return (
     <div ref={ref} style={{ position: "relative", width: "100%" }}>
       <div onClick={() => { setOpen(o => !o); setTimeout(() => inputRef.current?.focus(), 50); }}
-        style={{ padding: "0.75rem 1rem", borderRadius: "0.65rem", border: `1.5px solid ${open ? SAGE_DARK : "rgba(0,0,0,0.12)"}`, fontSize: "0.92rem", color: INK, background: "#fafaf8", outline: "none", fontFamily: "inherit", cursor: "pointer", width: "100%", boxSizing: "border-box", ...extraStyle }}>
+        style={{ padding: "0.75rem 1rem", borderRadius: "0.65rem", border: `1.5px solid ${open ? SAGE_DARK : "rgba(0,0,0,0.12)"}`, fontSize: "1rem", color: INK, background: "#fafaf8", outline: "none", fontFamily: "inherit", cursor: "pointer", width: "100%", boxSizing: "border-box", ...extraStyle }}>
         {open ? (
           <input ref={inputRef} value={query} onChange={e => setQuery(e.target.value)} placeholder={selectedLabel || placeholder}
-            style={{ border: "none", outline: "none", background: "transparent", width: "100%", fontSize: "0.92rem", color: INK, fontFamily: "inherit" }} autoComplete="off"/>
+            style={{ border: "none", outline: "none", background: "transparent", width: "100%", fontSize: "1rem", color: INK, fontFamily: "inherit" }} autoComplete="off"/>
         ) : (
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ color: selectedLabel ? INK : "#aaa" }}>{selectedLabel || placeholder}</span>
@@ -6076,7 +6076,7 @@ ${extraContext}` : ""}`;
                 </div>
               </div>
 
-              <div style={{ ...s.modalBody, gap: "1rem" }}>
+              <div style={{ ...s.modalBody, gap: "1rem" }} className="cc-modal-body">
 
                 {/* Context banner */}
                 {hasLoggedToday ? (
@@ -7280,14 +7280,14 @@ const s = {
   modalHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.25rem 1.5rem", borderBottom: `1px solid rgba(0,0,0,0.07)` },
   modalTitle: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.2rem", fontWeight: 700, color: INK, margin: 0 },
   modalClose: { background: "transparent", border: "none", color: WARM_GRAY, fontSize: "1rem", cursor: "pointer" },
-  modalBody: { flex: 1, overflowY: "auto", overflowX: "hidden", padding: "1.25rem", paddingBottom: "2rem", display: "flex", flexDirection: "column", gap: "1.25rem", boxSizing: "border-box", width: "100%", WebkitOverflowScrolling: "touch" },
+  modalBody: { flex: 1, overflowY: "auto", overflowX: "hidden", padding: "1.25rem", paddingBottom: "2rem", display: "flex", flexDirection: "column", gap: "1.25rem", boxSizing: "border-box", width: "100%", WebkitOverflowScrolling: "touch", overscrollBehavior: "contain" },
   modalFooter: { padding: "1rem 1.5rem", paddingBottom: "calc(1rem + env(safe-area-inset-bottom, 0px))", borderTop: `1px solid rgba(0,0,0,0.07)`, display: "flex", justifyContent: "flex-end", gap: "0.75rem" },
   formGroup: { display: "flex", flexDirection: "column", gap: "0.4rem", flex: 1 },
   formRow: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem" },
   label: { fontSize: "0.85rem", fontWeight: 600, color: INK_LIGHT },
   optional: { fontWeight: 400, color: "#aaa", fontSize: "0.8rem" },
-  input: { padding: "0.75rem 1rem", borderRadius: "0.65rem", border: `1.5px solid rgba(0,0,0,0.12)`, fontSize: "0.92rem", color: INK, background: OFF_WHITE, outline: "none", fontFamily: "inherit" },
-  textarea: { padding: "0.75rem 1rem", borderRadius: "0.65rem", border: `1.5px solid rgba(0,0,0,0.12)`, fontSize: "0.92rem", color: INK, background: OFF_WHITE, outline: "none", fontFamily: "inherit", resize: "vertical", lineHeight: 1.6 },
+  input: { padding: "0.75rem 1rem", borderRadius: "0.65rem", border: `1.5px solid rgba(0,0,0,0.12)`, fontSize: "1rem", color: INK, background: OFF_WHITE, outline: "none", fontFamily: "inherit" },
+  textarea: { padding: "0.75rem 1rem", borderRadius: "0.65rem", border: `1.5px solid rgba(0,0,0,0.12)`, fontSize: "1rem", color: INK, background: OFF_WHITE, outline: "none", fontFamily: "inherit", resize: "vertical", lineHeight: 1.6 },
   sevSliderWrap: { display: "flex", flexDirection: "column", gap: "0.4rem" },
   sevSliderRow: { display: "flex", alignItems: "center", gap: "1rem" },
   sevDisplay: { width: 48, height: 48, borderRadius: "50%", border: "2px solid", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontSize: "1rem", fontWeight: 700, flexShrink: 0, fontFamily: "inherit" },

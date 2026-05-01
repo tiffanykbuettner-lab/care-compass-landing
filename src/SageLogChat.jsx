@@ -908,7 +908,7 @@ const styles = {
   input: {
     flex: 1, border: "1.5px solid rgba(0,0,0,0.12)",
     borderRadius: "1.25rem", padding: "0.625rem 0.875rem",
-    fontSize: "0.9rem", color: INK, background: OFF_WHITE,
+    fontSize: "1rem", color: INK, background: OFF_WHITE,
     fontFamily: "inherit", resize: "none", outline: "none",
     lineHeight: 1.5, maxHeight: 120, overflowY: "auto",
   },
