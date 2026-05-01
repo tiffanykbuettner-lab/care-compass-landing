@@ -4478,7 +4478,7 @@ ${extraContext}` : ""}`;
               </div>
               <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
                 <button onClick={() => setShowMorningCheckin(true)} style={{ background: "#e8a838", color: "#fff", border: "none", borderRadius: "100px", padding: "0.55rem 1.1rem", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Quick check-in →</button>
-                <button onClick={() => { saveCheckin("morning_skip", {}); }} style={{ background: "none", border: "none", fontSize: "0.75rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit" }}>Skip</button>
+                <button onClick={() => { saveCheckin("morning", { skipped: true }); }} style={{ background: "none", border: "none", fontSize: "0.75rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit" }}>Skip</button>
               </div>
             </div>
           )}
@@ -4493,7 +4493,7 @@ ${extraContext}` : ""}`;
               </div>
               <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
                 <button onClick={() => setShowEveningCheckin(true)} style={{ background: "#7c5cbf", color: "#fff", border: "none", borderRadius: "100px", padding: "0.55rem 1.1rem", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Quick check-in →</button>
-                <button onClick={() => { saveCheckin("evening_skip", {}); }} style={{ background: "none", border: "none", fontSize: "0.75rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit" }}>Skip</button>
+                <button onClick={() => { saveCheckin("evening", { skipped: true }); }} style={{ background: "none", border: "none", fontSize: "0.75rem", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit" }}>Skip</button>
               </div>
             </div>
           )}
