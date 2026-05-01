@@ -1532,7 +1532,7 @@ export default function CareCompassDashboard() {
                   href="/tracker?sage=1"
                   style={{ display: "flex", alignItems: "center", gap: "0.35rem", background: SAGE_LIGHT, color: SAGE_DARK, border: `1px solid ${SAGE}`, borderRadius: "100px", padding: "0.35rem 0.875rem", fontSize: "0.78rem", fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" }}
                 >
-                  🌿 Tell Sage instead
+                  ✦ Tell Sage instead
                 </a>
               </div>
               <p style={{ margin: 0, fontSize: "0.78rem", fontWeight: 600, color: WARM_GRAY }}>What's bothering you? <span style={{ fontWeight: 400, fontSize: "0.72rem" }}>Tap to add · slide to rate</span></p>
@@ -1568,7 +1568,16 @@ export default function CareCompassDashboard() {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "0.25rem" }}>
                     <span style={{ fontSize: "0.72rem", color: WARM_GRAY }}>Overall severity: <strong style={{ color: (() => { const s = Math.max(...quickTracked.map(t=>t.severity)); return s>=7?"#c0392b":s>=4?"#e8a838":SAGE_DARK; })() }}>{Math.max(...quickTracked.map(t=>t.severity))}/10</strong></span>
                     <div style={{ display: "flex", alignItems: "center", gap: "0.875rem" }}>
-                      <a href="/tracker" style={{ fontSize: "0.72rem", color: WARM_GRAY, textDecoration: "underline", textDecorationColor: "rgba(0,0,0,0.2)" }}>Add more detail</a>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          try { sessionStorage.setItem("cc-dash-quicklog", JSON.stringify(quickTracked)); } catch {}
+                          window.location.href = "/tracker?form=1";
+                        }}
+                        style={{ background: "none", border: "none", color: WARM_GRAY, fontSize: "0.72rem", cursor: "pointer", fontFamily: "inherit", textDecoration: "underline", textDecorationColor: "rgba(0,0,0,0.2)", padding: 0 }}
+                      >
+                        Add more detail
+                      </button>
                       <button type="button" onClick={handleQuickLog}
                         style={{ background: SAGE_DARK, color: "#fff", border: "none", borderRadius: "100px", padding: "0.5rem 1.25rem", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
                         Log it →

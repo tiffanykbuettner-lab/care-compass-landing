@@ -3515,11 +3515,33 @@ export default function CareCompassTracker() {
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
+      const url = new URL(window.location.href);
+
       if (params.get("sage") === "1") {
         openNew();
-        // Clean up the URL param without causing a navigation
-        const url = new URL(window.location.href);
         url.searchParams.delete("sage");
+        window.history.replaceState({}, "", url.toString());
+      }
+
+      if (params.get("form") === "1") {
+        // Pick up any quick log selections carried from the dashboard
+        const prefill = (() => {
+          try { return JSON.parse(sessionStorage.getItem("cc-dash-quicklog") || "null"); } catch { return null; }
+        })();
+        sessionStorage.removeItem("cc-dash-quicklog");
+        const last = entries[0] || null;
+        setEditingEntry(null);
+        setForm({
+          ...blankForm,
+          sleep:           isFirstEntryToday ? 7 : null,
+          selectedMedIds:  last?.selectedMedIds?.length ? last.selectedMedIds : [],
+          weather:         last?.weather ?? "",
+          trackedSymptoms: prefill ? [...prefill] : [],
+        });
+        setShowAllSymptoms(false);
+        setShowSageChat(false);
+        setShowForm(true);
+        url.searchParams.delete("form");
         window.history.replaceState({}, "", url.toString());
       }
     } catch {}
