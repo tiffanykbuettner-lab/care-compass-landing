@@ -2136,7 +2136,7 @@ function CycleTab({ globalEntries }) {
 
       {/* ── Log form modal ── */}
       {showForm && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem", overflowY: "auto" }}
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 9500, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem", overflowY: "auto" }}
           onClick={() => setShowForm(false)}>
           <div style={{ background: "#fff", borderRadius: "1.25rem", maxWidth: 500, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.18)", maxHeight: "90vh", overflowY: "auto" }}
             onClick={e => e.stopPropagation()}>
@@ -6268,7 +6268,7 @@ ${extraContext}` : ""}`;
       />
 
       {confirmDeleteId && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }} onClick={() => setConfirmDeleteId(null)}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 9500, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }} onClick={() => setConfirmDeleteId(null)}>
           <div style={{ background: "#fff", borderRadius: "1.25rem", padding: "2rem", maxWidth: 360, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }} onClick={e => e.stopPropagation()}>
             <div style={{ display:"flex", justifyContent:"center", marginBottom:"0.75rem", color:"#c0392b" }}><Icon name="trash" size={32} /></div>
             <h3 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.15rem", fontWeight: 700, color: INK, margin: "0 0 0.5rem", textAlign: "center" }}>Delete this entry?</h3>
@@ -6289,7 +6289,7 @@ ${extraContext}` : ""}`;
 
       {/* ── Sage Chat log entry ── */}
       {showSageChat && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 500, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "stretch" }} onClick={() => setShowSageChat(false)}>
+        <div style={{ position: "fixed", inset: 0, zIndex: 9600, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "stretch" }} onClick={() => setShowSageChat(false)}>
           <div style={{ width: "100%", maxWidth: 540, margin: "0 auto", height: "100dvh", display: "flex", flexDirection: "column" }} onClick={e => e.stopPropagation()}>
             <SageLogChat
               mode={sageChatMode}
@@ -7275,7 +7275,7 @@ const s = {
   reportTd: { padding: "0.6rem 0.75rem", borderBottom: `1px solid rgba(0,0,0,0.05)`, verticalAlign: "top", color: INK_LIGHT, lineHeight: 1.5 },
   reportFooter: { borderTop: `1px solid ${SAGE_LIGHT}`, paddingTop: "1rem", textAlign: "center" },
   reportFooterText: { fontSize: "0.75rem", color: "#aaa", margin: 0 },
-  modalOverlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 200, display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0", overscrollBehavior: "none", WebkitTapHighlightColor: "transparent", WebkitOverflowScrolling: "touch" },
+  modalOverlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 9500, display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0", overscrollBehavior: "none", WebkitTapHighlightColor: "transparent", WebkitOverflowScrolling: "touch" },
   modal: { background: "#fff", borderRadius: "1.25rem 1.25rem 0 0", width: "100%", maxWidth: 680, maxHeight: "88dvh", display: "flex", flexDirection: "column", overflow: "hidden", boxSizing: "border-box" },
   modalHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.25rem 1.5rem", borderBottom: `1px solid rgba(0,0,0,0.07)` },
   modalTitle: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.2rem", fontWeight: 700, color: INK, margin: 0 },
