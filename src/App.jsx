@@ -10,6 +10,7 @@ import CareCompassSignup from './CareCompassSignup'
 import CareCompassDashboard from './CareCompassDashboard'
 import CareCompassSettings from './CareCompassSettings'
 import CareCompassWelcome from './CareCompassWelcome'
+import MovementCompassDashboard from "./pages/MovementCompassDashboard";
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
           <Route path="/dashboard" element={<CareCompassDashboard />} />
           <Route path="/account" element={<CareCompassSettings />} />
           <Route path="/welcome" element={<CareCompassWelcome />} />
+	  <Route path="/movement" element={<MovementCompassDashboard />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
