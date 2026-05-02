@@ -12,6 +12,7 @@ import CareCompassSettings from './CareCompassSettings'
 import CareCompassWelcome from './CareCompassWelcome'
 import AnchorDashboard from './AnchorDashboard'
 import AnchorSessionPlayer from './AnchorSessionPlayer'
+import AnchorFlareSession from './AnchorFlareSession'
 
 export default function App() {
   return (
@@ -29,8 +30,8 @@ export default function App() {
           <Route path="/account" element={<CareCompassSettings />} />
           <Route path="/welcome" element={<CareCompassWelcome />} />
           <Route path="/movement" element={<AnchorDashboard />} />
-          <Route path="/movement/session" element={<AnchorSessionPlayer />} />
           <Route path="/movement/session/:name" element={<AnchorSessionPlayer />} />
+          <Route path="/movement/flare" element={<AnchorFlareSession />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
