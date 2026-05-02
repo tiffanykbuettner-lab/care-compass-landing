@@ -257,17 +257,14 @@ export default function AnchorDashboard() {
   function handleDeleteSession(id) { const updated = sessions.filter(s => s.id !== id); setSessions(updated); saveSessions(updated); }
   function handleCheckinSave(checkin) {
     setTodayCheckin(checkin); saveCheckin(checkin); setShowCheckin(false);
-    if (checkin.feel === "rest") return;
-    const name = checkin.sessionName;
-    if (name?.toLowerCase().includes("flare")) { navigate("/movement/flare", { state: { sessionName: name } }); }
-    else if (name) { goToSession(name); }
+    /* Stay on dashboard — banner will prompt user to log or start session */
   }
 
   const QUICK_ACTIONS = [
     { label: "Start today's session", desc: todayCheckin?.sessionName || recommendedSessionName(todayCheckin) || "Full Body A — strength + stability", color: NAVY,    action: openTodaySession },
     { label: "Log a flare day",       desc: "Switch to minimum-dose mode",                                                                           color: TERRA,   action: () => navigate("/movement/flare") },
     { label: "Exercise library",      desc: "Browse modifications by joint",                                                                          color: SLATE,   action: () => navigate("/movement/library") },
-    { label: "View progress",         desc: "Strength gains + consistency",                                                                           color: INK_LIGHT, action: () => sessionsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }) },
+    { label: "View progress",         desc: "Strength gains + consistency",                                                                           color: INK_LIGHT, action: () => navigate("/movement/progress") },
   ];
 
   const NAV_ITEMS = [
@@ -310,13 +307,28 @@ export default function AnchorDashboard() {
           </div>
 
           {todayCheckin && (
-            <div style={{ background: todayCheckin.feel === "flare" ? TERRA_LIGHT : todayCheckin.feel === "rest" ? CREAM : MIST, border: `1px solid ${todayCheckin.feel === "flare" ? TERRA_BORDER : todayCheckin.feel === "rest" ? "rgba(0,0,0,0.08)" : MIST_BORDER}`, borderRadius: "1rem", padding: "1rem 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.75rem" }}>
-              <div>
-                <span style={{ fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: todayCheckin.feel === "flare" ? TERRA : NAVY, display: "block", marginBottom: 3 }}>{todayCheckin.feel === "flare" ? "Flare mode" : todayCheckin.feel === "rest" ? "Rest day" : "Standard day"}</span>
-                <span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "0.95rem", fontWeight: 700, color: INK }}>{todayCheckin.recommendation || "Session ready"}</span>
-                {todayCheckin.joints?.length > 0 && <span style={{ fontSize: "0.75rem", color: WARM_GRAY, display: "block", marginTop: 2 }}>Flagged: {todayCheckin.joints.join(", ")}</span>}
+            <div style={{ background: todayCheckin.feel === "flare" ? TERRA_LIGHT : todayCheckin.feel === "rest" ? CREAM : MIST, border: `1px solid ${todayCheckin.feel === "flare" ? TERRA_BORDER : todayCheckin.feel === "rest" ? "rgba(0,0,0,0.08)" : MIST_BORDER}`, borderRadius: "1rem", padding: "1rem 1.5rem" }}>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: "0.75rem", marginBottom: todayCheckin.feel !== "rest" ? "0.875rem" : 0 }}>
+                <div>
+                  <span style={{ fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: todayCheckin.feel === "flare" ? TERRA : NAVY, display: "block", marginBottom: 3 }}>
+                    {todayCheckin.feel === "flare" ? "Flare mode" : todayCheckin.feel === "rest" ? "Rest day" : "Standard day"}
+                  </span>
+                  <span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "0.95rem", fontWeight: 700, color: INK }}>{todayCheckin.recommendation || "Session ready"}</span>
+                  {todayCheckin.joints?.length > 0 && <span style={{ fontSize: "0.75rem", color: WARM_GRAY, display: "block", marginTop: 2 }}>Flagged: {todayCheckin.joints.join(", ")}</span>}
+                </div>
+                <button onClick={() => setShowCheckin(true)} style={{ fontSize: "0.75rem", background: "none", border: "none", color: WARM_GRAY, cursor: "pointer", fontFamily: "inherit", textDecoration: "underline", textDecorationColor: "rgba(0,0,0,0.2)", padding: 0 }}>Update check-in</button>
               </div>
-              <button onClick={openTodaySession} style={{ ...styles.btnPrimary, background: todayCheckin.feel === "flare" ? TERRA : NAVY, fontSize: "0.85rem", padding: "0.6rem 1.25rem" }}>Start session →</button>
+              {todayCheckin.feel !== "rest" && (
+                <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+                  <button onClick={openTodaySession} style={{ ...styles.btnPrimary, background: todayCheckin.feel === "flare" ? TERRA : NAVY, fontSize: "0.85rem", padding: "0.6rem 1.25rem" }}>
+                    {todayCheckin.feel === "flare" ? "Start flare session →" : "Start today's session →"}
+                  </button>
+                  <button onClick={() => openLogModal({ sessionName: todayCheckin.sessionName || "Full Body A", type: todayCheckin.feel === "flare" ? "flare" : "standard" })}
+                    style={{ ...styles.btnSecondary, fontSize: "0.85rem", padding: "0.6rem 1.25rem" }}>
+                    Log manually
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -397,7 +409,7 @@ export default function AnchorDashboard() {
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
                 {sessions.slice(0, 8).map(s => <SessionCard key={s.id} session={s} onDelete={handleDeleteSession}/>)}
-                {sessions.length > 8 && <p style={{ textAlign: "center", fontSize: "0.82rem", color: WARM_GRAY }}><a href="/movement/progress" style={{ color: SLATE, fontWeight: 600 }}>View all {sessions.length} sessions →</a></p>}
+                {sessions.length > 8 && <p style={{ textAlign: "center", fontSize: "0.82rem", color: WARM_GRAY }}><button onClick={() => navigate("/movement/progress")} style={{ background: "none", border: "none", color: SLATE, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", fontSize: "0.82rem" }}>View all {sessions.length} sessions →</button></p>}
               </div>
             )}
           </div>
