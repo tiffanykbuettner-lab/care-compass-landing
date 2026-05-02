@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "./AuthContext";
+import { useNavigate, useParams } from "react-router-dom";
 
 /* ─── Anchor brand tokens ──────────────────────────────────────────────────── */
 const SAGE        = "#7a9e87";
@@ -346,9 +347,13 @@ function RestOverlay({ seconds, onSkip, isFlare }) {
 }
 
 /* ─── Main session player ──────────────────────────────────────────────────── */
-export default function AnchorSessionPlayer({ sessionName = "Full Body A", onComplete, onExit }) {
-  const { user } = useAuth();
-  const session  = SESSIONS[sessionName] || FULL_BODY_A;
+export default function AnchorSessionPlayer({ sessionName: propName, onComplete, onExit }) {
+  const { user }   = useAuth();
+  const navigate   = useNavigate();
+  const { name: paramName } = useParams();
+  const resolvedName = propName || (paramName ? decodeURIComponent(paramName) : "Full Body A");
+  const session  = SESSIONS[resolvedName] || FULL_BODY_A;
+  function handleExit() { if (onExit) onExit(); else navigate("/movement"); }
   const isFlare  = session.type === "flare";
   const primaryColor = isFlare ? TERRA : NAVY;
   const primaryLight = isFlare ? TERRA_LIGHT : MIST;
@@ -436,7 +441,7 @@ export default function AnchorSessionPlayer({ sessionName = "Full Body A", onCom
           <AnchorMark size={24}/>
           <span style={styles.navTitle}>{session.name}</span>
           <div style={{ flex: 1 }}/>
-          <button onClick={onExit} style={styles.exitBtn}>Exit</button>
+          <button onClick={handleExit} style={styles.exitBtn}>Exit</button>
         </div>
       </nav>
       <main style={styles.main}>
@@ -520,7 +525,7 @@ export default function AnchorSessionPlayer({ sessionName = "Full Body A", onCom
           <AnchorMark size={24}/>
           <span style={styles.navTitle}>{session.name}</span>
           <div style={{ flex: 1 }}/>
-          <button onClick={onExit} style={styles.exitBtn}>Exit</button>
+          <button onClick={handleExit} style={styles.exitBtn}>Exit</button>
         </div>
       </nav>
       <main style={styles.main}>
@@ -601,7 +606,7 @@ export default function AnchorSessionPlayer({ sessionName = "Full Body A", onCom
                 <div style={{ fontSize: "0.78rem", fontWeight: 600, color: INK_LIGHT, marginBottom: 8 }}>Pain during this exercise</div>
                 <div style={{ display: "flex", gap: 7 }}>
                   {[{ key: "good", label: "None" }, { key: "okay", label: "Mild" }, { key: "high", label: "High" }, { key: "stop", label: "Stop" }].map(p => (
-                    <button key={p.key} onClick={() => { setPainRating(p.key); if (p.key === "stop") alert("Please stop this exercise. Rest and note what happened. If pain continues, contact your healthcare team."); }}
+                    <button key={p.key} onClick={() => setPainRating(p.key)}
                       style={{ flex: 1, padding: "0.5rem 0", borderRadius: "0.65rem", border: `1.5px solid ${painRating === p.key ? (p.key === "stop" ? "#E24B4A" : primaryColor) : "rgba(0,0,0,0.1)"}`, background: painRating === p.key ? (p.key === "stop" ? "#FCEBEB" : primaryLight) : "#fff", fontSize: "0.78rem", color: painRating === p.key ? (p.key === "stop" ? "#791F1F" : primaryColor) : WARM_GRAY, cursor: "pointer", fontWeight: painRating === p.key ? 600 : 400, fontFamily: "inherit", transition: "all 0.15s" }}>
                       {p.label}
                     </button>
@@ -609,15 +614,35 @@ export default function AnchorSessionPlayer({ sessionName = "Full Body A", onCom
                 </div>
               </div>
 
-              {/* actions */}
-              <div style={{ display: "flex", gap: "0.75rem", marginBottom: "1rem" }}>
-                <button onClick={() => setShowMods(m => !m)} style={{ ...styles.btnGhost, flex: "none", padding: "0.7rem 1rem" }}>
-                  Modify
-                </button>
-                <button onClick={completeSet} style={{ ...styles.btnPrimary, background: primaryColor, flex: 1 }}>
-                  {setNum < targetSets ? `Complete set ${setNum} →` : "Done — next exercise →"}
-                </button>
-              </div>
+              {/* stop panel — replaces action buttons when pain is "stop" */}
+              {painRating === "stop" ? (
+                <div style={{ background: "#FCEBEB", border: "1px solid #F7C1C1", borderRadius: "1rem", padding: "1.25rem", marginBottom: "1rem" }}>
+                  <p style={{ fontSize: "0.875rem", fontWeight: 600, color: "#791F1F", margin: "0 0 0.4rem" }}>Stop and rest.</p>
+                  <p style={{ fontSize: "0.82rem", color: "#A32D2D", lineHeight: 1.65, margin: "0 0 1rem" }}>
+                    Don't push through this. Rest, note what happened, and contact your healthcare team if pain continues or worsens.
+                  </p>
+                  <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+                    <button onClick={() => { setPainRating(null); advanceExercise(); }}
+                      style={{ flex: 1, padding: "0.75rem 1rem", borderRadius: "100px", background: NAVY, color: "#fff", border: "none", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, fontSize: "0.875rem" }}>
+                      Skip to next exercise →
+                    </button>
+                    <button onClick={() => { setPhase("complete"); saveSession(); }}
+                      style={{ padding: "0.75rem 1rem", borderRadius: "100px", background: "transparent", color: "#791F1F", border: "1px solid #F7C1C1", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, fontSize: "0.875rem" }}>
+                      End session
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* normal action buttons */
+                <div style={{ display: "flex", gap: "0.75rem", marginBottom: "1rem" }}>
+                  <button onClick={() => setShowMods(m => !m)} style={{ ...styles.btnGhost, flex: "none", padding: "0.7rem 1rem" }}>
+                    Modify
+                  </button>
+                  <button onClick={completeSet} style={{ ...styles.btnPrimary, background: primaryColor, flex: 1 }}>
+                    {setNum < targetSets ? `Complete set ${setNum} →` : "Done — next exercise →"}
+                  </button>
+                </div>
+              )}
 
               {/* modifications panel */}
               {showMods && (
@@ -699,8 +724,8 @@ export default function AnchorSessionPlayer({ sessionName = "Full Body A", onCom
           )}
 
           <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", justifyContent: "center" }}>
-            <a href="/movement" style={{ ...styles.btnPrimary, background: NAVY, textDecoration: "none" }}>Back to dashboard</a>
-            <a href="/dashboard" style={{ ...styles.btnGhost, textDecoration: "none" }}>Open Care Compass →</a>
+            <button onClick={() => navigate("/movement")} style={{ ...styles.btnPrimary, background: NAVY }}>Back to dashboard</button>
+            <button onClick={() => navigate("/dashboard")} style={styles.btnGhost}>Open Care Compass →</button>
           </div>
         </div>
       </main>
