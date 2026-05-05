@@ -15,6 +15,7 @@ import AnchorSessionPlayer from './AnchorSessionPlayer'
 import AnchorFlareSession from './AnchorFlareSession'
 import AnchorProgress from './AnchorProgress'
 import AnchorLibrary from './AnchorLibrary'
+import AnchorCustomSessions from "./AnchorCustomSessions";
 
 export default function App() {
   return (
@@ -36,6 +37,7 @@ export default function App() {
           <Route path="/movement/flare" element={<AnchorFlareSession />} />
           <Route path="/movement/progress" element={<AnchorProgress />} />
           <Route path="/movement/library" element={<AnchorLibrary />} />
+	  <Route path="/movement/custom-sessions" element={<AnchorCustomSessions />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
