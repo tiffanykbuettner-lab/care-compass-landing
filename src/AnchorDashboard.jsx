@@ -265,6 +265,7 @@ export default function AnchorDashboard() {
     { label: "Log a flare day",       desc: "Switch to minimum-dose mode",                                                                           color: TERRA,   action: () => navigate("/movement/flare") },
     { label: "Exercise library",      desc: "Browse modifications by joint",                                                                          color: SLATE,   action: () => navigate("/movement/library") },
     { label: "View progress",         desc: "Strength gains + consistency",                                                                           color: INK_LIGHT, action: () => navigate("/movement/progress") },
+    { label:  "My Sessions",          desc:   "Build & launch custom workouts",                                                                       color:  SAGE,  action: () => navigate("/movement/custom-sessions"),},  
   ];
 
   const NAV_ITEMS = [
@@ -272,6 +273,7 @@ export default function AnchorDashboard() {
     { key: "session",   label: "Session",   action: openTodaySession },
     { key: "library",   label: "Library",   action: () => navigate("/movement/library") },
     { key: "progress",  label: "Progress",  action: () => sessionsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }) },
+    { key: "custom", label: "My Sessions", action: () => navigate("/movement/custom-sessions") },
   ];
 
   return (
