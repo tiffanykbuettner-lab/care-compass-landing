@@ -99,7 +99,7 @@ ${isIntraday ? `- Current symptoms and what's happening
 - Stress level
 - Any notes` : ""}
 
-${previousContext ? `CONTEXT: The user has already logged entries today. Here's what they reported: ${previousContext}. Don't ask them to repeat info they've already given — reference it and build on it.` : ""}
+${previousContext ? `CONTEXT: The user has already logged entries today. Here's a brief summary of what they reported: ${previousContext.slice(0, 400)}${previousContext.length > 400 ? "… (truncated)" : ""}. Don't ask them to repeat info they've already given — reference it and build on it.` : ""}
 
 TONE GUIDELINES:
 - Warm, unhurried, validating
@@ -321,6 +321,16 @@ export default function SageLogChat({ mode: modeProp, onSave, onCancel, onSwitch
       .join("\n");
   }
 
+  /* ── Trim conversation history to cap context window cost ── */
+  function trimHistory(msgs) {
+    // Always keep the first assistant message (Sage's opening) + last 8 turns max
+    // This prevents the context window from growing unboundedly across long check-ins
+    if (msgs.length <= 10) return msgs;
+    const first = msgs.slice(0, 1); // Sage's opening message
+    const recent = msgs.slice(-8);  // last 8 messages
+    return [...first, ...recent];
+  }
+
   /* ── User sends a message ── */
   async function handleSend() {
     const text = input.trim();
@@ -342,8 +352,10 @@ export default function SageLogChat({ mode: modeProp, onSave, onCancel, onSwitch
 
     try {
       // API requires user turn first — prepend a silent seed
+      // Trim history to cap input tokens (keeps first message + last 8 turns)
       const seed = { role: "user", content: `[START_${(mode || "intraday").toUpperCase()}_CHECKIN]` };
-      const apiMessages = [seed, ...conversationMessages].map(m => ({ role: m.role, content: m.content }));
+      const trimmed = trimHistory(conversationMessages);
+      const apiMessages = [seed, ...trimmed].map(m => ({ role: m.role, content: m.content }));
 
       const response = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
@@ -354,11 +366,11 @@ export default function SageLogChat({ mode: modeProp, onSave, onCancel, onSwitch
           "anthropic-dangerous-direct-browser-access": "true",
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "claude-haiku-4-5-20251001",
           max_tokens: 300,
           system: buildSystemPrompt(mode, previousContext),
           stream: true,
-          messages: apiMessages,
+          messages: apiMessages,  // trimmed history — max ~10 turns
         }),
       });
 
@@ -435,7 +447,7 @@ export default function SageLogChat({ mode: modeProp, onSave, onCancel, onSwitch
           "anthropic-dangerous-direct-browser-access": "true",
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "claude-haiku-4-5-20251001",
           max_tokens: 300,
           system: buildSystemPrompt(mode, previousContext),
           stream: true,
@@ -490,8 +502,8 @@ export default function SageLogChat({ mode: modeProp, onSave, onCancel, onSwitch
           "anthropic-dangerous-direct-browser-access": "true",
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1024,
+          model: "claude-haiku-4-5-20251001",
+          max_tokens: 600,
           messages: [{ role: "user", content: buildExtractionPrompt(transcript, mode) }],
         }),
       });
