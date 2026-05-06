@@ -1072,12 +1072,12 @@ HOW TO WEIGHT INFORMATION:
 
 IMPORTANT GUIDELINES:
 - Never diagnose. Use language like "may be worth exploring", "could be connected to", "you might ask your doctor about"
-- Be warm, empathetic, and validating — many chronic illness patients feel dismissed. Many have been told their symptoms aren't real or don't fit a pattern
-- If existing diagnoses seem incomplete or potentially misaligned with the symptom picture, gently note this — e.g. "Your current diagnosis may not fully account for [symptom cluster]"
+- Be warm, empathetic, and validating — many chronic illness patients feel dismissed
+- If existing diagnoses seem incomplete or potentially misaligned with the symptom picture, gently note this
 - Focus on cross-system pattern recognition — this is where Care Compass adds the most value
-- Be thorough but clear and readable
 - Use ## for main sections and - for bullet points
-- MEDICATION ANALYSIS: If medications are provided, actively assess them for: (1) known interactions between listed medications, (2) symptoms that could be side effects of a listed medication, (3) medications that may reduce the efficacy of another, (4) medications that may be poorly suited to a listed condition or diagnosis. Use language like "worth discussing with your prescriber", "some people find that...", "it may be worth asking whether...". Never advise stopping or changing a medication.
+- MEDICATION ANALYSIS: Actively assess for known interactions, side effects causing reported symptoms, efficacy conflicts, or poor fit with conditions. Use cautious language. Never advise stopping or changing a medication.
+- WRITING STYLE — THIS IS CRITICAL: Be concise and scannable. Each bullet point should be 1–2 sentences max. Avoid preamble, throat-clearing, or restating what the user already told you. Lead with the insight, not the explanation. If a section has nothing meaningful to say, keep it brief — don't pad. Aim for quality of insight over quantity of words. The goal is a report a person can read in 3–4 minutes, not 15.
 
 USER'S HEALTH INFORMATION:
 Name: ${name || "the user"}
@@ -1104,7 +1104,7 @@ ${familyHistoryStr ? `\nFAMILY HISTORY:\n${familyHistoryStr}\n\nNote: Use family
 FUNCTIONAL IMPACT INSTRUCTIONS:
 Scan the symptom descriptions and daily variable notes for any mention of activities that were difficult, modified, avoided, or impossible due to symptoms. These include driving, cooking, showering, dressing, hair care, laundry, grocery shopping, walking, stairs, lifting, working, typing, social activities, caregiving, and any other daily task. If found, include a dedicated ## Daily Life Impact section. This is critically important — it helps doctors understand real-world severity rather than abstract numbers.
 
-IMPORTANT: Always complete every section fully. Do not truncate, summarize, or abbreviate due to length. It is better to write less per section than to cut a section short. End every response with the full "A Note From Care Compass" section — if you find yourself running long, trim earlier sections slightly rather than leaving the final ones incomplete.
+IMPORTANT: Complete every section — do not skip any. Keep each section tight: 3–6 bullets max, 1–2 sentences per bullet. If a section has little to say, write one brief sentence rather than padding. Always end with the full "A Note From Care Compass" section.
 
 Please provide a Care Compass Insight Report with these sections:
 ## What We Notice
@@ -1320,7 +1320,7 @@ export default function CareCompassPOC() {
       const response = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
-        body: JSON.stringify({ model: "claude-opus-4-6", max_tokens: 8000, messages: [{ role: "user", content: prompt }] }),
+        body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 3500, messages: [{ role: "user", content: prompt }] }),
       });
       if (!response.ok) throw new Error(`API error: ${response.status}`);
       const data = await response.json();
@@ -1379,8 +1379,8 @@ export default function CareCompassPOC() {
           "anthropic-dangerous-direct-browser-access": "true",
         },
         body: JSON.stringify({
-          model: "claude-opus-4-6",
-          max_tokens: 8000,
+          model: "claude-sonnet-4-6",
+          max_tokens: 3500,
           messages: [{ role: "user", content: prompt }],
         }),
       });

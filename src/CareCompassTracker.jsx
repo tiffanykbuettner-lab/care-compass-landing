@@ -1277,7 +1277,7 @@ function LabResultsTab({ entries }) {
         "Based on these results and their symptom picture, suggest relevant specialists and explain the connection to what these results show.\n\n" +
         "A NOTE ON ADVOCATING FOR YOURSELF\n" +
         "Close with a warm, empowering paragraph reminding the patient that normal on a lab report is a statistical range, not a personal guarantee of optimal health — and that they have every right to ask for follow-up, second opinions, and further investigation.\n\n" +
-        "IMPORTANT: Always complete every section fully. Never cut off mid-section. If the response is running long, write less detail in earlier sections rather than leaving later sections incomplete. Always end with the full A NOTE ON ADVOCATING FOR YOURSELF section.";
+        "IMPORTANT: Complete every section — never skip any. Keep each section concise: 2–4 bullets max, 1–2 sentences per bullet. Lead with the insight, not background context. If a section has little to say, write one brief sentence rather than padding. Always end with the full A NOTE ON ADVOCATING FOR YOURSELF section. The goal is a report someone can read in under 5 minutes.";
 
       const messageContent = isImage
         ? [{ type: "image", source: { type: "base64", media_type: file.type, data: base64 } }, { type: "text", text: userPrompt }]
@@ -1292,8 +1292,8 @@ function LabResultsTab({ entries }) {
           "anthropic-dangerous-direct-browser-access": "true",
         },
         body: JSON.stringify({
-          model: "claude-opus-4-6",
-          max_tokens: 8000,
+          model: "claude-sonnet-4-6",
+          max_tokens: 3500,
           system: systemPrompt,
           messages: [{ role: "user", content: messageContent }],
         }),
@@ -3915,7 +3915,7 @@ ${extraContext}` : "";
 
       const patientContext = buildPatientContext();
 
-      const response = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" }, body: JSON.stringify({ model: "claude-opus-4-6", max_tokens: 8000, messages: [{ role: "user", content: `You are Care Compass, a compassionate health navigation assistant. Analyze these symptom tracker entries and identify patterns, triggers, and insights to discuss with a doctor.
+      const response = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" }, body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 3500, messages: [{ role: "user", content: `You are Care Compass, a compassionate health navigation assistant. Analyze these symptom tracker entries and identify patterns, triggers, and insights to discuss with a doctor.
 
 CORE PHILOSOPHY — WEIGHT SYMPTOMS OVER LABELS:
 Your analysis must be grounded primarily in what the user actually logs — their symptoms, timing, triggers, and patterns across days. Existing diagnoses and family history are context, not conclusions. Complex conditions are frequently misdiagnosed or incompletely diagnosed. A symptom pattern that doesn't fully align with a listed diagnosis is a signal worth noting, not ignoring. Let the data speak first, then layer in context.
@@ -3947,7 +3947,7 @@ Scan every entry's activity field and symptom descriptions for mentions of activ
 
 When you find these, compile them into a dedicated ## Daily Life Impact section. This section is one of the most important things a doctor can see — it translates abstract severity scores into real-world consequences. Be specific: quote or closely paraphrase what the user wrote. Group by activity type if multiple entries mention the same task.
 
-IMPORTANT: Always complete every section fully. Do not cut off mid-section. If the response is running long, trim the detail in earlier sections rather than leaving later sections incomplete. Always end with a full "Questions to Bring to Your Doctor" section.
+IMPORTANT: Complete every section — never skip any. Keep each section tight: 3–5 bullets, 1–2 sentences each. Lead with the insight directly — avoid preamble or restating what the user logged. If a section has little to say, keep it to one brief sentence. Always end with a full "Questions to Bring to Your Doctor" section. The goal is a focused, scannable report a person can read in under 5 minutes.
 
 Please provide a warm, specific analysis:
 ## Patterns We Notice
@@ -4115,7 +4115,7 @@ ${extraContext}` : ""}`;
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
-        body: JSON.stringify({ model: "claude-opus-4-6", max_tokens: 4000, messages: [{ role: "user", content: prompt }] }),
+        body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 2500, messages: [{ role: "user", content: prompt }] }),
       });
       const data = await res.json();
       setReportAI(data.content?.[0]?.text || "Unable to generate report. Please try again.");
@@ -4199,7 +4199,7 @@ ${extraContext}` : ""}`;
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
-        body: JSON.stringify({ model: "claude-opus-4-6", max_tokens: 4000, messages: [{ role: "user", content: prompt }] }),
+        body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 2500, messages: [{ role: "user", content: prompt }] }),
       });
       const data = await res.json();
       setErAI(data.content?.[0]?.text || "Unable to generate report. Please try again.");
