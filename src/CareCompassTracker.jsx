@@ -678,9 +678,9 @@ function MedPicker({ medications, selectedIds, onToggle, onAddAll, manualText, o
         r.onerror = reject;
         r.readAsDataURL(file);
       });
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
+      const response = await fetch("/api/claude", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "claude-sonnet-4-6", max_tokens: 500,
           messages: [{ role: "user", content: [
@@ -1284,13 +1284,10 @@ function LabResultsTab({ entries }) {
         ? [{ type: "image", source: { type: "base64", media_type: file.type, data: base64 } }, { type: "text", text: userPrompt }]
         : [{ type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } }, { type: "text", text: userPrompt }];
 
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
+      const response = await fetch("/api/claude", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY,
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true",
         },
         body: JSON.stringify({
           model: "claude-sonnet-4-6",
@@ -2323,9 +2320,9 @@ Rules: Each takeaway is one specific sentence grounded in the numbers. Include q
 Respond ONLY with valid JSON, no markdown:
 [{"insight":"...","category":"pattern|trend|correlation|alert|functional"},...]`;
     try {
-      const res  = await fetch("https://api.anthropic.com/v1/messages", {
+      const res  = await fetch("/api/claude", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 800, messages: [{ role: "user", content: prompt }] }),
       });
       const data  = await res.json();
@@ -3912,7 +3909,7 @@ ${extraContext}` : "";
 
       const patientContext = buildPatientContext();
 
-      const response = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" }, body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 3500, messages: [{ role: "user", content: `You are Care Compass, a compassionate health navigation assistant. Analyze these symptom tracker entries and identify patterns, triggers, and insights to discuss with a doctor.
+      const response = await fetch("/api/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 3500, messages: [{ role: "user", content: `You are Care Compass, a compassionate health navigation assistant. Analyze these symptom tracker entries and identify patterns, triggers, and insights to discuss with a doctor.
 
 CORE PHILOSOPHY — WEIGHT SYMPTOMS OVER LABELS:
 Your analysis must be grounded primarily in what the user actually logs — their symptoms, timing, triggers, and patterns across days. Existing diagnoses and family history are context, not conclusions. Complex conditions are frequently misdiagnosed or incompletely diagnosed. A symptom pattern that doesn't fully align with a listed diagnosis is a signal worth noting, not ignoring. Let the data speak first, then layer in context.
@@ -4109,9 +4106,9 @@ Never diagnose. Use language like "worth discussing", "the data suggests".${extr
 ADDITIONAL CONTEXT FROM USER (incorporate this — it was shared after the original report was generated and contains important supplementary information):
 ${extraContext}` : ""}`;
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/claude", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 2500, messages: [{ role: "user", content: prompt }] }),
       });
       const data = await res.json();
@@ -4193,9 +4190,9 @@ ADDITIONAL CONTEXT FROM USER (incorporate this — shared after the original rep
 ${extraContext}` : ""}`;
 
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/claude", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 2500, messages: [{ role: "user", content: prompt }] }),
       });
       const data = await res.json();
@@ -6877,9 +6874,9 @@ Your role:
     setInput("");
     setLoading(true);
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/claude", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 600, system: systemPrompt, messages: next }),
       });
       const data  = await res.json();
@@ -7103,9 +7100,9 @@ function SageChatbot({ hideOnAsk = false }) {
     setInput("");
     setLoading(true);
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/claude", {
         method:"POST",
-        headers:{ "Content-Type":"application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY, "anthropic-version":"2023-06-01", "anthropic-dangerous-direct-browser-access":"true" },
+        headers:{ "Content-Type":"application/json" },
         body:JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:1000, system:TRACKER_SYSTEM_PROMPT, messages:newMessages }),
       });
       const data = await res.json();

@@ -277,7 +277,6 @@ export default function SageLogChat({ mode: modeProp, onSave, onCancel, onSwitch
   const chatEndRef   = useRef(null);
   const inputRef     = useRef(null);
   const messagesRef  = useRef([]);
-  const apiKey       = import.meta.env.VITE_ANTHROPIC_API_KEY;
 
   /* Keep messagesRef current */
   useEffect(() => { messagesRef.current = messages; }, [messages]);
@@ -357,7 +356,7 @@ export default function SageLogChat({ mode: modeProp, onSave, onCancel, onSwitch
       const trimmed = trimHistory(conversationMessages);
       const apiMessages = [seed, ...trimmed].map(m => ({ role: m.role, content: m.content }));
 
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
+      const response = await fetch("/api/claude", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -438,7 +437,7 @@ export default function SageLogChat({ mode: modeProp, onSave, onCancel, onSwitch
     setStreamingText("");
     setError("");
     try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
+      const response = await fetch("/api/claude", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -493,7 +492,7 @@ export default function SageLogChat({ mode: modeProp, onSave, onCancel, onSwitch
 
     try {
       const transcript = buildTranscript(msgs || messagesRef.current);
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
+      const response = await fetch("/api/claude {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

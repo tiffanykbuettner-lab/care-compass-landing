@@ -512,7 +512,7 @@ export default function SageAssessmentChat({ onComplete, onSwitchToForm }) {
     const seed = { role: "user", content: "[START_ASSESSMENT]" };
 
     try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
+      const response = await fetch("/api/claude", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -591,7 +591,7 @@ export default function SageAssessmentChat({ onComplete, onSwitchToForm }) {
     const apiMessages = [seed, ...conversationMessages].map(m => ({ role: m.role, content: m.content }));
 
     try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
+      const response = await fetch("/api/claude", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -671,7 +671,7 @@ export default function SageAssessmentChat({ onComplete, onSwitchToForm }) {
       .join("\n");
 
     try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
+      const response = await fetch("/api/claude", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
