@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
-import SageAssessmentChat from "./SageAssessmentChat";
+// SAGE_CHAT_DISABLED: Uncomment to re-enable Sage assessment chat
+// import SageAssessmentChat from "./SageAssessmentChat";
 
 const LOADING_STYLES = `
 @keyframes loadProgress {
@@ -1122,8 +1123,8 @@ ${extraContext}` : ""}`;
 
 /* ─── Main POC component ─────────────────────────────────────────────────── */
 export default function CareCompassPOC() {
-  // "sage" = conversational Sage flow (default), "form" = manual multi-step form
-  const [mode, setMode] = useState("sage");
+  // SAGE_CHAT_DISABLED: Default changed to "form". Change back to "sage" to re-enable Sage assessment
+  const [mode, setMode] = useState("form");
 
   const [step, setStep]             = useState(0);
   const [maxVisited, setMaxVisited] = useState(0);
@@ -1456,9 +1457,16 @@ export default function CareCompassPOC() {
           <div style={s.container}>
             <GuidanceOutput guidance={guidance} onReset={handleReset} onEdit={() => { setMode("form"); goToStep(3); }} userName={name}/>
           </div>
-        ) : mode === "sage" ? (
+        ) : (
 
-          /* ── Sage conversational mode (default) ── */
+          /* ── Manual form mode ── */
+          /* SAGE_CHAT_DISABLED: The Sage conversational mode and "Talk to Sage instead" button
+             are commented out below. To re-enable:
+             1. Uncomment the import at the top of this file
+             2. Change useState("form") back to useState("sage")
+             3. Uncomment the mode === "sage" block and "Talk to Sage instead" button below
+
+          ) : mode === "sage" ? (
           <div style={{ ...s.container, maxWidth: 680 }}>
             <div style={s.header}>
               <p style={s.eyebrow}>Your health, seen whole</p>
@@ -1475,13 +1483,11 @@ export default function CareCompassPOC() {
               />
             </div>
           </div>
+          */
 
-        ) : (
-
-          /* ── Manual form mode (secondary) ── */
           <div style={s.container}>
 
-            {/* "Talk to Sage instead" pill at top of form */}
+            {/* SAGE_CHAT_DISABLED: Uncomment to re-enable "Talk to Sage instead" pill
             <div style={{ display: "flex", justifyContent: "flex-end" }}>
               <button
                 onClick={() => { setMode("sage"); window.scrollTo(0, 0); }}
@@ -1496,6 +1502,7 @@ export default function CareCompassPOC() {
                 ✦ Talk to Sage instead
               </button>
             </div>
+            */}
 
             {/* Header */}
             <div style={s.header}>

@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "./AuthContext";
 import { Icon, MorningSunIcon, EveningMoonIcon } from "./SageIcons";
-import SageAskWidget from "./SageAskWidget";
-import SageLogChat from "./SageLogChat";
+// SAGE_CHAT_DISABLED: Uncomment these imports to re-enable Sage chat logging
+// import SageAskWidget from "./SageAskWidget";
+// import SageLogChat from "./SageLogChat";
 
 const INSIGHTS_LOADING_STYLES = `
 @keyframes insightProgress {
@@ -3355,8 +3356,9 @@ export default function CareCompassTracker() {
   const [confirmDeleteLabId, setConfirmDeleteLabId] = useState(null);
   const [showMorningCheckin, setShowMorningCheckin] = useState(false);
   const [showEveningCheckin, setShowEveningCheckin] = useState(false);
-  const [showSageChat, setShowSageChat]           = useState(false);
-  const [sageChatMode, setSageChatMode]           = useState(null);
+  // SAGE_CHAT_DISABLED: Uncomment to re-enable Sage chat logging
+  // const [showSageChat, setShowSageChat]           = useState(false);
+  // const [sageChatMode, setSageChatMode]           = useState(null);
   const [morningForm, setMorningForm] = useState({ sleep: 7, severity: 5, symptoms: "", energy: 5, notes: "" });
   const [eveningForm, setEveningForm] = useState({ severity: 5, symptoms: "", food: "", medications: "", selectedMedIds: [], activity: "", stress: 5, notes: "", hoursUpright: null, tasksCompleted: [], energyEnvelope: null });
   const [checkinSaved, setCheckinSaved] = useState(""); // id of entry pending delete confirmation
@@ -3500,15 +3502,9 @@ export default function CareCompassTracker() {
   const isFirstEntryToday = !entries.some(e => new Date(e.timestamp).toDateString() === new Date().toDateString());
 
   const openNew = () => {
-    setEditingEntry(null);
-    const morningEndMins = morningStartMins + 4 * 60;
-    const mode = (nowMins >= morningStartMins && nowMins < morningEndMins)
-      ? "morning"
-      : isEveningTime
-      ? "evening"
-      : "intraday";
-    setSageChatMode(mode);
-    setShowSageChat(true);
+    // SAGE_CHAT_DISABLED: Previously opened Sage chat — now opens form directly
+    // To re-enable: setSageChatMode(mode); setShowSageChat(true);
+    openNewForm();
   };
 
   // Auto-open Sage if navigated here from dashboard "Tell Sage instead"
@@ -3518,7 +3514,8 @@ export default function CareCompassTracker() {
       const url = new URL(window.location.href);
 
       if (params.get("sage") === "1") {
-        openNew();
+        // SAGE_CHAT_DISABLED: Previously opened Sage chat — now opens form directly
+        openNewForm();
         url.searchParams.delete("sage");
         window.history.replaceState({}, "", url.toString());
       }
@@ -5500,7 +5497,9 @@ ${extraContext}` : ""}`;
 
           {view === "ask" && (
             <div style={{ ...s.tabContent, paddingBottom: "env(safe-area-inset-bottom, 1rem)" }}>
+{/* SAGE_CHAT_DISABLED: Uncomment to re-enable SageAskWidget on Ask tab
               <SageAskWidget mode="tracker" />
+              */}
             </div>
           )}
 
@@ -6005,10 +6004,12 @@ ${extraContext}` : ""}`;
                 <MorningSunIcon size={18} /> Morning check-in
               </h2>
               <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+{/* SAGE_CHAT_DISABLED: Uncomment to re-enable "Tell Sage instead" in morning check-in
                 <button onClick={() => { setShowMorningCheckin(false); setSageChatMode("morning"); setShowSageChat(true); }}
                   style={{ background: SAGE_LIGHT, border: `1px solid ${SAGE}`, borderRadius: "100px", padding: "0.3rem 0.75rem", fontSize: "0.75rem", fontWeight: 600, color: SAGE_DARK, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
                   ✦ Tell Sage instead
                 </button>
+                */}
                 <button onClick={() => setShowMorningCheckin(false)} style={s.modalClose}><Icon name="close" size={16} /></button>
               </div>
             </div>
@@ -6098,10 +6099,12 @@ ${extraContext}` : ""}`;
                   <EveningMoonIcon size={18} /> Evening check-in
                 </h2>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+{/* SAGE_CHAT_DISABLED: Uncomment to re-enable "Tell Sage instead" in evening check-in
                   <button onClick={() => { setShowEveningCheckin(false); setSageChatMode("evening"); setShowSageChat(true); }}
                     style={{ background: SAGE_LIGHT, border: `1px solid ${SAGE}`, borderRadius: "100px", padding: "0.3rem 0.75rem", fontSize: "0.75rem", fontWeight: 600, color: SAGE_DARK, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
                     ✦ Tell Sage instead
                   </button>
+                  */}
                   <button onClick={() => setShowEveningCheckin(false)} style={s.modalClose}><Icon name="close" size={16} /></button>
                 </div>
               </div>
@@ -6317,7 +6320,7 @@ ${extraContext}` : ""}`;
         </div>
       )}
 
-      {/* ── Sage Chat log entry ── */}
+{/* SAGE_CHAT_DISABLED: Uncomment this entire block to re-enable Sage chat log entry
       {showSageChat && (
         <div style={{ position: "fixed", inset: 0, zIndex: 9600, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "stretch" }} onClick={() => setShowSageChat(false)}>
           <div style={{ width: "100%", maxWidth: 540, margin: "0 auto", height: "100dvh", display: "flex", flexDirection: "column" }} onClick={e => e.stopPropagation()}>
@@ -6331,6 +6334,7 @@ ${extraContext}` : ""}`;
           </div>
         </div>
       )}
+      */}
 
       {showForm && (
         <div style={s.modalOverlay} onClick={() => { setShowForm(false); }}>
@@ -6342,6 +6346,7 @@ ${extraContext}` : ""}`;
                 {editingEntry ? "Edit entry" : "Log a symptom"}
               </h2>
               <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+{/* SAGE_CHAT_DISABLED: Uncomment to re-enable "Tell Sage instead" in form header
                 {!editingEntry && (
                   <button onClick={() => {
                     setShowForm(false);
@@ -6353,6 +6358,7 @@ ${extraContext}` : ""}`;
                     ✦ Tell Sage instead
                   </button>
                 )}
+                */}
                 <button onClick={() => { setShowForm(false); }} style={s.modalClose}><Icon name="close" size={16} /></button>
               </div>
             </div>
@@ -6686,7 +6692,7 @@ ${extraContext}` : ""}`;
         <p style={s.footerDisclaimer}>Care Compass is not a medical service and does not provide medical advice, diagnosis, or treatment.</p>
       </footer>
 
-      <div className="no-print">{!showSageChat && !showMorningCheckin && !showEveningCheckin && !showForm && <SageChatbot hideOnAsk={view === "ask"} />}</div>
+      <div className="no-print">{!showMorningCheckin && !showEveningCheckin && !showForm && <SageChatbot hideOnAsk={view === "ask"} />}</div>
 
     </div>
   );
