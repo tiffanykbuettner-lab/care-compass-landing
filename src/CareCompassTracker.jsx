@@ -4538,10 +4538,12 @@ ${extraContext}` : ""}`;
                 scroll-margin-bottom: 120px;
               }
             `}</style>
-            <button onClick={openNew} style={{ ...s.addBtn, display: "flex", alignItems: "center", gap: "0.6rem", paddingLeft: "1.5rem", paddingRight: "1.75rem" }}>
-              <FireflyBare size={32} />
-              Talk to Sage
-            </button>
+            {/* SAGE_CHAT_DISABLED: Uncomment to re-enable "Talk to Sage" primary button
+            							<button onClick={openNew} style={{ ...s.addBtn, display: "flex", alignItems: "center", gap: "0.6rem", paddingLeft: "1.5rem", paddingRight: "1.75rem" }}>
+              								<FireflyBare size={32} />
+              								Talk to Sage
+            							</button>
+            							*/}
           </div>
           {entries.length > 0 && (
             <div style={s.statsRow} className="no-print">
