@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-// SAGE_CHAT_DISABLED: Uncomment to re-enable Sage assessment chat
-// import SageAssessmentChat from "./SageAssessmentChat";
+import SageAssessmentChat from "./SageAssessmentChat";
 
 const LOADING_STYLES = `
 @keyframes loadProgress {
@@ -1123,8 +1122,7 @@ ${extraContext}` : ""}`;
 
 /* ─── Main POC component ─────────────────────────────────────────────────── */
 export default function CareCompassPOC() {
-  // SAGE_CHAT_DISABLED: Default changed to "form". Change back to "sage" to re-enable Sage assessment
-  const [mode, setMode] = useState("form");
+  const [mode, setMode] = useState("sage");
 
   const [step, setStep]             = useState(0);
   const [maxVisited, setMaxVisited] = useState(0);
@@ -1432,7 +1430,12 @@ export default function CareCompassPOC() {
           <BotanicalMark size={32}/>
           <span style={s.navLogoText}>Care Compass</span>
         </a>
-        <span style={s.navBadge}>Early Access</span>
+        <div style={s.navLinks}>
+          <span style={s.navActive}>Assessment</span>
+          <a href="/tracker" style={s.navLink}>Tracker</a>
+          <a href="/dashboard" style={s.navLink}>Dashboard</a>
+          <span style={s.navBadge}>Early Access</span>
+        </div>
       </nav>
 
       <main style={s.main}>
@@ -1454,16 +1457,7 @@ export default function CareCompassPOC() {
           <div style={s.container}>
             <GuidanceOutput guidance={guidance} onReset={handleReset} onEdit={() => { setMode("form"); goToStep(3); }} userName={name}/>
           </div>
-        ) : (
-
-          /* ── Manual form mode ── */
-          /* SAGE_CHAT_DISABLED: The Sage conversational mode and "Talk to Sage instead" button
-             are commented out below. To re-enable:
-             1. Uncomment the import at the top of this file
-             2. Change useState("form") back to useState("sage")
-             3. Uncomment the mode === "sage" block and "Talk to Sage instead" button below
-
-          ) : mode === "sage" ? (
+        ) : mode === "sage" ? (
           <div style={{ ...s.container, maxWidth: 680 }}>
             <div style={s.header}>
               <p style={s.eyebrow}>Your health, seen whole</p>
@@ -1480,11 +1474,10 @@ export default function CareCompassPOC() {
               />
             </div>
           </div>
-          */
+          ) : (
 
           <div style={s.container}>
 
-            {/* SAGE_CHAT_DISABLED: Uncomment to re-enable "Talk to Sage instead" pill
             <div style={{ display: "flex", justifyContent: "flex-end" }}>
               <button
                 onClick={() => { setMode("sage"); window.scrollTo(0, 0); }}
@@ -1499,7 +1492,6 @@ export default function CareCompassPOC() {
                 ✦ Talk to Sage instead
               </button>
             </div>
-            */}
 
             {/* Header */}
             <div style={s.header}>
@@ -1759,6 +1751,9 @@ const s = {
   navLogo: { display: "flex", alignItems: "center", gap: "0.6rem", textDecoration: "none" },
   navLogoText: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "1.1rem", fontWeight: 700, color: SAGE_DARK, letterSpacing: "-0.01em" },
   navBadge: { fontSize: "0.75rem", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: TEAL, background: "#e0f2f4", padding: "0.3rem 0.8rem", borderRadius: "100px" },
+  navLinks: { display: "flex", alignItems: "center", gap: "1.25rem" },
+  navLink: { fontSize: "0.875rem", color: "#6b6560", textDecoration: "none" },
+  navActive: { fontSize: "0.875rem", color: SAGE_DARK, fontWeight: 600 },
   main: { flex: 1, padding: "3rem 1.5rem" },
   container: { maxWidth: 760, margin: "0 auto" },
   header: { textAlign: "center", marginBottom: "2.5rem" },
