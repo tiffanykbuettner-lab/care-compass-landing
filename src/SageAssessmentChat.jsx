@@ -515,7 +515,7 @@ export default function SageAssessmentChat({ onComplete, onSwitchToForm }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "claude-sonnet-4-6",
           max_tokens: 400,
           system: buildSystemPrompt("intro", 0, account),
           stream: true,
@@ -589,7 +589,7 @@ export default function SageAssessmentChat({ onComplete, onSwitchToForm }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "claude-sonnet-4-6",
           max_tokens: 400,
           system: buildSystemPrompt(currentPhase, currentSysDone, account),
           stream: true,
@@ -664,7 +664,7 @@ export default function SageAssessmentChat({ onComplete, onSwitchToForm }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "claude-sonnet-4-6",
           max_tokens: 2000,
           messages: [{ role: "user", content: buildExtractionPrompt(transcript, account) }],
         }),

@@ -959,7 +959,7 @@ function SageChatbot({ currentStep }) {
         method:"POST",
         headers:{ "Content-Type":"application/json" },
         body:JSON.stringify({
-          model:"claude-sonnet-4-20250514",
+          model:"claude-sonnet-4-6",
           max_tokens:1000,
           system:`${ASSESSMENT_SYSTEM_PROMPT} The user is currently on step ${currentStep + 1} of 4: "${stepLabel}".`,
           messages:newMessages,

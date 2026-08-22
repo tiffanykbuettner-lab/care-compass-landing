@@ -7088,7 +7088,7 @@ function SageChatbot({ hideOnAsk = false }) {
       const res = await fetch("/api/claude", {
         method:"POST",
         headers:{ "Content-Type":"application/json" },
-        body:JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:1000, system:TRACKER_SYSTEM_PROMPT, messages:newMessages }),
+        body:JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:1000, system:TRACKER_SYSTEM_PROMPT, messages:newMessages }),
       });
       const data = await res.json();
       const reply = data.content?.[0]?.text || "I'm having trouble connecting. Please try again in a moment.";
