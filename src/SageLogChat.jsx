@@ -358,12 +358,7 @@ export default function SageLogChat({ mode: modeProp, onSave, onCancel, onSwitch
 
       const response = await fetch("/api/claude", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "claude-haiku-4-5-20251001",
           max_tokens: 300,
@@ -439,12 +434,7 @@ export default function SageLogChat({ mode: modeProp, onSave, onCancel, onSwitch
     try {
       const response = await fetch("/api/claude", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "claude-haiku-4-5-20251001",
           max_tokens: 300,
@@ -492,14 +482,9 @@ export default function SageLogChat({ mode: modeProp, onSave, onCancel, onSwitch
 
     try {
       const transcript = buildTranscript(msgs || messagesRef.current);
-      const response = await fetch("/api/claude {
+      const response = await fetch("/api/claude", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "claude-haiku-4-5-20251001",
           max_tokens: 600,

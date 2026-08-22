@@ -379,7 +379,6 @@ function ProgressHeader({ phase, systemsDiscussed, onSwitchToForm }) {
 /* ─── Main component ──────────────────────────────────────────────────────── */
 export default function SageAssessmentChat({ onComplete, onSwitchToForm }) {
   const account = React.useMemo(() => readAccountData(), []);
-  const apiKey  = import.meta.env.VITE_ANTHROPIC_API_KEY;
 
   const [messages,        setMessages]        = useState([]);
   const [input,           setInput]           = useState("");
@@ -514,12 +513,7 @@ export default function SageAssessmentChat({ onComplete, onSwitchToForm }) {
     try {
       const response = await fetch("/api/claude", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
           max_tokens: 400,
@@ -593,12 +587,7 @@ export default function SageAssessmentChat({ onComplete, onSwitchToForm }) {
     try {
       const response = await fetch("/api/claude", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
           max_tokens: 400,
@@ -673,12 +662,7 @@ export default function SageAssessmentChat({ onComplete, onSwitchToForm }) {
     try {
       const response = await fetch("/api/claude", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
           max_tokens: 2000,
